@@ -63,9 +63,9 @@ namespace TcgEngine
             return false; //Player cannot be in a pile
         }
 
-        public override bool IsTargetConditionMet(Game data, AbilityData ability, Card caster, Slot target)
+        public override bool IsTargetConditionMet(Game data, AbilityData ability, Card caster, CardPositionSlot target)
         {
-            return type == PileType.Board && target != Slot.None; //Slot is always on board
+            return type == PileType.Board && target != CardPositionSlot.None; //Slot is always on board
         }
     }
 }

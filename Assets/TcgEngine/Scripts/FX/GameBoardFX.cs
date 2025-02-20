@@ -29,7 +29,7 @@ namespace TcgEngine.FX
             FXTool.DoFX(AssetData.Get().new_turn_fx, Vector3.zero);
         }
 
-        void OnPlayCard(Card card, Slot slot)
+        void OnPlayCard(Card card, CardPositionSlot slot)
         {
             int player_id = GameClient.Get().GetPlayerID();
             if (card != null)

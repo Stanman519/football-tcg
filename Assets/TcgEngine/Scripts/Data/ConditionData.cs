@@ -25,7 +25,7 @@ namespace TcgEngine
             return true; //Override this, condition targeting player
         }
 
-        public virtual bool IsTargetConditionMet(Game data, AbilityData ability, Card caster, Slot target)
+        public virtual bool IsTargetConditionMet(Game data, AbilityData ability, Card caster, CardPositionSlot target)
         {
             return true; //Override this, condition targeting slot
         }

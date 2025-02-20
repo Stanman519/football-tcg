@@ -24,7 +24,7 @@ namespace TcgEngine
             logic.RollRandomValue(dice);
         }
 
-        public override void DoEffect(GameLogic logic, AbilityData ability, Card caster, Slot target)
+        public override void DoEffect(GameLogic logic, AbilityData ability, Card caster, CardPositionSlot target)
         {
             logic.RollRandomValue(dice);
         }

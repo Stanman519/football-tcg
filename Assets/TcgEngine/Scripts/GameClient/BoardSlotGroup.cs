@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using TcgEngine.Client;
 using TcgEngine.UI;
+using System.Linq;
 
 namespace TcgEngine.Client
 {
@@ -36,7 +37,7 @@ namespace TcgEngine.Client
 
         private void Start()
         {
-            if (min_x < Slot.x_min || max_x > Slot.x_max || y < Slot.y_min || y > Slot.y_max)
+            if (min_x < CardPositionSlot.x_min || max_x > CardPositionSlot.x_max || y < CardPositionSlot.y_min || y > CardPositionSlot.y_max)
                 Debug.LogError("Board Slot X and Y value must be within the min and max set for those values, check Slot.cs script to change those min/max.");
 
             GameClient.Get().onConnectGame += OnConnect;
@@ -47,7 +48,7 @@ namespace TcgEngine.Client
 
         private void OnConnect()
         {
-            foreach (Slot slot in Slot.GetAll())
+            foreach (CardPositionSlot slot in CardPositionSlot.GetAll())
             {
                 if (IsInGroup(slot))
                 {
@@ -93,11 +94,11 @@ namespace TcgEngine.Client
 
             foreach (GroupSlot slot in group_slots)
             {
-                Card card = gdata.GetSlotCard(slot.slot);
-                slot.timer += (card != null ? 1f : -1f) * Time.deltaTime / reduce_delay;
+                List<Card> cards = gdata.GetSlotCards(slot.slot);
+                slot.timer += (cards.Count > 0 ? 1f : -1f) * Time.deltaTime / reduce_delay;
                 slot.timer = Mathf.Clamp01(slot.timer);
 
-                if (slot.IsOccupied)
+                if (cards.Count == gdata.players.First(pl => pl.player_id == slot.slot.p).head_coach.positional_Scheme[player_position_type].pos_max)
                     count += 1;
             }
 
@@ -126,67 +127,71 @@ namespace TcgEngine.Client
             }
         }
 
-        public bool IsInGroup(Slot slot)
+        public bool IsInGroup(CardPositionSlot slot)
         {
             return IsInGroup(slot.x, slot.y, slot.p);
         }
 
         public bool IsInGroup(int x, int y)
         {
-            Slot min = GetSlotMin();
-            Slot max = GetSlotMax();
+            CardPositionSlot min = GetSlotMin();
+            CardPositionSlot max = GetSlotMax();
             return x >= min.x && x <= max.x && y >= min.y && y <= max.y;
         }
 
         public bool IsInGroup(int x, int y, int p)
         {
-            Slot min = GetSlotMin();
-            Slot max = GetSlotMax();
+            CardPositionSlot min = GetSlotMin();
+            CardPositionSlot max = GetSlotMax();
             return x >= min.x && x <= max.x && y >= min.y && y <= max.y && p >= min.p && p <= max.p;
         }
 
-        public Slot GetSlotMin()
+        public CardPositionSlot GetSlotMin()
         {
             return GetSlot(min_x, y);
         }
 
-        public Slot GetSlotMax()
+        public CardPositionSlot GetSlotMax()
         {
             return GetSlot(max_x, y);
         }
 
         //Find the actual slot coordinates of this board slot
-        public Slot GetSlot(int x, int y)
+        public CardPositionSlot GetSlot(int x, int y)
         {
             int p = 0;
-
+            int max_players = 0;
+            Game gdata = GameClient.Get().GetGameData();
             if (type == BoardSlotType.FlipX)
             {
                 int pid = GameClient.Get().GetPlayerID();
                 int px = x;
+                max_players = gdata.players.First(play => play.player_id == pid).head_coach.positional_Scheme[player_position_type].pos_max;
                 if ((pid % 2) == 1)
-                    px = Slot.x_max - x + Slot.x_min; //Flip X coordinate if not the first player
-                return new Slot(px, y, p);
+                    px = CardPositionSlot.x_max - x + CardPositionSlot.x_min; //Flip X coordinate if not the first player
+                return new CardPositionSlot(px, y, p, max_players, player_position_type);
             }
 
             if (type == BoardSlotType.FlipY)
             {
                 int pid = GameClient.Get().GetPlayerID();
                 int py = y;
+                max_players = gdata.players.First(play => play.player_id == pid).head_coach.positional_Scheme[player_position_type].pos_max;
                 if ((pid % 2) == 1)
-                    py = Slot.y_max - y + Slot.y_min; //Flip Y coordinate if not the first player
-                return new Slot(x, py, p);
+                    py = CardPositionSlot.y_max - y + CardPositionSlot.y_min; //Flip Y coordinate if not the first player
+                return new CardPositionSlot(x, py, p, max_players, player_position_type);
             }
 
             if (type == BoardSlotType.PlayerSelf)
                 p = GameClient.Get().GetPlayerID();
             if(type == BoardSlotType.PlayerOpponent)
                 p = GameClient.Get().GetOpponentPlayerID();
-           
-            return new Slot(x, y, p);
+            max_players = gdata.players.First(play => play.player_id == p).head_coach.positional_Scheme[player_position_type].pos_max;
+
+            return new CardPositionSlot(x, y, p, max_players, player_position_type);
         }
 
-        public override Slot GetSlot(Vector3 wpos)
+        public override CardPositionSlot GetSlot(Vector3 wpos)
         {
             GroupSlot nearest = null;
             float min_dist = 99f;
@@ -203,10 +208,10 @@ namespace TcgEngine.Client
 
             if (nearest != null)
                 return nearest.slot;
-            return Slot.None;
+            return CardPositionSlot.None;
         }
 
-        public virtual Slot GetSlotOccupied(Vector3 wpos)
+        public virtual CardPositionSlot GetSlotOccupied(Vector3 wpos)
         {
             GroupSlot nearest = null;
             float min_dist = 99f;
@@ -223,19 +228,19 @@ namespace TcgEngine.Client
 
             if (nearest != null)
                 return nearest.slot;
-            return Slot.None;
+            return CardPositionSlot.None;
         }
 
-        public override Card GetSlotCard(Vector3 wpos)
+        public override List<Card> GetSlotCards(Vector3 wpos)
         {
             Game gdata = GameClient.Get().GetGameData();
-            Slot slot = GetSlotOccupied(wpos);
-            if (slot != Slot.None)
-                return gdata.GetSlotCard(slot);
+            CardPositionSlot slot = GetSlotOccupied(wpos);
+            if (slot != CardPositionSlot.None)
+                return gdata.GetSlotCards(slot);
             return null;
         }
 
-        public override bool HasSlot(Slot slot)
+        public override bool HasSlot(CardPositionSlot slot)
         {
             foreach (GroupSlot spos in group_slots)
             {
@@ -245,7 +250,7 @@ namespace TcgEngine.Client
             return false;
         }
 
-        public override Vector3 GetPosition(Slot slot)
+        public override Vector3 GetPosition(CardPositionSlot slot)
         {
             foreach (GroupSlot spos in group_slots)
             {
@@ -255,21 +260,21 @@ namespace TcgEngine.Client
             return transform.position;
         }
 
-        public override Slot GetEmptySlot(Vector3 wpos)
+        public override CardPositionSlot GetEmptySlot(Vector3 wpos)
         {
             foreach (GroupSlot slot in group_slots)
             {
                 if (!slot.IsOccupied)
                     return slot.slot;
             }
-            return Slot.None;
+            return CardPositionSlot.None;
         }
 
     }
 
     public class GroupSlot
     {
-        public Slot slot;
+        public CardPositionSlot slot;
         public Vector3 pos;
         public float timer;
 

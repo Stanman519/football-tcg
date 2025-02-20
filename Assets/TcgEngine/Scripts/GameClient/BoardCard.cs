@@ -446,7 +446,7 @@ namespace TcgEngine.Client
             return null;
         }
 
-        public Slot GetSlot()
+        public CardPositionSlot GetSlot()
         {
             return GetCard().slot;
         }

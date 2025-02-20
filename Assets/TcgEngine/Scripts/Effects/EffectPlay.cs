@@ -16,12 +16,12 @@ namespace TcgEngine
         {
             Game game = logic.GetGameData();
             Player player = game.GetPlayer(caster.player_id);
-            Slot slot = player.GetRandomEmptySlot(logic.GetRandom());
+            CardPositionSlot slot = player.GetRandomEmptySlot(logic.GetRandom());
 
             player.RemoveCardFromAllGroups(target);
             player.cards_hand.Add(target);
 
-            if (slot != Slot.None)
+            if (slot != CardPositionSlot.None)
             {
                 logic.PlayCard(target, slot, true);
             }

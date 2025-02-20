@@ -24,10 +24,10 @@ namespace TcgEngine
             return CompareBool(false, oper); //Target is not empty slot
         }
 
-        public override bool IsTargetConditionMet(Game data, AbilityData ability, Card caster, Slot target)
+        public override bool IsTargetConditionMet(Game data, AbilityData ability, Card caster, CardPositionSlot target)
         { 
-            Card slot_card = data.GetSlotCard(target);
-            return CompareBool(slot_card == null, oper);
+            List<Card> slot_cards = data.GetSlotCards(target);
+            return CompareBool(slot_cards.Count == 0, oper);
         }
     }
 }

@@ -26,9 +26,9 @@ namespace TcgEngine
             return CompareBool(same_owner, oper);
         }
 
-        public override bool IsTargetConditionMet(Game data, AbilityData ability, Card caster, Slot target)
+        public override bool IsTargetConditionMet(Game data, AbilityData ability, Card caster, CardPositionSlot target)
         {
-            bool same_owner = Slot.GetP(caster.player_id) == target.p;
+            bool same_owner = CardPositionSlot.GetP(caster.player_id) == target.p;
             return CompareBool(same_owner, oper);
         }
     }

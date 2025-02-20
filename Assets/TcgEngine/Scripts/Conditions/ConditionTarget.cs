@@ -26,7 +26,7 @@ namespace TcgEngine
             return CompareBool(type == ConditionTargetType.Player, oper); //Is Player
         }
 
-        public override bool IsTargetConditionMet(Game data, AbilityData ability, Card caster, Slot target)
+        public override bool IsTargetConditionMet(Game data, AbilityData ability, Card caster, CardPositionSlot target)
         {
             return CompareBool(type == ConditionTargetType.Slot, oper); //Is Player
         }

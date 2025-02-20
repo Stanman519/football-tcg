@@ -19,6 +19,15 @@ namespace TcgEngine
             bool hstatus = target.HasStatus(has_status) && target.GetStatusValue(has_status) >= value;
             return CompareBool(hstatus, oper);
         }
+        public bool IsTargetConditionMetSlot(Game data, AbilityData ability, Card caster, List<Card> targets)
+        {
+            foreach (Card target in targets)
+            {
+                bool hstatus = target.HasStatus(has_status) && target.GetStatusValue(has_status) >= value;
+                if (CompareBool(hstatus, oper)) return true;
+            }
+            return false;
+        }
 
         public override bool IsTargetConditionMet(Game data, AbilityData ability, Card caster, Player target)
         {
@@ -26,11 +35,11 @@ namespace TcgEngine
             return CompareBool(hstatus, oper);
         }
 
-        public override bool IsTargetConditionMet(Game data, AbilityData ability, Card caster, Slot target)
+        public override bool IsTargetConditionMet(Game data, AbilityData ability, Card caster, CardPositionSlot target)
         {
-            Card card = data.GetSlotCard(target);
-            if (card != null)
-                return IsTargetConditionMet(data, ability, caster, card);
+            List<Card> cards = data.GetSlotCards(target);
+            if (cards.Count != 0)
+                return IsTargetConditionMetSlot(data, ability, caster, cards);
             return false;
         }
     }

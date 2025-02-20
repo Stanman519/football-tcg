@@ -22,9 +22,9 @@ namespace TcgEngine
             return IsTargetConditionMet(data, ability, caster, target.slot);
         }
 
-        public override bool IsTargetConditionMet(Game data, AbilityData ability, Card caster, Slot target)
+        public override bool IsTargetConditionMet(Game data, AbilityData ability, Card caster, CardPositionSlot target)
         { 
-            Slot cslot = caster.slot;
+            CardPositionSlot cslot = caster.slot;
             int dist_x = Mathf.Abs(cslot.x - target.x);
             int dist_y = Mathf.Abs(cslot.y - target.y);
             int dist_p = Mathf.Abs(cslot.p - target.p);

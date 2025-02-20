@@ -23,7 +23,7 @@ namespace TcgEngine
             return IsTargetConditionMet(data, ability, caster, target.slot);
         }
 
-        public override bool IsTargetConditionMet(Game data, AbilityData ability, Card caster, Slot target)
+        public override bool IsTargetConditionMet(Game data, AbilityData ability, Card caster, CardPositionSlot target)
         {
             bool valid_x = CompareInt(target.x, oper_x, value_x);
             bool valid_y = CompareInt(target.y, oper_y, value_y);

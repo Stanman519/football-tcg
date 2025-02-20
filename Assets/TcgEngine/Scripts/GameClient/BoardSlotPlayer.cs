@@ -177,9 +177,9 @@ namespace TcgEngine.Client
             return opponent ? GameClient.Get().GetOpponentPlayer() : GameClient.Get().GetPlayer();
         }
 
-        public override Slot GetSlot()
+        public override CardPositionSlot GetSlot()
         {
-            return new Slot(GetPlayerID());
+            return new CardPositionSlot(GetPlayerID());
         }
 
         public static BoardSlotPlayer Get(bool opponent)

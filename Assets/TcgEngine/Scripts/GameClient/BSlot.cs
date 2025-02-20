@@ -8,6 +8,8 @@ namespace TcgEngine.Client
     /// Base class for BoardSlot, BoardSlotPlayer and BoardSlotGroup
     /// </summary>
 
+
+
     public class BSlot : MonoBehaviour
     {
         protected SpriteRenderer render;
@@ -16,6 +18,9 @@ namespace TcgEngine.Client
         protected float start_alpha = 0f;
         protected float current_alpha = 0f;
         protected float target_alpha = 0f;
+
+        public PlayerPositionGrp player_position_type;
+        public bool isStarSlot = false; // Determines if a Star/Superstar can go here
 
         private static List<BSlot> slot_list = new List<BSlot>();
 
@@ -39,30 +44,36 @@ namespace TcgEngine.Client
             current_alpha = Mathf.MoveTowards(current_alpha, target_alpha * start_alpha, 2f * Time.deltaTime);
             render.color = new Color(render.color.r, render.color.g, render.color.b, current_alpha);
         }
-
-        public virtual Slot GetSlot()
+        public virtual bool IsValidDrop(Card card)
         {
-            return Slot.None;
+            return isStarSlot && card != null && card.playerPosition == player_position_type;
+        }
+        public virtual CardPositionSlot GetSlot()
+        {
+            return CardPositionSlot.None;
         }
 
-        public virtual Slot GetSlot(Vector3 wpos)
-        {
-            return GetSlot();
-        }
-
-        public virtual Slot GetEmptySlot(Vector3 wpos)
+        public virtual CardPositionSlot GetSlot(Vector3 wpos)
         {
             return GetSlot();
         }
-        
-        public virtual Card GetSlotCard(Vector3 wpos)
+
+        public virtual CardPositionSlot GetEmptySlot(Vector3 wpos)
+        {
+            return GetSlot();
+        }
+        public static List<BSlot> GetAll()
+        {
+            return slot_list;
+        }
+        public virtual List<Card> GetSlotCards(Vector3 wpos)
         {
             Game gdata = GameClient.Get().GetGameData();
-            Slot slot = GetSlot(wpos);
-            return gdata.GetSlotCard(slot);
+            CardPositionSlot slot = GetSlot(wpos);
+            return gdata.GetSlotCards(slot);
         }
 
-        public virtual Vector3 GetPosition(Slot slot)
+        public virtual Vector3 GetPosition(CardPositionSlot slot)
         {
             return transform.position;
         }
@@ -72,15 +83,15 @@ namespace TcgEngine.Client
             return null;
         }
 
-        public virtual bool HasSlot(Slot slot)
+        public virtual bool HasSlot(CardPositionSlot slot)
         {
-            Slot aslot = GetSlot();
+            CardPositionSlot aslot = GetSlot();
             return aslot == slot;
         }
 
         public virtual bool IsPlayer()
         {
-            Slot slot = GetSlot();
+            CardPositionSlot slot = GetSlot();
             return slot.x == 0 && slot.y == 0;
         }
 
@@ -105,7 +116,7 @@ namespace TcgEngine.Client
             return nearest;
         }
 
-        public static BSlot Get(Slot slot)
+        public static BSlot Get(CardPositionSlot slot)
         {
             foreach (BSlot bslot in GetAll())
             {

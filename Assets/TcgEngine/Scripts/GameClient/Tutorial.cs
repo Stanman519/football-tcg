@@ -60,7 +60,7 @@ namespace TcgEngine.Client
             ShowGroup(group);
         }
 
-        private void OnCardPlayed(Card card, Slot slot)
+        private void OnCardPlayed(Card card, CardPositionSlot slot)
         {
             Game data = GameClient.Get().GetGameData();
             if (card.player_id == GameClient.Get().GetPlayerID())
@@ -212,11 +212,15 @@ namespace TcgEngine.Client
             return CanDo(trigger, null);
         }
 
-        public bool CanDo(TutoEndTrigger trigger, Slot slot)
+        public bool CanDo(TutoEndTrigger trigger, CardPositionSlot slot)
         {
             Game data = GameClient.Get().GetGameData();
-            Card card = data.GetSlotCard(slot);
-            return CanDo(trigger, card);
+            List<Card> cards = data.GetSlotCards(slot);
+            foreach (var card in cards)
+            {
+                if (CanDo(trigger, card)) return true;
+            }
+            return false;
         }
 
         public bool CanDo(TutoEndTrigger trigger, Card target)

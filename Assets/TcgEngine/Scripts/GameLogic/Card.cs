@@ -4,8 +4,23 @@ using UnityEngine;
 
 namespace TcgEngine
 {
-    //Represent the current state of a card during the game (data only)
+    public enum PlayerPositionGrp
+    {
+        NONE = 0,
+        QB = 1,
+        RB_TE = 2,
+        WR = 3, 
+        OL = 5,
 
+        DL = 10,
+        LB = 11,
+        DB = 12,
+
+        K = 20,
+        P = 21
+    }
+
+    //Represent the current state of a card during the game (data only)
     [System.Serializable]
     public class Card
     {
@@ -14,7 +29,10 @@ namespace TcgEngine
         public int player_id;
         public string variant_id;
 
-        public Slot slot;
+        public CardPositionSlot slot;
+        public int slotPositionIndex;
+
+        public PlayerPositionGrp playerPosition;
         public bool exhausted;
         public int damage = 0;
 
@@ -27,6 +45,8 @@ namespace TcgEngine
         public int hp_ongoing = 0;
 
         public string equipped_uid = null;
+
+
 
         public List<CardTrait> traits = new List<CardTrait>();
         public List<CardTrait> ongoing_traits = new List<CardTrait>();

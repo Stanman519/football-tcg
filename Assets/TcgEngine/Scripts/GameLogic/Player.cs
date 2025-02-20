@@ -27,9 +27,27 @@ namespace TcgEngine
         public int mana = 0;
         public int mana_max = 0;
         public int kill_count = 0;
+        private Dictionary<GamePhase, bool> readyForPhase = new Dictionary<GamePhase, bool>();
+
 
         public Dictionary<string, Card> cards_all = new Dictionary<string, Card>(); //Dictionnary for quick access to any card by UID
         public Card hero = null;
+        public HeadCoachCard head_coach = new HeadCoachCard
+        {
+            positional_Scheme = new Dictionary<PlayerPositionGrp, HCPlayerSchemeData>
+            {
+                { PlayerPositionGrp.NONE, new HCPlayerSchemeData { pos_max = 0 } },
+                { PlayerPositionGrp.WR, new HCPlayerSchemeData {pos_max = 2}},
+                { PlayerPositionGrp.RB_TE, new HCPlayerSchemeData {pos_max = 2}},
+                { PlayerPositionGrp.QB, new HCPlayerSchemeData {pos_max = 1}},
+                { PlayerPositionGrp.OL, new HCPlayerSchemeData {pos_max = 2}},
+                { PlayerPositionGrp.DL, new HCPlayerSchemeData {pos_max = 2}},
+                { PlayerPositionGrp.DB, new HCPlayerSchemeData {pos_max = 2}},
+                { PlayerPositionGrp.LB, new HCPlayerSchemeData {pos_max = 2}},
+                { PlayerPositionGrp.P, new HCPlayerSchemeData {pos_max = 1}},
+                { PlayerPositionGrp.K, new HCPlayerSchemeData {pos_max = 1}},
+            }
+        };
 
         public List<Card> cards_deck = new List<Card>();    //Cards in the player's deck
         public List<Card> cards_hand = new List<Card>();    //Cards in the player's hand
@@ -54,6 +72,26 @@ namespace TcgEngine
         public bool IsConnected() { return connected || is_ai; }
 
         public virtual void ClearOngoing() { ongoing_status.Clear(); ongoing_traits.Clear(); }
+
+
+        public bool IsReadyForPhase(GamePhase phase)
+        {
+            if (readyForPhase.ContainsKey(phase))
+                return readyForPhase[phase];
+
+            return false; // Default to not ready if no entry exists
+        }
+
+        public void SetReadyForPhase(GamePhase phase, bool isReady)
+        {
+            readyForPhase[phase] = isReady;
+        }
+
+        public void ResetReadyState()
+        {
+            readyForPhase.Clear(); // Clears all ready statuses at the start of a new turn
+        }
+
 
         //---- Cards ---------
 
@@ -160,7 +198,7 @@ namespace TcgEngine
             return null;
         }
 
-        public Card GetSlotCard(Slot slot)
+        public Card GetSlotCard(CardPositionSlot slot)
         {
             foreach (Card card in cards_board)
             {
@@ -189,31 +227,31 @@ namespace TcgEngine
 
         //---- Slots ---------
 
-        public Slot GetRandomSlot(System.Random rand)
+        public CardPositionSlot GetRandomSlot(System.Random rand)
         {
-            return Slot.GetRandom(player_id, rand);
+            return CardPositionSlot.GetRandom(player_id, rand);
         }
 
-        public virtual Slot GetRandomEmptySlot(System.Random rand, List<Slot> list_mem = null)
+        public virtual CardPositionSlot GetRandomEmptySlot(System.Random rand, List<CardPositionSlot> list_mem = null)
         {
-            List<Slot> valid = GetEmptySlots(list_mem);
+            List<CardPositionSlot> valid = GetEmptySlots(list_mem);
             if (valid.Count > 0)
                 return valid[rand.Next(0, valid.Count)];
-            return Slot.None;
+            return CardPositionSlot.None;
         }
 
-        public virtual Slot GetRandomOccupiedSlot(System.Random rand, List<Slot> list_mem = null)
+        public virtual CardPositionSlot GetRandomOccupiedSlot(System.Random rand, List<CardPositionSlot> list_mem = null)
         {
-            List<Slot> valid = GetOccupiedSlots(list_mem);
+            List<CardPositionSlot> valid = GetOccupiedSlots(list_mem);
             if (valid.Count > 0)
                 return valid[rand.Next(0, valid.Count)];
-            return Slot.None;
+            return CardPositionSlot.None;
         }
 
-        public List<Slot> GetEmptySlots(List<Slot> list_mem = null)
+        public List<CardPositionSlot> GetEmptySlots(List<CardPositionSlot> list_mem = null)
         {
-            List<Slot> valid = list_mem != null ? list_mem : new List<Slot>();
-            foreach (Slot slot in Slot.GetAll(player_id))
+            List<CardPositionSlot> valid = list_mem != null ? list_mem : new List<CardPositionSlot>();
+            foreach (CardPositionSlot slot in CardPositionSlot.GetAll(player_id))
             {
                 Card slot_card = GetSlotCard(slot);
                 if (slot_card == null)
@@ -222,10 +260,10 @@ namespace TcgEngine
             return valid;
         }
 
-        public List<Slot> GetOccupiedSlots(List<Slot> list_mem = null)
+        public List<CardPositionSlot> GetOccupiedSlots(List<CardPositionSlot> list_mem = null)
         {
-            List<Slot> valid = list_mem != null ? list_mem : new List<Slot>();
-            foreach (Slot slot in Slot.GetAll(player_id))
+            List<CardPositionSlot> valid = list_mem != null ? list_mem : new List<CardPositionSlot>();
+            foreach (CardPositionSlot slot in CardPositionSlot.GetAll(player_id))
             {
                 Card slot_card = GetSlotCard(slot);
                 if (slot_card != null)
@@ -523,7 +561,7 @@ namespace TcgEngine
             history_list.Add(order);
         }
 
-        public void AddHistory(ushort type, Card card, AbilityData ability, Slot target)
+        public void AddHistory(ushort type, Card card, AbilityData ability, CardPositionSlot target)
         {
             ActionHistory order = new ActionHistory();
             order.type = type;
@@ -611,6 +649,6 @@ namespace TcgEngine
         public string target_uid;
         public string ability_id;
         public int target_id;
-        public Slot slot;
+        public CardPositionSlot slot;
     }
 }

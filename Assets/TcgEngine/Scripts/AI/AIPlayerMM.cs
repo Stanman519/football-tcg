@@ -156,7 +156,7 @@ namespace TcgEngine.AI
             }
         }
 
-        private void PlayCard(string card_uid, Slot slot)
+        private void PlayCard(string card_uid, CardPositionSlot slot)
         {
             Game game_data = gameplay.GetGameData();
             Card card = game_data.GetCard(card_uid);
@@ -166,7 +166,7 @@ namespace TcgEngine.AI
             }
         }
 
-        private void MoveCard(string card_uid, Slot slot)
+        private void MoveCard(string card_uid, CardPositionSlot slot)
         {
             Game game_data = gameplay.GetGameData();
             Card card = game_data.GetCard(card_uid);
@@ -229,9 +229,9 @@ namespace TcgEngine.AI
             }
         }
 
-        private void SelectSlot(Slot slot)
+        private void SelectSlot(CardPositionSlot slot)
         {
-            if (slot != Slot.None)
+            if (slot != CardPositionSlot.None)
             {
                 gameplay.SelectSlot(slot);
             }

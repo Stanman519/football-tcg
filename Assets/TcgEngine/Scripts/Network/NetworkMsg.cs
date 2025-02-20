@@ -167,7 +167,7 @@ namespace TcgEngine
     public class MsgPlayCard : INetworkSerializable
     {
         public string card_uid;
-        public Slot slot;
+        public CardPositionSlot slot;
 
         public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
         {
@@ -280,7 +280,7 @@ namespace TcgEngine
     {
         public string ability_id;
         public string caster_uid;
-        public Slot slot;
+        public CardPositionSlot slot;
 
         public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
         {

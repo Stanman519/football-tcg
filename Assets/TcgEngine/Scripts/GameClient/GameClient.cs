@@ -32,9 +32,9 @@ namespace TcgEngine.Client
         public UnityAction<int> onGameEnd;              //winner player_id
         public UnityAction<int> onNewTurn;              //current player_id
 
-        public UnityAction<Card, Slot> onCardPlayed;
-        public UnityAction<Card, Slot> onCardMoved;
-        public UnityAction<Slot> onCardSummoned;
+        public UnityAction<Card, CardPositionSlot> onCardPlayed;
+        public UnityAction<Card, CardPositionSlot> onCardMoved;
+        public UnityAction<CardPositionSlot> onCardSummoned;
         public UnityAction<Card> onCardTransformed;
         public UnityAction<Card> onCardDiscarded;
         public UnityAction<int> onCardDraw;
@@ -43,7 +43,7 @@ namespace TcgEngine.Client
         public UnityAction<AbilityData, Card> onAbilityStart;
         public UnityAction<AbilityData, Card, Card> onAbilityTargetCard;      //Ability, Caster, Target
         public UnityAction<AbilityData, Card, Player> onAbilityTargetPlayer;
-        public UnityAction<AbilityData, Card, Slot> onAbilityTargetSlot;
+        public UnityAction<AbilityData, Card, CardPositionSlot> onAbilityTargetSlot;
         public UnityAction<AbilityData, Card> onAbilityEnd;
         public UnityAction<Card, Card> onSecretTrigger;    //Secret, Triggerer
         public UnityAction<Card, Card> onSecretResolve;    //Secret, Triggerer
@@ -287,7 +287,7 @@ namespace TcgEngine.Client
             SendAction(GameAction.GameSettings, settings, NetworkDelivery.ReliableFragmentedSequenced);
         }
 
-        public void PlayCard(Card card, Slot slot)
+        public void PlayCard(Card card, CardPositionSlot slot)
         {
             MsgPlayCard mdata = new MsgPlayCard();
             mdata.card_uid = card.uid;
@@ -311,7 +311,7 @@ namespace TcgEngine.Client
             SendAction(GameAction.AttackPlayer, mdata);
         }
 
-        public void Move(Card card, Slot slot)
+        public void Move(Card card, CardPositionSlot slot)
         {
             MsgPlayCard mdata = new MsgPlayCard();
             mdata.card_uid = card.uid;
@@ -342,7 +342,7 @@ namespace TcgEngine.Client
             SendAction(GameAction.SelectPlayer, mdata);
         }
 
-        public void SelectSlot(Slot slot)
+        public void SelectSlot(CardPositionSlot slot)
         {
             SendAction(GameAction.SelectSlot, slot);
         }

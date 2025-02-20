@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using TcgEngine.Client;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Profiling;
@@ -25,11 +26,11 @@ namespace TcgEngine.Gameplay
         public UnityAction onChangeDown;
         public UnityAction onPlaycallReveal;
         public UnityAction onNewPlayerReveal;
-        
 
-        public UnityAction<Card, Slot> onCardPlayed;
-        public UnityAction<Card, Slot> onCardSummoned;
-        public UnityAction<Card, Slot> onCardMoved;
+
+        public UnityAction<Card, CardPositionSlot> onCardPlayed;
+        public UnityAction<Card, CardPositionSlot> onCardSummoned;
+        public UnityAction<Card, CardPositionSlot> onCardMoved;
         public UnityAction<Card> onCardTransformed;
         public UnityAction<Card> onCardDiscarded;
         public UnityAction<int> onCardDrawn;
@@ -38,7 +39,7 @@ namespace TcgEngine.Gameplay
         public UnityAction<AbilityData, Card> onAbilityStart;
         public UnityAction<AbilityData, Card, Card> onAbilityTargetCard;  //Ability, Caster, Target
         public UnityAction<AbilityData, Card, Player> onAbilityTargetPlayer;
-        public UnityAction<AbilityData, Card, Slot> onAbilityTargetSlot;
+        public UnityAction<AbilityData, Card, CardPositionSlot> onAbilityTargetSlot;
         public UnityAction<AbilityData, Card> onAbilityEnd;
 
         public UnityAction<Card, Card> onAttackStart;  //Attacker, Defender
@@ -58,6 +59,11 @@ namespace TcgEngine.Gameplay
 
         private Game game_data;
 
+
+
+        private SlotMachineManager slotMachineManager;
+        private SlotMachineUI slotMachineUI;
+
         private ResolveQueue resolve_queue;
         private bool is_ai_predict = false;
 
@@ -65,9 +71,11 @@ namespace TcgEngine.Gameplay
 
         private ListSwap<Card> card_array = new ListSwap<Card>();
         private ListSwap<Player> player_array = new ListSwap<Player>();
-        private ListSwap<Slot> slot_array = new ListSwap<Slot>();
+        private ListSwap<CardPositionSlot> slot_array = new ListSwap<CardPositionSlot>();
         private ListSwap<CardData> card_data_array = new ListSwap<CardData>();
         private List<Card> cards_to_clear = new List<Card>();
+
+        private List<SlotData> default_slot_data;
 
         public GameLogic(bool is_ai)
         {
@@ -78,8 +86,52 @@ namespace TcgEngine.Gameplay
 
         public GameLogic(Game game)
         {
+
+            default_slot_data = new List<SlotData>
+            {
+                new SlotData()
+                {
+                    id = 0,
+                    reelIconInventory = new List<SlotIconData>
+                    {
+                        new SlotIconData("FOOTBALL", 3),
+                        new SlotIconData("HELMET", 2),
+                        new SlotIconData("STAR", 1),
+                        new SlotIconData("WRENCH", 1),
+                    },
+                    stopDelay = 1.5f
+                },
+                new SlotData()
+                {
+                    id = 1,
+                    reelIconInventory = new List<SlotIconData>
+                    {
+                        new SlotIconData("FOOTBALL", 3),
+                        new SlotIconData("HELMET", 2),
+                        new SlotIconData("STAR", 1),
+                        new SlotIconData("WRENCH", 1),
+                        new SlotIconData("WILD", 1),
+                    },
+                    stopDelay = 2.0f
+                },
+                new SlotData()
+                {
+                    id = 2,
+                    reelIconInventory = new List<SlotIconData>
+                    {
+                        new SlotIconData("FOOTBALL", 3),
+                        new SlotIconData("HELMET", 3),
+                        new SlotIconData("STAR", 1),
+                        new SlotIconData("WRENCH", 1),
+                    },
+                    stopDelay = 2.5f
+                },
+            };
             game_data = game;
             resolve_queue = new ResolveQueue(game, false);
+            slotMachineManager = new SlotMachineManager(default_slot_data);
+            slotMachineUI = GameObject.FindFirstObjectByType<SlotMachineUI>();
+            slotMachineUI.InitializeReels(3);
         }
 
         public virtual void SetData(Game game)
@@ -107,28 +159,28 @@ namespace TcgEngine.Gameplay
             game_data.turn_count = 1;
 
             //Adventure settings
-/*            bool should_mulligan = GameplayData.Get().mulligan;
-            LevelData level = game_data.settings.GetLevel();
-            if (level != null)
-            {
-                if (level != null && level.first_player == LevelFirst.Player)
-                    game_data.first_offense_player = 0;
-                if (level != null && level.first_player == LevelFirst.AI)
-                    game_data.first_offense_player = 1;
-                game_data.current_offsense_player = game_data.first_offense_player;
-                should_mulligan = level.mulligan;
-            }*/
+            /*            bool should_mulligan = GameplayData.Get().mulligan;
+                        LevelData level = game_data.settings.GetLevel();
+                        if (level != null)
+                        {
+                            if (level != null && level.first_player == LevelFirst.Player)
+                                game_data.first_offense_player = 0;
+                            if (level != null && level.first_player == LevelFirst.AI)
+                                game_data.first_offense_player = 1;
+                            game_data.current_offsense_player = game_data.first_offense_player;
+                            should_mulligan = level.mulligan;
+                        }*/
 
             //Init each players
             foreach (Player player in game_data.players)
             {
-                
+
 
                 //Hp / mana
-/*                player.hp_max = GameplayData.Get().hp_start;
-                player.hp = player.hp_max;
-                player.mana_max = GameplayData.Get().mana_start;
-                player.mana = player.mana_max;*/
+                /*                player.hp_max = GameplayData.Get().hp_start;
+                                player.hp = player.hp_max;
+                                player.mana_max = GameplayData.Get().mana_start;
+                                player.mana = player.mana_max;*/
 
                 //Draw starting cards
                 int dcards = GameplayData.Get().cards_start;
@@ -139,7 +191,7 @@ namespace TcgEngine.Gameplay
                 if (is_random && player.player_id != game_data.first_offense_player && GameplayData.Get().second_bonus != null)
                 {
                     Card card = Card.Create(GameplayData.Get().second_bonus, VariantData.GetDefault(), player);
-                    player.cards_hand.Add(card); 
+                    player.cards_hand.Add(card);
                 }
             }
 
@@ -147,7 +199,7 @@ namespace TcgEngine.Gameplay
             RefreshData();
             onGameStart?.Invoke();
 
-            if(false) //should_mulligan)
+            if (false) //should_mulligan)
                 GoToMulligan();
             else
                 StartTurn();
@@ -155,13 +207,27 @@ namespace TcgEngine.Gameplay
 
         public virtual void StartTurn()
         {
+            PlayTriggeredSlotSpin();
             if (game_data.state == GameState.GameEnded)
                 return;
 
             ClearTurnData();
             game_data.phase = GamePhase.StartTurn;
-            RefreshData();
             onTurnStart?.Invoke();
+
+            // Reset readiness at the start of each play
+            foreach (Player player in game_data.players)
+            {
+                player.ResetReadyState();
+            }
+
+            game_data.phase = GamePhase.ChoosePlayers;
+            RefreshData();
+
+            // Wait for both players to choose their player cards
+            resolve_queue.AddCallback(WaitForPlayerSelection);
+            resolve_queue.ResolveAll();
+
 
             foreach (Player player in game_data.players)
             {
@@ -183,20 +249,32 @@ namespace TcgEngine.Gameplay
                     if (!card.HasStatus(StatusType.Sleep))
                         card.Refresh();
 
-/*                    if (card.HasStatus(StatusType.Poisoned))
-                        DamageCard(card, card.GetStatusValue(StatusType.Poisoned));*/
+                    /*  if (card.HasStatus(StatusType.Poisoned))
+                            DamageCard(card, card.GetStatusValue(StatusType.Poisoned));*/
                 }
 
-                // play up to max allowable players - add applicable player cards to a list somewhere
-               
+
 
                 //Ongoing Abilities
                 UpdateOngoing();
 
                 //StartTurn Abilities
                 TriggerPlayerCardsAbilityType(player, AbilityTrigger.StartOfTurn);
-                TriggerPlayerSecrets(player, AbilityTrigger.StartOfTurn); // NOT SURE WHAT THIS IS YET
+                // TriggerPlayerSecrets(player, AbilityTrigger.StartOfTurn); // NOT SURE WHAT THIS IS YET
             }
+
+            // play up to max allowable players - add applicable player cards to a list somewhere
+            // resolve_queue.AddCallback();
+
+            PlayTriggeredSlotSpin();
+
+
+            // store reel result. yardage manager to tally all bonuses, look for turnover events.
+
+
+
+
+
             /*
             //Mana 
             player.mana_max += GameplayData.Get().mana_per_turn;
@@ -215,8 +293,8 @@ namespace TcgEngine.Gameplay
                 player.hero.Refresh();
             */
 
-            
-                // reveal players
+
+            // reveal players
 
 
 
@@ -239,6 +317,18 @@ namespace TcgEngine.Gameplay
             CheckForWinner();
             StartTurn();
         }
+
+        public virtual void SummonNewPlayers()
+        {
+            if (game_data.state == GameState.GameEnded)
+                return;
+
+            game_data.phase = GamePhase.ChoosePlayers;
+
+            onNewPlayerReveal?.Invoke();
+            RefreshData();
+        }
+
         public virtual void RevealNewPlayers()
         {
             if (game_data.state == GameState.GameEnded)
@@ -256,11 +346,88 @@ namespace TcgEngine.Gameplay
         {
             if (game_data.state == GameState.GameEnded)
                 return;
+
             game_data.phase = GamePhase.ChoosePlay;
-            
+            RefreshData();
+
+            onChoosePlay?.Invoke();
+
+            resolve_queue.AddCallback(WaitForPlayCallSelection);
+            resolve_queue.ResolveAll();
         }
 
-        public virtual void StartMainPhase()
+        private void WaitForPlayCallSelection()
+        {
+            if (AllPlayersReadyForPhase(GamePhase.ChoosePlay))
+            {
+                RevealPlayCalls();
+                resolve_queue.AddCallback(StartSlotSpinPhase);
+                resolve_queue.ResolveAll();
+            }
+        }
+        public virtual void RevealPlayCalls()
+        {
+            game_data.phase = GamePhase.RevealPlayCalls;
+            onPlaycallReveal?.Invoke();
+            RefreshData();
+        }
+        public virtual void StartSlotSpinPhase()
+        {
+            if (game_data.state == GameState.GameEnded)
+                return;
+
+            game_data.phase = GamePhase.SlotSpin;
+            onSlotSpinStart?.Invoke();
+            RefreshData();
+
+            // Spin the slot machine
+            SlotMachineResultDTO spinResults = slotMachineManager.CalculateSpinResults();
+            slotMachineUI.FireReelUI(spinResults.Results, spinResults.SlotDataCopy);
+
+            resolve_queue.AddCallback(ResolvePlayOutcome);
+            resolve_queue.ResolveAll(1.5f);
+        }
+        public virtual void StartLiveBallPhase()
+        {
+            if (game_data.state == GameState.GameEnded)
+                return;
+
+            game_data.phase = GamePhase.LiveBall;
+            RefreshData();
+
+            // Wait for both players to play Live Ball cards
+            resolve_queue.AddCallback(WaitForLiveBallSelection);
+            resolve_queue.ResolveAll();
+        }
+        public virtual void EndPlayPhase()
+        {
+            if (game_data.state == GameState.GameEnded)
+                return;
+
+            // Check yardage, downs, turnovers
+            game_data.current_down++;
+            game_data.raw_ball_on += game_data.yardage_this_play; // Update ball position
+
+            if (game_data.current_down > 4 || game_data.raw_ball_on >= 100)
+            {
+                HandleTurnoverOrScore();
+            }
+            else
+            {
+                StartTurn();
+            }
+        }
+
+        private void WaitForLiveBallSelection()
+        {
+            if (AllPlayersReadyForPhase(GamePhase.LiveBall))
+            {
+                ResolveLiveBallEffects();
+                resolve_queue.AddCallback(EndPlayPhase);
+                resolve_queue.ResolveAll();
+            }
+        }
+/*        public virtual void StartMainPhase()
         {
             if (game_data.state == GameState.GameEnded)
                 return;
@@ -268,13 +435,21 @@ namespace TcgEngine.Gameplay
             game_data.phase = GamePhase.Main;
             onTurnPlay?.Invoke();
             RefreshData();
+        }*/
+        private bool AllPlayersReadyForPhase(GamePhase phase)
+        {
+            foreach (Player player in game_data.players)
+            {
+                if (!player.IsReadyForPhase(phase))
+                    return false;  // At least one player is not ready
+            }
+            return true;  // All players have confirmed
         }
-
         public virtual void EndTurn()
         {
             if (game_data.state == GameState.GameEnded)
                 return;
-            if (game_data.phase != GamePhase.Main)
+            if (game_data.phase != GamePhase.LiveBall)
                 return;
 
             game_data.selector = SelectorType.None;
@@ -407,21 +582,33 @@ namespace TcgEngine.Gameplay
             DeckPuzzleData puzzle = deck as DeckPuzzleData;
 
             //Board cards
-            if (puzzle != null)
+
+            //TURNED OFF BECAUSE I DONT CARE ABOUT PUZZLE ATM
+
+/*            if (puzzle != null)
             {
                 foreach (DeckCardSlot card in puzzle.board_cards)
                 {
                     Card acard = Card.Create(card.card, variant, player);
-                    acard.slot = new Slot(card.slot, Slot.GetP(player.player_id));
+                    acard.slot = new CardPositionSlot(card.slot, CardPositionSlot.GetP(player.player_id));
                     player.cards_board.Add(acard);
                 }
-            }
+            }*/
 
             //Shuffle deck
             if (puzzle == null || !puzzle.dont_shuffle_deck)
                 ShuffleDeck(player.cards_deck);
         }
 
+        private void WaitForPlayerSelection()
+        {
+            if (AllPlayersReadyForPhase(GamePhase.ChoosePlayers))
+            {
+                RevealNewPlayers();
+                resolve_queue.AddCallback(StartPlayCallPhase);
+                resolve_queue.ResolveAll();
+            }
+        }
         //Set deck using custom deck in save file or database
         public virtual void SetPlayerDeck(Player player, UserDeckData deck)
         {
@@ -458,13 +645,13 @@ namespace TcgEngine.Gameplay
 
         //---- Gameplay Actions --------------
 
-        public virtual void PlayPlayerCard(Card card, Slot slot)
+        public virtual void SelectPlayerCardForBoard(Card card)
         {
-
+            // check l
         }
 
 
-        public virtual void PlayCard(Card card, Slot slot, bool skip_cost = false)
+        public virtual void PlayCard(Card card, CardPositionSlot slot, bool skip_cost = false)
         {
             if (game_data.CanPlayCard(card, slot, skip_cost))
             {
@@ -487,8 +674,8 @@ namespace TcgEngine.Gameplay
                 }
                 else if (icard.IsEquipment())
                 {
-                    Card bearer = game_data.GetSlotCard(slot);
-                    EquipCard(bearer, card);
+                    List<Card> bearer = game_data.GetSlotCards(slot);
+                    EquipCard(bearer[0], card); // TODO: just doing to first card to make it work
                     card.exhausted = true;
                 }
                 else if (icard.IsSecret())
@@ -528,31 +715,60 @@ namespace TcgEngine.Gameplay
             }
         }
 
-        public virtual void MoveCard(Card card, Slot slot, bool skip_cost = false)
+        public virtual void MoveCard(Card card, CardPositionSlot slot, bool skip_cost = false)
         {
             if (game_data.CanMoveCard(card, slot, skip_cost))
             {
-                card.slot = slot;
+                card.slot = FindNextOpenPosition(slot);
 
-                //Moving doesn't really have any effect in demo so can be done indefinitely
-                //if(!skip_cost)
-                //card.exhausted = true;
-                //card.RemoveStatus(StatusEffect.Stealth);
-                //player.AddHistory(GameAction.Move, card);
+                // If moving, remove old position
+                game_data.RemoveCardFromSlot(card);
 
-                //Also move the equipment
-                Card equip = game_data.GetEquipCard(card.equipped_uid);
-                if (equip != null)
-                    equip.slot = slot;
+                // Assign card to its new position group
+                game_data.AddCardToSlot(card, card.slot);
 
-                UpdateOngoing();
                 RefreshData();
-
-                onCardMoved?.Invoke(card, slot);
-                resolve_queue.ResolveAll(0.2f);
             }
+            /*            if (game_data.CanMoveCard(card, slot, skip_cost))
+                        {
+                            card.slot = slot;
+
+                            //Moving doesn't really have any effect in demo so can be done indefinitely
+                            //if(!skip_cost)
+                            //card.exhausted = true;
+                            //card.RemoveStatus(StatusEffect.Stealth);
+                            //player.AddHistory(GameAction.Move, card);
+
+                            //Also move the equipment
+                            Card equip = game_data.GetEquipCard(card.equipped_uid);
+                            if (equip != null)
+                                equip.slot = slot;
+
+                            UpdateOngoing();
+                            RefreshData();
+
+                            onCardMoved?.Invoke(card, slot);
+                            resolve_queue.ResolveAll(0.2f);
+                        }*/
+
         }
 
+        // Finds the next open position in the group
+        private CardPositionSlot FindNextOpenPosition(CardPositionSlot slot)
+        {
+            Game gdata = GameClient.Get().GetGameData();
+            Player player = GameClient.Get().GetPlayer();
+
+            // Get all slots in this position group
+            List<Card> existingPlayers = gdata.GetSlotCards(slot.posGroupType, player.player_id);
+
+            if (existingPlayers.Count < slot.max_cards)
+            {
+                return new CardPositionSlot(player.player_id, slot.posGroupType, slot.max_cards);
+            }
+
+            return CardPositionSlot.None; // No open positions
+        }
         public virtual void CastAbility(Card card, AbilityData iability)
         {
             if (game_data.CanCastAbility(card, iability))
@@ -778,7 +994,7 @@ namespace TcgEngine.Gameplay
         }
 
         //Summon copy of an exiting card
-        public virtual Card SummonCopy(Player player, Card copy, Slot slot)
+        public virtual Card SummonCopy(Player player, Card copy, CardPositionSlot slot)
         {
             CardData icard = copy.CardData;
             return SummonCard(player, icard, copy.VariantData, slot);
@@ -792,12 +1008,12 @@ namespace TcgEngine.Gameplay
         }
 
         //Create a new card and send it to the board
-        public virtual Card SummonCard(Player player, CardData card, VariantData variant, Slot slot)
+        public virtual Card SummonCard(Player player, CardData card, VariantData variant, CardPositionSlot slot)
         {
             if (!slot.IsValid())
                 return null;
 
-            if (game_data.GetSlotCard(slot) != null)
+            if (game_data.GetSlotCards(slot).Count > 0) //TODO: fix for multi card slots
                 return null;
 
             Card acard = SummonCardHand(player, card, variant);
@@ -1195,20 +1411,20 @@ namespace TcgEngine.Gameplay
         {
             if (iability.target == AbilityTarget.PlayTarget)
             {
-                Slot slot = caster.slot;
-                Card slot_card = game_data.GetSlotCard(slot);
+                CardPositionSlot slot = caster.slot;
+                List<Card> slot_cards = game_data.GetSlotCards(slot);
                 if (slot.IsPlayerSlot())
                 {
                     Player tplayer = game_data.GetPlayer(slot.p);
                     if (iability.CanTarget(game_data, caster, tplayer))
                         ResolveEffectTarget(iability, caster, tplayer);
                 }
-                else if (slot_card != null)
+                else if (slot_cards.Count > 0)
                 {
-                    if (iability.CanTarget(game_data, caster, slot_card))
+                    if (iability.CanTarget(game_data, caster, slot_cards[0])) // TODO: fix this, just working on multi card slots.
                     {
-                        game_data.last_target = slot_card.uid;
-                        ResolveEffectTarget(iability, caster, slot_card);
+                        game_data.last_target = slot_cards[0].uid;
+                        ResolveEffectTarget(iability, caster, slot_cards[0]);
                     }
                 }
                 else
@@ -1246,10 +1462,10 @@ namespace TcgEngine.Gameplay
         protected virtual void ResolveCardAbilitySlots(AbilityData iability, Card caster)
         {
             //Get Slot Targets based on conditions
-            List<Slot> targets = iability.GetSlotTargets(game_data, caster, slot_array);
+            List<CardPositionSlot> targets = iability.GetSlotTargets(game_data, caster, slot_array);
 
             //Resolve effects
-            foreach (Slot target in targets)
+            foreach (CardPositionSlot target in targets)
             {
                 ResolveEffectTarget(iability, caster, target);
             }
@@ -1287,7 +1503,7 @@ namespace TcgEngine.Gameplay
             onAbilityTargetCard?.Invoke(iability, caster, target);
         }
 
-        protected virtual void ResolveEffectTarget(AbilityData iability, Card caster, Slot target)
+        protected virtual void ResolveEffectTarget(AbilityData iability, Card caster, CardPositionSlot target)
         {
             iability.DoEffects(this, caster, target);
 
@@ -1604,7 +1820,11 @@ namespace TcgEngine.Gameplay
             }
             return false;
         }
-
+        public void PlayTriggeredSlotSpin()
+        {
+            SlotMachineResultDTO finalResults = slotMachineManager.CalculateSpinResults();
+            slotMachineUI.FireReelUI(finalResults.Results, finalResults.SlotDataCopy);
+        }
         public virtual bool TriggerSecrets(AbilityTrigger secret_trigger, Card trigger_card)
         {
             if (trigger_card != null && trigger_card.HasStatus(StatusType.SpellImmunity))
@@ -1727,7 +1947,7 @@ namespace TcgEngine.Gameplay
             }
         }
 
-        public virtual void SelectSlot(Slot target)
+        public virtual void SelectSlot(CardPositionSlot target)
         {
             if (game_data.selector == SelectorType.None)
                 return;

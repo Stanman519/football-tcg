@@ -52,7 +52,7 @@ namespace TcgEngine.AI
         private Pool<AIAction> action_pool = new Pool<AIAction>();
         private Pool<List<AIAction>> list_pool = new Pool<List<AIAction>>();
         private ListSwap<Card> card_array = new ListSwap<Card>();
-        private ListSwap<Slot> slot_array = new ListSwap<Slot>();
+        private ListSwap<CardPositionSlot> slot_array = new ListSwap<CardPositionSlot>();
 
         public static AILogic Create(int player_id, int level)
         {
@@ -337,7 +337,7 @@ namespace TcgEngine.AI
                 if (card.CardData.IsBoardCard())
                 {
                     //Doesn't matter where the card is played
-                    Slot slot = player.GetRandomEmptySlot(random_gen, slot_array.Get());
+                    CardPositionSlot slot = player.GetRandomEmptySlot(random_gen, slot_array.Get());
 
                     if (data.CanPlayCard(card, slot))
                     {
@@ -366,7 +366,7 @@ namespace TcgEngine.AI
                     for (int p = 0; p < data.players.Length; p++)
                     {
                         Player tplayer = data.players[p];
-                        Slot tslot = new Slot(tplayer.player_id);
+                        CardPositionSlot tslot = new CardPositionSlot(tplayer.player_id, 0);
                         if (data.CanPlayCard(card, tslot))
                         {
                             AIAction action = CreateAction(type, card);
@@ -375,19 +375,23 @@ namespace TcgEngine.AI
                             actions.Add(action);
                         }
                     }
-                    foreach (Slot slot in Slot.GetAll())
+                    foreach (CardPositionSlot slot in CardPositionSlot.GetAll())
                     {
                         if (data.CanPlayCard(card, slot))
                         {
-                            Card slot_card = data.GetSlotCard(slot);
-                            AIAction action = CreateAction(type, card);
-                            action.slot = slot;
-                            action.target_uid = slot_card != null ? slot_card.uid : null;
-                            actions.Add(action);
+                            List<Card> slot_cards = data.GetSlotCards(slot);
+                            foreach (var slot_card in slot_cards)
+                            {
+                                AIAction action = CreateAction(type, card);
+                                action.slot = slot;
+                                action.target_uid = slot_card != null ? slot_card.uid : null;
+                                actions.Add(action);
+                            }
+
                         }
                     }
                 }
-                else if (data.CanPlayCard(card, Slot.None))
+                else if (data.CanPlayCard(card, CardPositionSlot.None))
                 {
                     AIAction action = CreateAction(type, card);
                     actions.Add(action);
@@ -455,7 +459,7 @@ namespace TcgEngine.AI
 
             if (type == GameAction.Move)
             {
-                foreach (Slot slot in Slot.GetAll(player.player_id))
+                foreach (CardPositionSlot slot in CardPositionSlot.GetAll(player.player_id))
                 {
                     if (data.CanMoveCard(card, slot))
                     {
@@ -492,21 +496,25 @@ namespace TcgEngine.AI
                     }
                 }
 
-                foreach (Slot slot in Slot.GetAll())
+                foreach (CardPositionSlot slot in CardPositionSlot.GetAll())
                 {
-                    Card tcard = data.GetSlotCard(slot);
-                    if (tcard != null && ability.CanTarget(data, caster, tcard))
+                    List<Card> tcards = data.GetSlotCards(slot);
+                    foreach (Card tcard in tcards)
                     {
-                        AIAction action = CreateAction(GameAction.SelectCard, caster);
-                        action.target_uid = tcard.uid;
-                        actions.Add(action);
+                        if (tcard != null && ability.CanTarget(data, caster, tcard))
+                        {
+                            AIAction action = CreateAction(GameAction.SelectCard, caster);
+                            action.target_uid = tcard.uid;
+                            actions.Add(action);
+                        }
+                        else if (tcard == null && ability.CanTarget(data, caster, slot))
+                        {
+                            AIAction action = CreateAction(GameAction.SelectSlot, caster);
+                            action.slot = slot;
+                            actions.Add(action);
+                        }
                     }
-                    else if (tcard == null && ability.CanTarget(data, caster, slot))
-                    {
-                        AIAction action = CreateAction(GameAction.SelectSlot, caster);
-                        action.slot = slot;
-                        actions.Add(action);
-                    }
+
                 }
             }
 
@@ -778,7 +786,7 @@ namespace TcgEngine.AI
         public string target_uid;
         public int target_player_id;
         public string ability_id;
-        public Slot slot;
+        public CardPositionSlot slot;
         public int value;
 
         public int score;           //Score to determine which orders get cut and ignored
@@ -797,7 +805,7 @@ namespace TcgEngine.AI
                 txt += " card " + card.card_id;
             if (target != null)
                 txt += " target " + target.card_id;
-            if (slot != Slot.None)
+            if (slot != CardPositionSlot.None)
                 txt += " slot " + slot.x + "-" + slot.p;
             if (ability_id != null)
                 txt += " ability " + ability_id;
@@ -814,7 +822,7 @@ namespace TcgEngine.AI
             target_uid = null;
             ability_id = null;
             target_player_id = -1;
-            slot = Slot.None;
+            slot = CardPositionSlot.None;
             value = -1;
             score = 0;
             sort = 0;

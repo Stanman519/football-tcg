@@ -177,12 +177,12 @@ namespace TcgEngine.FX
             anim.SetFloat(kill_mat_fade, val, duration);
         }
 
-        private void OnMove(Card card, Slot slot)
+        private void OnMove(Card card, CardPositionSlot slot)
         {
             AudioTool.Get().PlaySFX("card_move", AssetData.Get().card_move_audio);
         }
 
-        private void OnPlayed(Card card, Slot slot)
+        private void OnPlayed(Card card, CardPositionSlot slot)
         {
             //Playing equipment
             Card ecard = bcard?.GetEquipCard();

@@ -21,7 +21,7 @@ namespace TcgEngine
             return source; //Override this, filter targeting player
         }
 
-        public virtual List<Slot> FilterTargets(Game data, AbilityData ability, Card caster, List<Slot> source, List<Slot> dest)
+        public virtual List<CardPositionSlot> FilterTargets(Game data, AbilityData ability, Card caster, List<CardPositionSlot> source, List<CardPositionSlot> dest)
         {
             return source; //Override this, filter targeting slot
         }

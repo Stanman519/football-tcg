@@ -144,7 +144,7 @@ namespace TcgEngine
         }
 
         //Check if the slot target is valid
-        public bool AreTargetConditionsMet(Game data, Card caster, Slot target_slot)
+        public bool AreTargetConditionsMet(Game data, Card caster, CardPositionSlot target_slot)
         {
             foreach (ConditionData cond in conditions_target)
             {
@@ -185,7 +185,7 @@ namespace TcgEngine
             return condition_match;
         }
 
-        public bool CanTarget(Game data, Card caster, Slot target)
+        public bool CanTarget(Game data, Card caster, CardPositionSlot target)
         {
             return AreTargetConditionsMet(data, caster, target); //No additional conditions for slots
         }
@@ -219,7 +219,7 @@ namespace TcgEngine
                 target.AddStatus(stat, value, duration);
         }
 
-        public void DoEffects(GameLogic logic, Card caster, Slot target)
+        public void DoEffects(GameLogic logic, Card caster, CardPositionSlot target)
         {
             foreach (EffectData effect in effects)
                 effect?.DoEffect(logic, this, caster, target);
@@ -456,17 +456,17 @@ namespace TcgEngine
         }
 
         //Return slot targets,  memory_array is used for optimization and avoid allocating new memory
-        public List<Slot> GetSlotTargets(Game data, Card caster, ListSwap<Slot> memory_array = null)
+        public List<CardPositionSlot> GetSlotTargets(Game data, Card caster, ListSwap<CardPositionSlot> memory_array = null)
         {
             if (memory_array == null)
-                memory_array = new ListSwap<Slot>(); //Slow operation
+                memory_array = new ListSwap<CardPositionSlot>(); //Slow operation
 
-            List<Slot> targets = memory_array.Get();
+            List<CardPositionSlot> targets = memory_array.Get();
 
             if (target == AbilityTarget.AllSlots)
             {
-                List<Slot> slots = Slot.GetAll();
-                foreach (Slot slot in slots)
+                List<CardPositionSlot> slots = CardPositionSlot.GetAll();
+                foreach (CardPositionSlot slot in slots)
                 {
                     if (AreTargetConditionsMet(data, caster, slot))
                         targets.Add(slot);
@@ -606,7 +606,7 @@ namespace TcgEngine
 
         public bool HasValidSlotTarget(Game game_data, Card caster)
         {
-            foreach (Slot slot in Slot.GetAll())
+            foreach (CardPositionSlot slot in CardPositionSlot.GetAll())
             {
                 if (CanTarget(game_data, caster, slot))
                     return true;

@@ -25,7 +25,7 @@ namespace TcgEngine
             logic.SummonCard(player, summon, caster.VariantData, target.slot); //Assumes the target has just been killed, so the slot is empty
         }
 
-        public override void DoEffect(GameLogic logic, AbilityData ability, Card caster, Slot target)
+        public override void DoEffect(GameLogic logic, AbilityData ability, Card caster, CardPositionSlot target)
         {
             Player player = logic.GameData.GetPlayer(caster.player_id);
             logic.SummonCard(player, summon, caster.VariantData, target);

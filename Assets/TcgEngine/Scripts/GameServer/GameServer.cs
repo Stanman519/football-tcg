@@ -386,7 +386,7 @@ namespace TcgEngine.Server
 
         public void ReceiveSelectSlot(ClientData iclient, SerializedData sdata)
         {
-            Slot slot = sdata.Get<Slot>();
+            CardPositionSlot slot = sdata.Get<CardPositionSlot>();
             Player player = GetPlayer(iclient);
             if (player != null && game_data.IsPlayerSelectorTurn(player) && !gameplay.IsResolving())
             {
@@ -714,7 +714,7 @@ namespace TcgEngine.Server
             SendToAll(GameAction.NewTurn, msg, NetworkDelivery.Reliable);
         }
 
-        protected virtual void OnCardPlayed(Card card, Slot slot)
+        protected virtual void OnCardPlayed(Card card, CardPositionSlot slot)
         {
             MsgPlayCard mdata = new MsgPlayCard();
             mdata.card_uid = card.uid;
@@ -722,7 +722,7 @@ namespace TcgEngine.Server
             SendToAll(GameAction.CardPlayed, mdata, NetworkDelivery.Reliable);
         }
 
-        protected virtual void OnCardMoved(Card card, Slot slot)
+        protected virtual void OnCardMoved(Card card, CardPositionSlot slot)
         {
             MsgPlayCard mdata = new MsgPlayCard();
             mdata.card_uid = card.uid;
@@ -730,7 +730,7 @@ namespace TcgEngine.Server
             SendToAll(GameAction.CardMoved, mdata, NetworkDelivery.Reliable);
         }
         
-        protected virtual void OnCardSummoned(Card card, Slot slot)
+        protected virtual void OnCardSummoned(Card card, CardPositionSlot slot)
         {
             MsgPlayCard mdata = new MsgPlayCard();
             mdata.card_uid = card.uid;
@@ -861,7 +861,7 @@ namespace TcgEngine.Server
             SendToAll(GameAction.AbilityTargetPlayer, mdata, NetworkDelivery.Reliable);
         }
 
-        protected virtual void OnAbilityTargetSlot(AbilityData ability, Card caster, Slot target)
+        protected virtual void OnAbilityTargetSlot(AbilityData ability, Card caster, CardPositionSlot target)
         {
             MsgCastAbilitySlot mdata = new MsgCastAbilitySlot();
             mdata.ability_id = ability.id;

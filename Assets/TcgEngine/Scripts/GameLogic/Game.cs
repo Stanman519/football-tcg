@@ -1,6 +1,6 @@
-﻿using System.Collections;
+﻿using Assets.TcgEngine.Scripts.GameLogic;
 using System.Collections.Generic;
-using UnityEngine;
+using System.Linq;
 
 namespace TcgEngine
 {
@@ -18,8 +18,9 @@ namespace TcgEngine
         public int turn_count = 0;
         public float turn_timer = 0f;
         public int current_down = 1;
-        public int ball_on = 25;
+        public int raw_ball_on = 25;
         public int plays_left_in_half = 11;
+        public int yardage_this_play;
 
         public GameState state = GameState.Connecting;
         public GamePhase phase = GamePhase.None;
@@ -88,13 +89,13 @@ namespace TcgEngine
         public virtual bool IsPlayerActionTurn(Player player)
         {
             return player != null && current_offsense_player == player.player_id 
-                && state == GameState.Play && phase == GamePhase.Main && selector == SelectorType.None;
+                && state == GameState.Play && phase == GamePhase.LiveBall && selector == SelectorType.None;
         }
 
         public virtual bool IsPlayerSelectorTurn(Player player)
         {
             return player != null && selector_player_id == player.player_id 
-                && state == GameState.Play && phase == GamePhase.Main && selector != SelectorType.None;
+                && state == GameState.Play && phase == GamePhase.LiveBall && selector != SelectorType.None;
         }
 
         public virtual bool IsPlayerMulliganTurn(Player player)
@@ -103,7 +104,7 @@ namespace TcgEngine
         }
         
         //Check if a card is allowed to be played on slot
-        public virtual bool CanPlayCard(Card card, Slot slot, bool skip_cost = false)
+        public virtual bool CanPlayCard(Card card, CardPositionSlot slot, bool skip_cost = false)
         {
             if (card == null)
                 return false;
@@ -111,6 +112,14 @@ namespace TcgEngine
             Player player = GetPlayer(card.player_id);
             if (!skip_cost && !player.CanPayMana(card))
                 return false; //Cant pay mana
+            if (card.playerPosition != PlayerPositionGrp.NONE // is a player card and slot is maxed out for position OR is incorrect slot type
+                    && (slot.posGroupType != card.playerPosition
+                    ||
+                    player.cards_board
+                        .Where(cd => cd.playerPosition == card.playerPosition).Count() == player.head_coach.positional_Scheme[card.playerPosition].pos_max))
+            {
+                    return false;
+            }
             if (!player.HasCard(player.cards_hand, card))
                 return false; // Card not in hand
             if (player.is_ai && card.CardData.IsDynamicManaCost() && player.mana == 0)
@@ -120,20 +129,21 @@ namespace TcgEngine
             {
                 if (!slot.IsValid() || IsCardOnSlot(slot))
                     return false;   //Slot already occupied
-                if (Slot.GetP(card.player_id) != slot.p)
+                if (CardPositionSlot.GetP(card.player_id) != slot.p)
                     return false; //Cant play on opponent side
                 return true;
             }
             if (card.CardData.IsEquipment())
             {
-                if (!slot.IsValid())
+                //TODO: removed to get it to work
+/*                if (!slot.IsValid())
                     return false;
 
-                Card target = GetSlotCard(slot);
+                List<Card> targets = GetSlotCards(slot);
                 if (target == null || target.CardData.type != CardType.Character || target.player_id != card.player_id)
                     return false; //Target must be an allied character
 
-                return true;
+                return true;*/
             }
             if (card.CardData.IsRequireTargetSpell())
             {
@@ -147,7 +157,7 @@ namespace TcgEngine
         }
 
         //Check if a card is allowed to move to slot
-        public virtual bool CanMoveCard(Card card, Slot slot, bool skip_cost = false)
+        public virtual bool CanMoveCard(Card card, CardPositionSlot slot, bool skip_cost = false)
         {
             if (card == null || !slot.IsValid())
                 return false;
@@ -158,14 +168,14 @@ namespace TcgEngine
             if (!card.CanMove(skip_cost))
                 return false; //Card cant move
 
-            if (Slot.GetP(card.player_id) != slot.p)
+            if (CardPositionSlot.GetP(card.player_id) != slot.p)
                 return false; //Card played wrong side
 
             if (card.slot == slot)
                 return false; //Cant move to same slot
 
-            Card slot_card = GetSlotCard(slot);
-            if (slot_card != null)
+            List<Card> slot_cards = GetSlotCards(slot);
+            if (slot_cards.Count > 0) //TODO: this is where i change the slot position limits. check the head coach card.
                 return false; //Already a card there
 
             return true;
@@ -303,7 +313,7 @@ namespace TcgEngine
         }
 
         //Check if Slot play target is valid, play target is the target when a spell requires to drag directly onto another card
-        public virtual bool IsPlayTargetValid(Card caster, Slot target)
+        public virtual bool IsPlayTargetValid(Card caster, CardPositionSlot target)
         {
             if (caster == null)
                 return false;
@@ -311,9 +321,9 @@ namespace TcgEngine
             if (target.IsPlayerSlot())
                 return IsPlayTargetValid(caster, GetPlayer(target.p)); //Slot 0,0, means we are targeting a player
 
-            Card slot_card = GetSlotCard(target);
-            if (slot_card != null)
-                return IsPlayTargetValid(caster, slot_card); //Slot has card, check play target on that card
+            List<Card> slot_cards = GetSlotCards(target);
+            if (slot_cards.Count > 0) //TODO: Just taking the first card to check, to get multi card slots to work.
+                return IsPlayTargetValid(caster, slot_cards[0]); //Slot has card, check play target on that card
 
             foreach (AbilityData ability in caster.GetAbilities())
             {
@@ -446,19 +456,43 @@ namespace TcgEngine
             return null;
         }
 
-        public Card GetSlotCard(Slot slot)
+        public List<Card> GetSlotCards(CardPositionSlot slot, int playerId)
         {
+            var result = new List<Card>();
+
+            foreach (Card card in players.First(p => p.player_id == playerId).cards_board)
+            {
+                if (card != null && card.slot == slot)
+                    result.Add(card);
+            }
+            return result;
+        }
+        public List<Card> GetSlotCards(CardPositionSlot slot)
+        {
+            List<Card> result = new List<Card>();
+
             foreach (Player player in players)
             {
                 foreach (Card card in player.cards_board)
                 {
                     if (card != null && card.slot == slot)
-                        return card;
+                        result.Add(card);
                 }
             }
-            return null;
+            return result;
         }
-        
+
+
+        /*        public bool IsSlotPositionIsMaxed(CardPositionSlot slot)
+                {
+
+                    var cards_in_slot = GetSlotCards(slot);
+                    slot.
+                    var posGroup = cards_in_slot[0]
+                    //TODO: tie this into coach positions... which lives in ... gamedata?
+                    return false;
+                }*/
+
         public virtual Player GetRandomPlayer(System.Random rand)
         {
             Player player = GetPlayer(rand.NextDouble() < 0.5 ? 1 : 0);
@@ -471,7 +505,7 @@ namespace TcgEngine
             return player.GetRandomCard(player.cards_board, rand);
         }
 
-        public virtual Slot GetRandomSlot(System.Random rand)
+        public virtual CardPositionSlot GetRandomSlot(System.Random rand)
         {
             Player player = GetRandomPlayer(rand);
             return player.GetRandomSlot(rand);
@@ -512,9 +546,9 @@ namespace TcgEngine
             return card != null && GetTempCard(card.uid) != null;
         }
 
-        public bool IsCardOnSlot(Slot slot)
+        public bool IsCardOnSlot(CardPositionSlot slot)
         {
-            return GetSlotCard(slot) != null;
+            return GetSlotCards(slot).Count > 0;
         }
 
         public bool HasStarted()
@@ -534,6 +568,24 @@ namespace TcgEngine
             Clone(source, game);
             return game;
         }
+
+
+/*        public void AdjustBallPosition(int yardsGained)
+        {
+            ballManager.MoveBall(yardsGained);
+        }*/
+
+        public bool IsTouchdown()
+        {
+            return raw_ball_on >= 100;
+        }
+
+        public bool IsSafety()
+        {
+            return raw_ball_on <= 0;
+        }
+
+
 
         //Clone all variables into another var, used mostly by the AI when building a prediction tree
         public static void Clone(Game source, Game dest)
@@ -597,10 +649,12 @@ namespace TcgEngine
         None = 0,
         Mulligan = 5,
         StartTurn = 10, //Start of turn resolution - Play player cards simultaneously?
-        RevealPlayers = 11, //Reveal new players to board.
-        ChoosePlay = 12, //Choose play/ coverage and any applicable enhancer cards
+        ChoosePlayers = 11, // pick player cards - not revealed to other player.
+        RevealPlayers = 12, //Reveal new players to board.
+        ChoosePlay = 13, //Choose play/ coverage and any applicable enhancer cards
+        RevealPlayCalls = 14,
         SlotSpin = 15, // slot machine spins
-        Main = 20,      //Main play phase - ball is live!
+        LiveBall = 20,      //Main play phase - ball is live!
         EndTurn = 30,   //End of turn resolutions
     }
 

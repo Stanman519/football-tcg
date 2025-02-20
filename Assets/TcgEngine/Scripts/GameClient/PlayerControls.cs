@@ -4,6 +4,7 @@ using UnityEngine;
 using TcgEngine.Client;
 using UnityEngine.Events;
 using TcgEngine.UI;
+using System.Linq;
 
 namespace TcgEngine.Client
 {
@@ -79,7 +80,7 @@ namespace TcgEngine.Client
                 Card card = selected_card.GetCard();
                 Vector3 wpos = GameBoard.Get().RaycastMouseBoard();
                 BSlot tslot = BSlot.GetNearest(wpos);
-                Card target = tslot?.GetSlotCard(wpos);
+                List<Card> targets = tslot?.GetSlotCards(wpos);
                 AbilityButton ability = AbilityButton.GetFocus(wpos, 1f);
 
                 if (ability != null && ability.IsInteractable())
@@ -99,15 +100,15 @@ namespace TcgEngine.Client
                     else
                         GameClient.Get().AttackPlayer(card, tslot.GetPlayer());
                 }
-                else if (target != null && target.uid != card.uid && target.player_id != card.player_id)
+                else if (targets.Count > 0 && targets.Any(target => target.uid != card.uid) && targets.Any(target => target.player_id != card.player_id))
                 {
-                    if (!Tutorial.Get().CanDo(TutoEndTrigger.Attack, card) && !Tutorial.Get().CanDo(TutoEndTrigger.Attack, target))
+                    if (!Tutorial.Get().CanDo(TutoEndTrigger.Attack, card) && !Tutorial.Get().CanDo(TutoEndTrigger.Attack, targets[0])) // TODO: added targets[0] just to get my position slots to work
                         return;
 
                     if (card.exhausted)
                         WarningText.ShowExhausted();
                     else
-                        GameClient.Get().AttackTarget(card, target);
+                        GameClient.Get().AttackTarget(card, targets[0]); // TODO: added targets[0] just to get my position slots to work
                 }
                 else if (tslot != null && tslot is BoardSlot)
                 {

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TcgEngine.UI;
+using System.Linq;
 
 namespace TcgEngine.Client
 {
@@ -215,7 +216,7 @@ namespace TcgEngine.Client
             Player player = gdata.GetPlayer(player_id);
             Card card = GetCard();
 
-            Slot slot = Slot.None;
+            CardPositionSlot slot = CardPositionSlot.None;
             if (bslot != null)
                 slot = bslot.GetEmptySlot(board_pos);
             if(bslot != null && card.CardData.IsRequireTarget())
@@ -224,8 +225,8 @@ namespace TcgEngine.Client
             if (!Tutorial.Get().CanDo(TutoEndTrigger.PlayCard, card))
                 return;
 
-            Card slot_card = bslot?.GetSlotCard(board_pos);
-            if (bslot != null && card.CardData.IsRequireTargetSpell() && slot_card != null && slot_card.HasStatus(StatusType.SpellImmunity))
+            List<Card> slot_cards = bslot?.GetSlotCards(board_pos);
+            if (bslot != null && card.CardData.IsRequireTargetSpell() && slot_cards != null && slot_cards.Any(card => card.HasStatus(StatusType.SpellImmunity)))
             {
                 WarningText.ShowSpellImmune();
                 return;
@@ -243,7 +244,7 @@ namespace TcgEngine.Client
             }
         }
 
-        public void PlayCard(Slot slot)
+        public void PlayCard(CardPositionSlot slot)
         {
             GameClient.Get().PlayCard(GetCard(), slot);
             HandCardArea.Get().DelayRefresh(GetCard());

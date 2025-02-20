@@ -28,7 +28,7 @@ namespace TcgEngine
             return false; //Not a card
         }
 
-        public override bool IsTargetConditionMet(Game data, AbilityData ability, Card caster, Slot target)
+        public override bool IsTargetConditionMet(Game data, AbilityData ability, Card caster, CardPositionSlot target)
         {
             return false; //Not a card
         }

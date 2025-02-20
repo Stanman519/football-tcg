@@ -29,7 +29,7 @@ namespace TcgEngine
             return dest;
         }
 
-        public override List<Slot> FilterTargets(Game data, AbilityData ability, Card caster, List<Slot> source, List<Slot> dest)
+        public override List<CardPositionSlot> FilterTargets(Game data, AbilityData ability, Card caster, List<CardPositionSlot> source, List<CardPositionSlot> dest)
         {
             int max = Mathf.Min(source.Count, amount);
             int min = source.Count - max;
