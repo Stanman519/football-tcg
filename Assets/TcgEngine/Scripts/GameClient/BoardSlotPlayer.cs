@@ -50,7 +50,7 @@ namespace TcgEngine.Client
         {
             base.Update();
 
-            if (!GameClient.Get().IsReady())
+            if (!GameClient.Get()?.IsReady() ?? false)
                 return;
 
             if (!opponent)

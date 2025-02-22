@@ -29,10 +29,7 @@ namespace TcgEngine
                 return CompareInt(target.hp, oper, value);
             }
 
-            if (type == ConditionStatType.Mana)
-            {
-                return CompareInt(target.mana, oper, value);
-            }
+
 
             return false;
         }

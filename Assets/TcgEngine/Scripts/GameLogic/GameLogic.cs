@@ -60,7 +60,6 @@ namespace TcgEngine.Gameplay
         private Game game_data;
 
 
-
         private SlotMachineManager slotMachineManager;
         private SlotMachineUI slotMachineUI;
 
@@ -76,6 +75,7 @@ namespace TcgEngine.Gameplay
         private List<Card> cards_to_clear = new List<Card>();
 
         private List<SlotData> default_slot_data;
+        private FieldSlotManager fieldSlotManager;
 
         public GameLogic(bool is_ai)
         {
@@ -132,6 +132,9 @@ namespace TcgEngine.Gameplay
             slotMachineManager = new SlotMachineManager(default_slot_data);
             slotMachineUI = GameObject.FindFirstObjectByType<SlotMachineUI>();
             slotMachineUI.InitializeReels(3);
+
+            fieldSlotManager = GameObject.FindFirstObjectByType<FieldSlotManager>();
+
         }
 
         public virtual void SetData(Game game)
@@ -151,7 +154,11 @@ namespace TcgEngine.Gameplay
         {
             if (game_data.state == GameState.GameEnded)
                 return;
-
+            if (game_data != null && game_data.players.Count() >= 2)
+            {
+                fieldSlotManager.GenerateSlotsForPlayer(game_data.players[0]); // Generate slots for player 1
+                fieldSlotManager.GenerateSlotsForPlayer(game_data.players[1]); // Generate slots for player 2
+            }
             //Choose first player
             game_data.state = GameState.Play;
             game_data.first_offense_player = random.NextDouble() < 0.5 ? 0 : 1;
@@ -188,7 +195,7 @@ namespace TcgEngine.Gameplay
 
                 //Add coin second player
                 bool is_random = true; //level == null || level.first_player == LevelFirst.Random;
-                if (is_random && player.player_id != game_data.first_offense_player && GameplayData.Get().second_bonus != null)
+                if (is_random && player.player_id != game_data.first_offense_player)
                 {
                     Card card = Card.Create(GameplayData.Get().second_bonus, VariantData.GetDefault(), player);
                     player.cards_hand.Add(card);
@@ -526,14 +533,14 @@ namespace TcgEngine.Gameplay
                 }
             }
 
-            if (count_alive == 0)
+/*            if (count_alive == 0)
             {
                 EndGame(-1); //Everyone is dead, Draw
             }
             else if (count_alive == 1)
             {
                 EndGame(alive.player_id); //Player win
-            }
+            }*/
         }
 
         protected virtual void ClearTurnData()
@@ -657,9 +664,6 @@ namespace TcgEngine.Gameplay
             {
                 Player player = game_data.GetPlayer(card.player_id);
 
-                //Cost
-                if (!skip_cost)
-                    player.PayMana(card);
 
                 //Play card
                 player.RemoveCardFromAllGroups(card);
@@ -721,11 +725,7 @@ namespace TcgEngine.Gameplay
             {
                 card.slot = FindNextOpenPosition(slot);
 
-                // If moving, remove old position
-                game_data.RemoveCardFromSlot(card);
-
-                // Assign card to its new position group
-                game_data.AddCardToSlot(card, card.slot);
+                GameClient.Get().Move(card, card.slot);
 
                 RefreshData();
             }
@@ -760,11 +760,11 @@ namespace TcgEngine.Gameplay
             Player player = GameClient.Get().GetPlayer();
 
             // Get all slots in this position group
-            List<Card> existingPlayers = gdata.GetSlotCards(slot.posGroupType, player.player_id);
+            List<Card> existingPlayers = gdata.GetSlotCards(slot, player.player_id);
 
             if (existingPlayers.Count < slot.max_cards)
             {
-                return new CardPositionSlot(player.player_id, slot.posGroupType, slot.max_cards);
+                return new CardPositionSlot(player.player_id, 1, slot.posGroupType);
             }
 
             return CardPositionSlot.None; // No open positions
@@ -1522,7 +1522,6 @@ namespace TcgEngine.Gameplay
             //Pay cost
             if (iability.trigger == AbilityTrigger.Activate || iability.trigger == AbilityTrigger.None)
             {
-                player.mana -= iability.mana_cost;
                 caster.exhausted = caster.exhausted || iability.exhaust;
             }
 
@@ -1634,6 +1633,24 @@ namespace TcgEngine.Gameplay
                 }
             }
         }
+        private void ResolvePlayOutcome()
+        {
+            Debug.Log("Resolving play outcome...");
+            // TODO: Implement logic for resolving what happens after a play (e.g., determining success/failure)
+        }
+
+        private void HandleTurnoverOrScore()
+        {
+            Debug.Log("Handling turnover or score...");
+            // TODO: Implement logic for turnovers or scoring (e.g., changing possession, updating score)
+        }
+
+        private void ResolveLiveBallEffects()
+        {
+            Debug.Log("Resolving live ball effects...");
+            // TODO: Implement logic for handling loose ball effects (e.g., fumbles, deflections)
+        }
+
 
         protected virtual void UpdateOngoingKills()
         {
@@ -2014,11 +2031,10 @@ namespace TcgEngine.Gameplay
 
             if (game_data.selector == SelectorType.SelectorCost)
             {
-                if (select_cost >= 0 && select_cost < 10 && select_cost <= player.mana)
+                if (select_cost >= 0 && select_cost < 10)
                 {
                     game_data.selector = SelectorType.None;
                     game_data.selected_value = select_cost;
-                    player.mana -= select_cost;
                     RefreshData();
 
                     TriggerSecrets(AbilityTrigger.OnPlayOther, caster);
@@ -2049,10 +2065,6 @@ namespace TcgEngine.Gameplay
             if (card != null)
             {
                 Player player = game_data.GetPlayer(card.player_id);
-                if (card.CardData.IsDynamicManaCost())
-                    player.mana += game_data.selected_value;
-                else
-                    player.mana += card.CardData.cost;
 
                 player.RemoveCardFromAllGroups(card);
                 player.AddCard(player.cards_hand, card);

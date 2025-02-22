@@ -30,7 +30,7 @@ namespace TcgEngine.Client
             render = GetComponent<SpriteRenderer>();
             collide = GetComponent<Collider>();
             start_alpha = render.color.a;
-            render.color = new Color(render.color.r, render.color.g, render.color.b, 0f);
+            //render.color = new Color(render.color.r, render.color.g, render.color.b, 0f);
             bounds = collide.bounds;
         }
 
@@ -42,7 +42,7 @@ namespace TcgEngine.Client
         protected virtual void Update()
         {
             current_alpha = Mathf.MoveTowards(current_alpha, target_alpha * start_alpha, 2f * Time.deltaTime);
-            render.color = new Color(render.color.r, render.color.g, render.color.b, current_alpha);
+            //render.color = new Color(render.color.r, render.color.g, render.color.b, current_alpha);
         }
         public virtual bool IsValidDrop(Card card)
         {
@@ -126,10 +126,6 @@ namespace TcgEngine.Client
             return null;
         }
 
-        public static List<BSlot> GetAll()
-        {
-            return slot_list;
-        }
     }
 
     public enum BoardSlotType

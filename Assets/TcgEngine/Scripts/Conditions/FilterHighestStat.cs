@@ -43,10 +43,7 @@ namespace TcgEngine
             {
                 return card.GetHP();
             }
-            if (stat == ConditionStatType.Mana)
-            {
-                return card.GetMana();
-            }
+
             return 0;
         }
     }

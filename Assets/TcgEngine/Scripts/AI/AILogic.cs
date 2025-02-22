@@ -128,7 +128,7 @@ namespace TcgEngine.AI
             int max_actions = node.tdepth < ai_depth_wide ? actions_per_turn_wide : actions_per_turn;
             if (node.taction < max_actions)
             {
-                if (data.selector == SelectorType.None)
+                if (data.selector == SelectorType.None && player != null)
                 {
                     //Play card
                     for (int c = 0; c < player.cards_hand.Count; c++)
@@ -157,9 +157,8 @@ namespace TcgEngine.AI
             }
 
             //End Turn (dont add action if ai can still attack player, or ai hasnt spent any mana)
-            bool is_full_mana = HasAction(action_list, GameAction.PlayCard) && player.mana >= player.mana_max;
             bool can_attack_player = HasAction(action_list, GameAction.AttackPlayer);
-            bool can_end = !can_attack_player && !is_full_mana && data.selector == SelectorType.None;
+            bool can_end = !can_attack_player &&  data.selector == SelectorType.None;
             if (action_list.Count == 0 || can_end)
             {
                 AIAction actiont = CreateAction(GameAction.EndTurn);
@@ -543,16 +542,6 @@ namespace TcgEngine.AI
                         action.value = i;
                         actions.Add(action);
                     }
-                }
-            }
-
-            if (data.selector == SelectorType.SelectorCost)
-            {
-                for (int i = 1; i <= player.mana; i++)
-                {
-                    AIAction action = CreateAction(GameAction.SelectCost, caster);
-                    action.value = i;
-                    actions.Add(action);
                 }
             }
 

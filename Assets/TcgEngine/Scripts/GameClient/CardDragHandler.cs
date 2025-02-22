@@ -40,7 +40,7 @@ public class CardDragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, I
     private void HighlightValidSlots()
     {
         PlayerPositionGrp position = draggingCard.GetComponent<Card>().playerPosition;
-        List<BoardSlot> slots = FindObjectOfType<FieldSlotManager>().GetSlotsForPosition(position);
+        List<BoardSlot> slots = FindFirstObjectByType<FieldSlotManager>().GetSlotsForPosition(position);
 
         foreach (BoardSlot slot in slots)
         {
@@ -50,7 +50,7 @@ public class CardDragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, I
 
     private void ResetSlotHighlights()
     {
-        List<BoardSlot> slots = FindObjectOfType<FieldSlotManager>().GetSlotsForPosition(draggingCard.GetComponent<Card>().playerPosition);
+        List<BoardSlot> slots = FindFirstObjectByType<FieldSlotManager>().GetSlotsForPosition(draggingCard.GetComponent<Card>().playerPosition);
         foreach (BoardSlot slot in slots)
         {
             slot.UnhighlightSlot();

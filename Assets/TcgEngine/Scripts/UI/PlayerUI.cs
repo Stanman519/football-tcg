@@ -18,10 +18,8 @@ namespace TcgEngine.UI
         public Text pname;
         public AvatarUI avatar;
         public IconBar mana_bar;
-        public Text hp_txt;
-        public Text hp_max_txt;
 
-        public Animator[] secrets;
+
 
         public GameObject dead_fx;
         public AudioClip dead_audio;
@@ -47,13 +45,6 @@ namespace TcgEngine.UI
 
         void Start()
         {
-            pname.text = "";
-            hp_txt.text = "";
-            hp_max_txt.text = "";
-
-            for (int i = 0; i < secrets.Length; i++)
-                secrets[i].gameObject.SetActive(false);
-
             avatar.onClick += OnClickAvatar;
             GameClient.Get().onSecretTrigger += OnSecretTrigger;
         }
@@ -68,10 +59,6 @@ namespace TcgEngine.UI
             if (player != null)
             {
                 pname.text = player.username;
-                mana_bar.value = player.mana;
-                mana_bar.max_value = player.mana_max;
-                hp_txt.text = prev_hp.ToString();
-                hp_max_txt.text = "/" + player.hp_max.ToString();
 
                 AvatarData adata = AvatarData.Get(player.avatar);
                 if (avatar != null && adata != null && !killed)
@@ -84,33 +71,8 @@ namespace TcgEngine.UI
             
 
             timer += Time.deltaTime;
-            if (timer > 0.4f)
-            {
-                timer = 0f;
-                SlowUpdate();
-            }
         }
 
-        void SlowUpdate()
-        {
-            Player player = GetPlayer();
-            if (player == null)
-                return;
-
-            for (int i = 0; i < secrets.Length; i++)
-            {
-                bool active = i < player.cards_secret.Count;
-                bool was_active = secrets[i].gameObject.activeSelf;
-                if (active != was_active)
-                    secrets[i].gameObject.SetActive(active);
-                if (active && !was_active)
-                    secrets[i].SetTrigger("appear");
-                if (active && !was_active && !is_opponent)
-                    secrets[i].GetComponent<SecretIconUI>().SetCard(player.cards_secret[i]);
-                if (!active && was_active)
-                    secrets[i].Rebind();
-            }
-        }
 
         public void Kill()
         {
@@ -145,12 +107,6 @@ namespace TcgEngine.UI
 
         private void OnSecretTrigger(Card secret, Card triggerer)
         {
-            Player player = GetPlayer();
-            int index = player.cards_secret.Count - 1;
-            if (player.player_id == secret.player_id && index >= 0 && index < secrets.Length)
-            {
-                secrets[index].SetTrigger("reveal");
-            }
         }
 
         public Player GetPlayer()

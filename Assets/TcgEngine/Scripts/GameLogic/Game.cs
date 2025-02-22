@@ -56,7 +56,41 @@ namespace TcgEngine
             for (int i = 0; i < nb_players; i++)
                 players[i] = new Player(i);
             settings = GameSettings.Default;
+            InitializeTestGame();
         }
+        //REMOVE THIS ONCE WE LEARN HOW TO MAKE HEAD COACHES FOR REAL
+        void InitializeTestGame()
+        {
+            HeadCoachCard coach1 = new HeadCoachCard();
+            coach1.positional_Scheme = new Dictionary<PlayerPositionGrp, HCPlayerSchemeData>
+    {
+        { PlayerPositionGrp.QB, new HCPlayerSchemeData { pos_max = 1 } },
+        { PlayerPositionGrp.WR, new HCPlayerSchemeData { pos_max = 3 } },
+        { PlayerPositionGrp.RB_TE, new HCPlayerSchemeData { pos_max = 2 } },
+        { PlayerPositionGrp.OL, new HCPlayerSchemeData { pos_max = 5 } },
+                { PlayerPositionGrp.DL, new HCPlayerSchemeData { pos_max = 2 } },
+        { PlayerPositionGrp.LB, new HCPlayerSchemeData { pos_max = 2 } },
+        { PlayerPositionGrp.DB, new HCPlayerSchemeData { pos_max = 3 } }
+    };
+
+            HeadCoachCard coach2 = new HeadCoachCard();
+            coach2.positional_Scheme = new Dictionary<PlayerPositionGrp, HCPlayerSchemeData>
+    {
+                        { PlayerPositionGrp.QB, new HCPlayerSchemeData { pos_max = 1 } },
+        { PlayerPositionGrp.WR, new HCPlayerSchemeData { pos_max = 3 } },
+        { PlayerPositionGrp.RB_TE, new HCPlayerSchemeData { pos_max = 2 } },
+        { PlayerPositionGrp.OL, new HCPlayerSchemeData { pos_max = 5 } },
+        { PlayerPositionGrp.DL, new HCPlayerSchemeData { pos_max = 2 } },
+        { PlayerPositionGrp.LB, new HCPlayerSchemeData { pos_max = 2 } },
+        { PlayerPositionGrp.DB, new HCPlayerSchemeData { pos_max = 3 } }
+    };
+
+            players[0].head_coach = coach1;
+            players[1].head_coach = coach2;
+        }
+
+
+
 
         public virtual bool AreAllPlayersReady()
         {
@@ -83,13 +117,14 @@ namespace TcgEngine
         //Check if its player's turn
         public virtual bool IsPlayerTurn(Player player)
         {
-            return IsPlayerActionTurn(player) || IsPlayerSelectorTurn(player);
+            return IsPlayerActionTurn(player);
         }
 
         public virtual bool IsPlayerActionTurn(Player player)
         {
-            return player != null && current_offsense_player == player.player_id 
-                && state == GameState.Play && phase == GamePhase.LiveBall && selector == SelectorType.None;
+            return player != null;
+            //&& current_offsense_player == player.player_id 
+              //  && state == GameState.Play && phase == GamePhase.LiveBall && selector == SelectorType.None;
         }
 
         public virtual bool IsPlayerSelectorTurn(Player player)
@@ -110,7 +145,7 @@ namespace TcgEngine
                 return false;
 
             Player player = GetPlayer(card.player_id);
-            if (!skip_cost && !player.CanPayMana(card))
+            if (!skip_cost)
                 return false; //Cant pay mana
             if (card.playerPosition != PlayerPositionGrp.NONE // is a player card and slot is maxed out for position OR is incorrect slot type
                     && (slot.posGroupType != card.playerPosition
@@ -122,7 +157,7 @@ namespace TcgEngine
             }
             if (!player.HasCard(player.cards_hand, card))
                 return false; // Card not in hand
-            if (player.is_ai && card.CardData.IsDynamicManaCost() && player.mana == 0)
+            if (player.is_ai && card.CardData.IsDynamicManaCost())
                 return false; // AI cant play X-cost card at 0 cost
 
             if (card.CardData.IsBoardCard())

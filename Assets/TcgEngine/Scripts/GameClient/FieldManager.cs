@@ -18,6 +18,7 @@ public class FieldManager : MonoBehaviour
 
     void Start()
     {
+        yardToPixelRatio = CalculateYardToPixelRatio();
         CenterFieldOnYardLine(currentBallYardLine);
     }
 
@@ -60,7 +61,11 @@ public class FieldManager : MonoBehaviour
             }
         }
     }
-
+    public float CalculateYardToPixelRatio()
+    {
+        float scaleY = fieldBackground.lossyScale.y;
+        return (fieldBackground.rect.height * scaleY) / 100f;
+    }
     private void CreateSlot(FormationSlotData slotData)
     {
         GameObject newSlotObj = Instantiate(slotPrefab, slotParent);

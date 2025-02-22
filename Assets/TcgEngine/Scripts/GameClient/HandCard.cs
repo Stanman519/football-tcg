@@ -232,11 +232,6 @@ namespace TcgEngine.Client
                 return;
             }
 
-            if (!player.CanPayMana(card))
-            {
-                WarningText.ShowNoMana();
-                return;
-            }
 
             if (gdata.CanPlayCard(card, slot, true))
             {

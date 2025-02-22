@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.Events;
 using Unity.Netcode;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace TcgEngine.Client
 {
@@ -69,7 +70,6 @@ namespace TcgEngine.Client
         private int observe_player_id = 0;
         private float timer = 0f;
 
-
         private Dictionary<ushort, RefreshEvent> registered_commands = new Dictionary<ushort, RefreshEvent>();
 
         private static GameClient instance;
@@ -122,6 +122,11 @@ namespace TcgEngine.Client
 
             ConnectToAPI();
             ConnectToServer();
+
+
+
+            Game gameData = GetGameData();
+
         }
 
         protected virtual void OnDestroy()
