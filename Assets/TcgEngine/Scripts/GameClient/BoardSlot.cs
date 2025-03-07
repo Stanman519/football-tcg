@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Assets.TcgEngine.Scripts.Gameplay;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -80,13 +81,13 @@ namespace TcgEngine.Client
         public bool IsValidDragTarget()
         {
             Card dragCard = HandCard.GetDrag()?.GetCard();
-            return dragCard != null && dragCard.playerPosition == player_position_type;
+            return dragCard != null && dragCard.Data.playerPosition == player_position_type;
         }
 
         public void OnDrop(PointerEventData eventData)
         {
             Card dragCard = HandCard.GetDrag()?.GetCard();
-            if (dragCard != null && dragCard.playerPosition == player_position_type)
+            if (dragCard != null && dragCard.Data.playerPosition == player_position_type)
             {
                 GameClient.Get().PlayCard(dragCard, assignedSlot);
             }

@@ -5,6 +5,7 @@ using UnityEngine.UI;
 using TcgEngine.Client;
 using UnityEngine.Events;
 using TcgEngine;
+using Assets.TcgEngine.Scripts.Gameplay;
 
 namespace TcgEngine.FX
 {

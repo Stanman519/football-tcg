@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using TcgEngine.UI;
+using Assets.TcgEngine.Scripts.Gameplay;
 
 namespace TcgEngine.Client
 {

@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using System;
 using UnityEngine;
 using UnityEngine.UI;
+using static UnityEditor.Experimental.AssetDatabaseExperimental.AssetDatabaseCounters;
+using UnityEngine.UIElements;
 
 [Serializable]
 public class SlotData
@@ -15,7 +17,7 @@ public class SlotData
 [Serializable]
 public class SlotIconData
 {
-    public string IconID;
+    public SlotMachineIconType IconID;
     public float Weight = 1f;
     public Sprite IconSprite;
 
@@ -23,16 +25,16 @@ public class SlotIconData
     {
            
     }
-    public SlotIconData(string iconID, float weight)
+    public SlotIconData(SlotMachineIconType iconID, float weight)
     {
         IconID = iconID;
         Weight = weight;
         IconSprite = LoadSprite(iconID);
     }
 
-    private Sprite LoadSprite(string iconID)
+    private Sprite LoadSprite(SlotMachineIconType iconID)
     {
-        var test = Resources.Load<Sprite>($"SlotMachine/slot-{iconID.ToLower()}-icon");
+        var test = Resources.Load<Sprite>($"SlotMachine/slot-{Enum.GetName(typeof(SlotMachineIconType), iconID).ToLower()}-icon");
         return test;
     }
 }

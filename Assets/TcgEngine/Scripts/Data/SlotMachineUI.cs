@@ -73,7 +73,7 @@ public class SlotMachineUI : MonoBehaviour
         }
 
         // Show final result
-        UpdateReelUI(reelUIs[slotData.id], calculatedResults.TopImage, calculatedResults.MiddleImage, calculatedResults.BottomImage);
+        UpdateReelUI(reelUIs[slotData.id], calculatedResults.Top.Image, calculatedResults.Middle.Image, calculatedResults.Bottom.Image);
     }
 
     private Sprite PickRandomIcon(List<SlotIconData> reelIcons)

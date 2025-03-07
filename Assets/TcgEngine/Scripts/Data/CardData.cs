@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using Assets.TcgEngine.Scripts.Gameplay;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace TcgEngine
@@ -7,11 +8,17 @@ namespace TcgEngine
     {
         None = 0,
         Hero = 5,
-        Character = 10,
-        Spell = 20,
+        OffensivePlayer = 10,
+        DefensivePlayer = 20,
+        SpecialTeamsPlayer = 25,
         Artifact = 30,
         Secret = 40,
         Equipment = 50,
+        OffensivePlayEnhancer = 60,
+        DefensivePlayEnhancer = 70,
+        OffLiveBall = 80,
+        DefLiveBall = 90
+        
     }
 
     /// <summary>
@@ -36,6 +43,9 @@ namespace TcgEngine
         public int attack;
         public int stamina;
         public int grit;
+
+
+
         public int run_bonus;
         public int short_pass_bonus;
         public int deep_pass_bonus;
@@ -44,7 +54,9 @@ namespace TcgEngine
         public int short_pass_coverage_bonus;
         public int deep_pass_coverage_bonus;
 
-
+        public bool isSuperstar;
+        public PlayType[] required_plays;
+        public PlayerPositionGrp playerPosition;
 
         [Header("Traits")]
         public TraitData[] traits;
@@ -120,11 +132,11 @@ namespace TcgEngine
         {
             if (type == CardType.Hero)
                 return "hero";
-            if (type == CardType.Character)
+            if (type == CardType.OffensivePlayer)
                 return "character";
             if (type == CardType.Artifact)
                 return "artifact";
-            if (type == CardType.Spell)
+            if (type == CardType.DefensivePlayer)
                 return "spell";
             if (type == CardType.Secret)
                 return "secret";
@@ -144,19 +156,22 @@ namespace TcgEngine
             return txt;
         }
 
-        public bool IsCharacter()
+        public bool IsPlayer()
         {
-            return type == CardType.Character;
+            return type == CardType.OffensivePlayer || type == CardType.DefensivePlayer;
         }
 
         public bool IsSecret()
         {
             return type == CardType.Secret;
         }
-
+        public bool IsPlayEnhancer()
+        {
+            return type == CardType.OffensivePlayEnhancer || type == CardType.DefensivePlayEnhancer;
+        }
         public bool IsBoardCard()
         {
-            return type == CardType.Character || type == CardType.Artifact;
+            return type == CardType.OffensivePlayer || type == CardType.Artifact || type == CardType.DefensivePlayer;
         }
 
         public bool IsRequireTarget()
@@ -166,7 +181,7 @@ namespace TcgEngine
 
         public bool IsRequireTargetSpell()
         {
-            return type == CardType.Spell && HasAbility(AbilityTrigger.OnPlay, AbilityTarget.PlayTarget);
+            return type == CardType.DefensivePlayer && HasAbility(AbilityTrigger.OnPlay, AbilityTarget.PlayTarget);
         }
 
         public bool IsEquipment()

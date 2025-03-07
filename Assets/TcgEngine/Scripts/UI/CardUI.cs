@@ -6,6 +6,7 @@ using TcgEngine;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
 using TcgEngine.Client;
+using Assets.TcgEngine.Scripts.Gameplay;
 
 namespace TcgEngine.UI
 {
@@ -81,9 +82,9 @@ namespace TcgEngine.UI
                 card_text.text = card.GetText();
 
             if (attack_icon != null)
-                attack_icon.enabled = card.IsCharacter();
+                attack_icon.enabled = card.IsPlayer();
             if (attack != null)
-                attack.enabled = card.IsCharacter();
+                attack.enabled = card.IsPlayer();
             if (hp_icon != null)
                 hp_icon.enabled = card.IsBoardCard() || card.IsEquipment();
             if (hp != null)

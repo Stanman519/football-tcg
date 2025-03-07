@@ -269,8 +269,8 @@ namespace TcgEngine.UI
                             || (!owned && toggle_not_owned.isOn)
                             || toggle_owned.isOn == toggle_not_owned.isOn;
 
-                        bool type_check = (type == CardType.Character && toggle_character.isOn)
-                            || (type == CardType.Spell && toggle_spell.isOn)
+                        bool type_check = (type == CardType.OffensivePlayer && toggle_character.isOn)
+                            || (type == CardType.DefensivePlayer && toggle_spell.isOn)
                             || (type == CardType.Artifact && toggle_artifact.isOn)
                             || (type == CardType.Equipment && toggle_equipment.isOn)
                             || (type == CardType.Secret && toggle_secret.isOn)

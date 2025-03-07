@@ -1,18 +1,7 @@
 using UnityEngine;
 using System.Collections;
-using UnityEngine.UI;
 using TMPro;
-
-public enum GameState
-{
-    TitleScreen,
-    PlayCall,
-    SlotSpin,
-    Resolution,
-    EndOfPlay,
-    Halftime,
-    GameOver
-}
+using Assets.TcgEngine.Scripts.Gameplay;
 
 public class GameManager : MonoBehaviour
 {
@@ -61,7 +50,7 @@ public class GameManager : MonoBehaviour
     void Start()
     {
         // You might begin with a TitleScreen or directly start the game
-        TransitionToState(GameState.PlayCall);
+        TransitionToPhase(GamePhase.StartTurn);
 
     }
 
@@ -69,31 +58,38 @@ public class GameManager : MonoBehaviour
     /// <summary>
     /// Call this to transition from one GameState to another.
     /// </summary>
-    public void TransitionToState(GameState newState)
+    public void TransitionToPhase(GamePhase newState)
     {
         currentGameState = newState;
         switch (newState)
         {
-            case GameState.TitleScreen:
-                HandleTitleScreen();
-                break;
-            case GameState.PlayCall:
-                HandlePlayCall();
-                break;
-            case GameState.SlotSpin:
-                HandleSlotSpin();
-                break;
-            case GameState.Resolution:
+
+            case GamePhase.StartTurn:
                 StartCoroutine(HandleResolution());
                 break;
-            case GameState.EndOfPlay:
+            case GamePhase.ChoosePlayers:
+                HandleChoosePlayers();
+                break;
+            case GamePhase.RevealPlayers:
+                HandlePlayerReveal();
+                break;
+            case GamePhase.ChoosePlay:
+                HandlePlayCall();
+                break;
+            case GamePhase.RevealPlayCalls:
+                HandleRevealPlayCalls();
+                break;
+            case GamePhase.SlotSpin:
+                HandleSlotSpin();
+                break;
+            case GamePhase.Resolution:
+                HandleResolution(); 
+                break;
+            case GamePhase.LiveBall:
+                HandleLiveBallPhase();
+                break;
+            case GamePhase.EndTurn:
                 HandleEndOfPlay();
-                break;
-            case GameState.Halftime:
-                HandleHalftime();
-                break;
-            case GameState.GameOver:
-                HandleGameOver();
                 break;
         }
     }
@@ -134,7 +130,8 @@ public class GameManager : MonoBehaviour
     public void OnSlotsResult()
     {
         // Possibly store spin result, then proceed to resolution
-        TransitionToState(GameState.Resolution);
+        TransitionToPhase(GamePhase.Resolution);
+        
     }
 
     private IEnumerator HandleResolution()
@@ -147,7 +144,7 @@ public class GameManager : MonoBehaviour
         yield return null; // do your logic, possibly yield between steps if you want animations
 
         // Once resolution is done, transition to EndOfPlay
-        TransitionToState(GameState.EndOfPlay);
+        TransitionToPhase(GamePhase.LiveBall);
     }
 
     private void HandleEndOfPlay()

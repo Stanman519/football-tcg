@@ -1,0 +1,52 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 843a21f7f6f205741a0a7341aec8e84d, type: 3}
+  m_Name: 00093_WR_Kevin_Ross
+  m_EditorClassIdentifier: 
+  id: 00093_WR_Kevin_Ross
+  title: WR Kevin Ross
+  art_full: {fileID: 0}
+  art_board: {fileID: 0}
+  type: 10
+  team: {fileID: 0}
+  rarity: {fileID: 0}
+  mana: 0
+  attack: 0
+  stamina: 10
+  grit: 0
+  run_bonus: 0
+  short_pass_bonus: 4
+  deep_pass_bonus: 1
+  run_coverage_bonus: 0
+  short_pass_coverage_bonus: 0
+  deep_pass_coverage_bonus: 0
+  isSuperstar: 0
+  required_plays: 
+  playerPosition: 3
+  traits: []
+  stats: []
+  abilities:
+  - {fileID: 0}
+  text: If you have exactly 1 other WR in play add +4 to short pass
+  desc: 
+  spawn_fx: {fileID: 0}
+  death_fx: {fileID: 0}
+  attack_fx: {fileID: 0}
+  damage_fx: {fileID: 0}
+  idle_fx: {fileID: 0}
+  spawn_audio: {fileID: 0}
+  death_audio: {fileID: 0}
+  attack_audio: {fileID: 0}
+  damage_audio: {fileID: 0}
+  deckbuilding: 0
+  cost: 100
+  packs: []

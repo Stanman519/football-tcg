@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using TcgEngine.Client;
+using Assets.TcgEngine.Scripts.Gameplay;
 
 namespace TcgEngine.FX
 {

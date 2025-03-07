@@ -1,4 +1,4 @@
-using System.Collections;
+using Assets.TcgEngine.Scripts.Gameplay;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -46,7 +46,7 @@ namespace TcgEngine.Client
         }
         public virtual bool IsValidDrop(Card card)
         {
-            return isStarSlot && card != null && card.playerPosition == player_position_type;
+            return isStarSlot && card != null && card.Data.playerPosition == player_position_type;
         }
         public virtual CardPositionSlot GetSlot()
         {

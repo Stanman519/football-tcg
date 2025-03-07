@@ -1,4 +1,4 @@
-using System.Collections;
+using Assets.TcgEngine.Scripts.Gameplay;
 using System.Collections.Generic;
 using UnityEngine;
 

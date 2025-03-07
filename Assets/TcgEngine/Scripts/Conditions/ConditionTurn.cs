@@ -1,7 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-
+using Assets.TcgEngine.Scripts.Gameplay;
 namespace TcgEngine
 {
     /// <summary>
@@ -15,7 +15,7 @@ namespace TcgEngine
 
         public override bool IsTriggerConditionMet(Game data, AbilityData ability, Card caster)
         {
-            bool yourturn = caster.player_id == data.current_offsense_player;
+            bool yourturn = caster.player_id == data.current_offensive_player;
             return CompareBool(yourturn, oper);
         }
     }

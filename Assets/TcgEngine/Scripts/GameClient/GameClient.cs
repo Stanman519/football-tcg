@@ -1,10 +1,8 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 using Unity.Netcode;
-using System.Threading.Tasks;
-using System.Linq;
+using Assets.TcgEngine.Scripts.Gameplay;
 
 namespace TcgEngine.Client
 {
@@ -351,7 +349,33 @@ namespace TcgEngine.Client
         {
             SendAction(GameAction.SelectSlot, slot);
         }
+        public void SendPlaySelection(PlayType play, Card enhancer)
+        {
+            MsgPlaySelection msg = new MsgPlaySelection();
+            msg.selectedPlay = play;
+            msg.enhancerUid = enhancer != null ? enhancer.uid : "";
 
+            SendAction(GameAction.SelectPlay, msg);
+
+            if (game_data.AllPlayersReadyForPlay())
+            {
+                RevealPlays();
+            }
+        }
+
+        private void RevealPlays()
+        {
+            Player offense = game_data.GetOffensePlayer();
+            Player defense = game_data.GetDefensePlayer();
+
+
+            // Apply new offensive formation
+            //ApplyUIFormation(offense, offense.chosenPlay);
+
+            // TODO: Handle defensive adjustments here
+
+            // Proceed to next phase of play (ball snap, etc.)
+        }
         public void SelectChoice(int c)
         {
             MsgInt choice = new MsgInt();
@@ -490,6 +514,18 @@ namespace TcgEngine.Client
         {
             MsgPlayer msg = sdata.Get<MsgPlayer>();
             onNewTurn?.Invoke(msg.player_id);
+        }
+        private void OnPlaySelectionReceived(SerializedData sdata)
+        {
+            MsgPlaySelection msg = sdata.Get<MsgPlaySelection>();
+            Player player = game_data.GetOpponentPlayer(player_id);
+            player.SelectedPlay = msg.selectedPlay;
+            player.PlayEnhancer = game_data.GetCard(msg.enhancerUid);
+
+            if (game_data.AllPlayersReadyForPlay())
+            {
+                RevealPlays();
+            }
         }
 
         private void OnCardPlayed(SerializedData sdata)

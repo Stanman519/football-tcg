@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
 using TcgEngine.Client;
+using Assets.TcgEngine.Scripts.Gameplay;
 
 namespace TcgEngine.Server
 {

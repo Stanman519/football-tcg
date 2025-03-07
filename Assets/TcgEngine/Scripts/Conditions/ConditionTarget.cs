@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using TcgEngine.AI;
-
+using Assets.TcgEngine.Scripts.Gameplay;
 namespace TcgEngine
 {
     /// <summary>

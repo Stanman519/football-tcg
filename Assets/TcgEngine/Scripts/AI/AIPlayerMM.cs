@@ -1,7 +1,7 @@
 ﻿using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using TcgEngine.Gameplay;
+using System.Linq;
+using Assets.TcgEngine.Scripts.Gameplay;
 
 namespace TcgEngine.AI
 {
@@ -15,7 +15,9 @@ namespace TcgEngine.AI
 
         private bool is_playing = false;
 
-        public AIPlayerMM(GameLogic gameplay, int id, int level)
+        private GamePhase[] relevantPhases = new GamePhase[3] { GamePhase.ChoosePlay, GamePhase.ChoosePlayers, GamePhase.LiveBall };
+
+        public AIPlayerMM(GameLogicService gameplay, int id, int level)
         {
             this.gameplay = gameplay;
             player_id = id;
@@ -28,7 +30,15 @@ namespace TcgEngine.AI
             Game game_data = gameplay.GetGameData();
             Player player = game_data.GetPlayer(player_id);
 
-            if (!is_playing && game_data.IsPlayerTurn(player))
+            /* phases to care about 
+             chooese players
+            choose play
+            live ball
+             
+             */
+
+
+            if (!is_playing && relevantPhases.Contains(game_data.phase))
             {
                 is_playing = true;
                 TimeTool.StartCoroutine(AiTurn());
@@ -39,7 +49,7 @@ namespace TcgEngine.AI
                 SkipMulligan();
             }
 
-            if (!game_data.IsPlayerTurn(player) && ai_logic.IsRunning())
+            if (!relevantPhases.Contains(game_data.phase) && ai_logic.IsRunning())
                 Stop();
         }
 
@@ -90,7 +100,12 @@ namespace TcgEngine.AI
                 PlayCard(action.card_uid, action.slot);
             }
 
-            if (action.type == GameAction.Attack)
+            if (action.type == GameAction.SelectPlay)
+            {
+                SelectPlay(action.selectedPlay, action.card_uid);
+            }
+
+            /*if (action.type == GameAction.Attack)
             {
                 AttackCard(action.card_uid, action.target_uid);
             }
@@ -103,7 +118,7 @@ namespace TcgEngine.AI
             if (action.type == GameAction.Move)
             {
                 MoveCard(action.card_uid, action.slot);
-            }
+            }*/
 
             if (action.type == GameAction.CastAbility)
             {
@@ -164,6 +179,19 @@ namespace TcgEngine.AI
             {
                 gameplay.PlayCard(card, slot);
             }
+        }
+
+        private void SelectPlay(PlayType playType, string play_enhancer_card_uid)
+        {
+            Card card = null;
+            Game game_data = gameplay.GetGameData();
+            if (!string.IsNullOrEmpty(play_enhancer_card_uid))
+            {
+                card = game_data.GetCard(play_enhancer_card_uid);
+                game_data.GetPlayer(player_id).PlayEnhancer = card;
+            }
+            game_data.GetPlayer(player_id).SelectedPlay = playType;
+
         }
 
         private void MoveCard(string card_uid, CardPositionSlot slot)

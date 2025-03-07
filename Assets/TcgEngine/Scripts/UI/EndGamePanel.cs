@@ -1,4 +1,5 @@
-﻿using TcgEngine.Client;
+﻿using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Client;
 using UnityEngine;
 using UnityEngine.UI;
 

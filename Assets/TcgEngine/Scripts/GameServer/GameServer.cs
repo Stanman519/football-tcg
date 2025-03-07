@@ -1,6 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using Assets.TcgEngine.Scripts.Gameplay;
+using System.Collections.Generic;
 using TcgEngine.AI;
-using TcgEngine.Gameplay;
 using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.Events;
@@ -22,7 +22,7 @@ namespace TcgEngine.Server
         public static float win_expire_time = 60f;       //How long for a player to be declared winnner if hes the only one connected
 
         private Game game_data;
-        private GameLogic gameplay;
+        private GameLogicService gameplay;
         private float expiration = 0f;
         private float win_expiration = 0f;
         private bool is_dedicated_server = false;
@@ -50,7 +50,7 @@ namespace TcgEngine.Server
             nb_players = Mathf.Max(players, 2);
             is_dedicated_server = online;
             game_data = new Game(uid, nb_players);
-            gameplay = new GameLogic(game_data);
+            gameplay = new GameLogicService(game_data);
 
             //Commands
             RegisterAction(GameAction.PlayerSettings, ReceivePlayerSettings);
@@ -710,7 +710,7 @@ namespace TcgEngine.Server
         protected virtual void OnTurnStart()
         {
             MsgPlayer msg = new MsgPlayer();
-            msg.player_id = game_data.current_offsense_player;
+            msg.player_id = game_data.current_offensive_player;
             SendToAll(GameAction.NewTurn, msg, NetworkDelivery.Reliable);
         }
 

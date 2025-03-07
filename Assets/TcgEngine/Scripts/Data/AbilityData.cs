@@ -1,7 +1,8 @@
-﻿using System.Collections;
+﻿using Assets.TcgEngine.Scripts.Gameplay;
+using Assets.TcgEngine.Scripts.Gameplay;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using TcgEngine.Gameplay;
 
 namespace TcgEngine
 {
@@ -28,6 +29,17 @@ namespace TcgEngine
         public StatusData[] status;               //Status added by this ability  
         public int value;                         //Value passed to the effect (deal X damage)
         public int duration;                      //Duration passed to the effect (usually for status, 0=permanent)
+        
+        public SlotMachineIconType slotIcon = SlotMachineIconType.None; // Default to None
+        public int requiredCount = 1;
+
+        public CardStatType affected_Stat = CardStatType.None;
+        public int stat_bonus_amount = 0;
+
+
+        [Header("Custom Parameters")]
+        public Dictionary<string, int> parameters = new Dictionary<string, int>();
+
 
         [Header("Chain/Choices")]
         public AbilityData[] chain_abilities;    //Abilities that will be triggered after this one
@@ -82,7 +94,12 @@ namespace TcgEngine
             dsc = dsc.Replace("<duration>", duration.ToString());
             return dsc;
         }
-
+        public int GetParameter(string key, int defaultValue = 0)
+        {
+            if (parameters.ContainsKey(key))
+                return parameters[key];
+            return defaultValue;
+        }
         //Generic condition for the ability to trigger
         public bool AreTriggerConditionsMet(Game data, Card caster)
         {
@@ -197,13 +214,13 @@ namespace TcgEngine
             return targets.Contains(target); //Card is still in array after filtering
         }
 
-        public void DoEffects(GameLogic logic, Card caster)
+        public void DoEffects(GameLogicService logic, Card caster)
         {
             foreach(EffectData effect in effects)
                 effect?.DoEffect(logic, this, caster);
         }
 
-        public void DoEffects(GameLogic logic, Card caster, Card target)
+        public void DoEffects(GameLogicService logic, Card caster, Card target)
         {
             foreach (EffectData effect in effects)
                 effect?.DoEffect(logic, this, caster, target);
@@ -211,7 +228,7 @@ namespace TcgEngine
                 target.AddStatus(stat, value, duration);
         }
 
-        public void DoEffects(GameLogic logic, Card caster, Player target)
+        public void DoEffects(GameLogicService logic, Card caster, Player target)
         {
             foreach (EffectData effect in effects)
                 effect?.DoEffect(logic, this, caster, target);
@@ -219,19 +236,19 @@ namespace TcgEngine
                 target.AddStatus(stat, value, duration);
         }
 
-        public void DoEffects(GameLogic logic, Card caster, CardPositionSlot target)
+        public void DoEffects(GameLogicService logic, Card caster, CardPositionSlot target)
         {
             foreach (EffectData effect in effects)
                 effect?.DoEffect(logic, this, caster, target);
         }
 
-        public void DoEffects(GameLogic logic, Card caster, CardData target)
+        public void DoEffects(GameLogicService logic, Card caster, CardData target)
         {
             foreach (EffectData effect in effects)
                 effect?.DoEffect(logic, this, caster, target);
         }
 
-        public void DoOngoingEffects(GameLogic logic, Card caster, Card target)
+        public void DoOngoingEffects(GameLogicService logic, Card caster, Card target)
         {
             foreach (EffectData effect in effects)
                 effect?.DoOngoingEffect(logic, this, caster, target);
@@ -239,7 +256,7 @@ namespace TcgEngine
                 target.AddOngoingStatus(stat, value);
         }
 
-        public void DoOngoingEffects(GameLogic logic, Card caster, Player target)
+        public void DoOngoingEffects(GameLogicService logic, Card caster, Player target)
         {
             foreach (EffectData effect in effects)
                 effect?.DoOngoingEffect(logic, this, caster, target);

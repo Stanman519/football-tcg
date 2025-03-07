@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using TcgEngine.Client;
 using TcgEngine.UI;
+using Assets.TcgEngine.Scripts.Gameplay;
 
 namespace TcgEngine.FX
 {
@@ -35,7 +36,7 @@ namespace TcgEngine.FX
             if (card != null)
             {
                 CardData icard = CardData.Get(card.card_id);
-                if (icard.type == CardType.Spell)
+                if (icard.type == CardType.DefensivePlayer)
                 {
                     GameObject prefab = player_id == card.player_id ? AssetData.Get().play_card_fx : AssetData.Get().play_card_other_fx;
                     GameObject obj = FXTool.DoFX(prefab, Vector3.zero);

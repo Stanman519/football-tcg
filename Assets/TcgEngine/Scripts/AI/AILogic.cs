@@ -1,9 +1,10 @@
-﻿using System.Collections;
+﻿
 using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
 using UnityEngine.Profiling;
-using TcgEngine.Gameplay;
+using System.Linq;
+using Assets.TcgEngine.Scripts.Gameplay;
 
 namespace TcgEngine.AI
 {
@@ -33,7 +34,7 @@ namespace TcgEngine.AI
         public int ai_player_id;                    //AI player_id  (usually its 1)
         public int ai_level;                       //AI level
 
-        private GameLogic game_logic;           //Game logic used to calculate moves
+        private GameLogicService game_logic;           //Game logic used to calculate moves
         private Game original_data;             //Original game data when start calculating possibilities
         private AIHeuristic heuristic;
         private Thread ai_thread;
@@ -61,7 +62,7 @@ namespace TcgEngine.AI
             job.ai_level = level;
 
             job.heuristic = new AIHeuristic(player_id, level);
-            job.game_logic = new GameLogic(true); //Skip all delays for the AI calculations
+            job.game_logic = new GameLogicService(true); //Skip all delays for the AI calculations
 
             return job;
         }
@@ -82,11 +83,11 @@ namespace TcgEngine.AI
             running = true;
 
             //Uncomment these lines to run on separate thread (and comment Execute()), better for production so it doesn't freeze the UI while calculating the AI
-            ai_thread = new Thread(Execute);
-            ai_thread.Start();
+            //ai_thread = new Thread(Execute);
+            //ai_thread.Start();
 
             //Uncomment this line to run on main thread (and comment the thread one), better for debuging since you will be able to use breakpoints, profiler and Debug.Log
-            //Execute();
+            Execute();
         }
 
         public void Stop()
@@ -122,7 +123,9 @@ namespace TcgEngine.AI
         private void CalculateNode(Game data, NodeState node)
         {
             Profiler.BeginSample("Add Actions");
-            Player player = data.GetPlayer(data.current_offsense_player);
+            Player offensivePlayer = data.GetPlayer(data.current_offensive_player);
+            var player = data.GetPlayer(node.current_player);
+            var isOffense = offensivePlayer == player;
             List<AIAction> action_list = list_pool.Create();
 
             int max_actions = node.tdepth < ai_depth_wide ? actions_per_turn_wide : actions_per_turn;
@@ -130,29 +133,41 @@ namespace TcgEngine.AI
             {
                 if (data.selector == SelectorType.None && player != null)
                 {
-                    //Play card
-                    for (int c = 0; c < player.cards_hand.Count; c++)
+                    if (original_data.phase == GamePhase.ChoosePlayers)
                     {
-                        Card card = player.cards_hand[c];
-                        AddActions(action_list, data, node, GameAction.PlayCard, card);
+                        var playersInHand = player.cards_hand.Where(c => !c.CardData.playerPosition.Equals(PlayerPositionGrp.NONE)).ToList();
+                        //Play Player card
+                        for (int c = 0; c < playersInHand.Count; c++)
+                        {
+                            Card card = player.cards_hand[c];
+                            AddActions(action_list, data, node, GameAction.PlayCard, card);
+                        }
                     }
 
-                    //Action on board
-                    for (int c = 0; c < player.cards_board.Count; c++)
+                    if (original_data.phase == GamePhase.ChoosePlay)
                     {
-                        Card card = player.cards_board[c];
-                        AddActions(action_list, data, node, GameAction.Attack, card);
-                        AddActions(action_list, data, node, GameAction.AttackPlayer, card);
-                        AddActions(action_list, data, node, GameAction.CastAbility, card);
-                        //AddActions(action_list, data, node, GameAction.Move, card);        //Uncomment to consider move actions
+                        var enhancers = player.cards_hand.Where(c => c.Data.type == (isOffense ? CardType.OffensivePlayEnhancer : CardType.DefensivePlayEnhancer)).ToList();
+                        // choose play without enhancer
+                        AddActions(action_list, data, node, GameAction.SelectPlay, null);
+                        //Choose Play with enhancer
+                        for (int c = 0; c < enhancers.Count; c++)
+                        {
+                            Card card = enhancers[c];
+                            AddActions(action_list, data, node, GameAction.SelectPlay, card);
+                            
+                        }
+
                     }
 
-                    if (player.hero != null)
-                        AddActions(action_list, data, node, GameAction.CastAbility, player.hero);
+
+
+/*                    if (player.hero != null)
+                        AddActions(action_list, data, node, GameAction.CastAbility, player.hero);*/
                 }
                 else
                 {
-                    AddSelectActions(action_list, data, node);
+                    // TODO: if there are selectable things do this
+                     // AddSelectActions(action_list, data, node);
                 }
             }
 
@@ -226,7 +241,7 @@ namespace TcgEngine.AI
             if (action.type == GameAction.None)
                 return;
 
-            int player_id = data.current_offsense_player;
+            int player_id = data.current_offensive_player;
 
             //Clone data so we can update it in a new node
             Profiler.BeginSample("Clone Data");
@@ -323,7 +338,7 @@ namespace TcgEngine.AI
         //Add all possible moves for card to list of actions
         private void AddActions(List<AIAction> actions, Game data, NodeState node, ushort type, Card card)
         {
-            Player player = data.GetPlayer(data.current_offsense_player);
+            Player player = data.GetPlayer(node.current_player);
 
             if (data.selector != SelectorType.None)
                 return;
@@ -333,10 +348,11 @@ namespace TcgEngine.AI
 
             if (type == GameAction.PlayCard)
             {
-                if (card.CardData.IsBoardCard())
+                if (card.CardData.IsPlayer())
                 {
+                    var slotsForPosition = slot_array.Get().Where(s => s.posGroupType == card.CardData.playerPosition).ToList();
                     //Doesn't matter where the card is played
-                    CardPositionSlot slot = player.GetRandomEmptySlot(random_gen, slot_array.Get());
+                    CardPositionSlot slot = player.GetRandomEmptySlotForPosition(random_gen, slotsForPosition);
 
                     if (data.CanPlayCard(card, slot))
                     {
@@ -345,7 +361,8 @@ namespace TcgEngine.AI
                         actions.Add(action);
                     }
                 }
-                else if (card.CardData.IsEquipment())
+
+/*                else if (card.CardData.IsEquipment())
                 {
                     Player tplayer = data.GetPlayer(card.player_id);
                     for (int c = 0; c < tplayer.cards_board.Count; c++)
@@ -359,8 +376,8 @@ namespace TcgEngine.AI
                             actions.Add(action);
                         }
                     }
-                }
-                else if (card.CardData.IsRequireTargetSpell())
+                }*/
+                /*else if (card.CardData.IsRequireTargetSpell())
                 {
                     for (int p = 0; p < data.players.Length; p++)
                     {
@@ -389,14 +406,28 @@ namespace TcgEngine.AI
 
                         }
                     }
-                }
+                }*/
                 else if (data.CanPlayCard(card, CardPositionSlot.None))
                 {
                     AIAction action = CreateAction(type, card);
                     actions.Add(action);
                 }
             }
+            if (type == GameAction.SelectPlay)
+            {
+                if (card == null )
+                {
+                    PlayType[] validPlays = new PlayType[3] { PlayType.Run, PlayType.ShortPass, PlayType.LongPass };
+                    //random number between 0 and 2;
+                    var playCall = validPlays[random_gen.Next(validPlays.Length)];
+                    AIAction action = CreateAction(type, playCall);
+                }
+                else
+                {
+                    AIAction action = CreateAction(type, card);
+                }
 
+            }
             if (type == GameAction.Attack)
             {
                 if (card.CanAttack())
@@ -561,7 +592,14 @@ namespace TcgEngine.AI
             action.valid = true;
             return action;
         }
-
+        private AIAction CreateAction(ushort type, PlayType playCall)
+        {
+            AIAction action = action_pool.Create();
+            action.type = type;
+            action.valid = true;
+            action.selectedPlay = playCall;
+            return action;
+        }
         private AIAction CreateAction(ushort type, Card card)
         {
             AIAction action = action_pool.Create();
@@ -569,6 +607,11 @@ namespace TcgEngine.AI
             action.type = type;
             action.card_uid = card.uid;
             action.valid = true;
+            if (card.Data.IsPlayEnhancer())
+            {
+                action.selectedPlay = card.Data.required_plays[random_gen.Next(card.Data.required_plays.Length)];
+
+            }
             return action;
         }
 
@@ -776,6 +819,7 @@ namespace TcgEngine.AI
         public int target_player_id;
         public string ability_id;
         public CardPositionSlot slot;
+        public PlayType selectedPlay;
         public int value;
 
         public int score;           //Score to determine which orders get cut and ignored

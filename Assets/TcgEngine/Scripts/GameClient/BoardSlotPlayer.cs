@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using TcgEngine.UI;
 using TcgEngine.FX;
+using Assets.TcgEngine.Scripts.Gameplay;
 
 namespace TcgEngine.Client
 {
@@ -98,7 +99,7 @@ namespace TcgEngine.Client
             if (iability != null && caster != null)
             {
                 int player_id = opponent ? GameClient.Get().GetOpponentPlayerID() : GameClient.Get().GetPlayerID();
-                if (caster.CardData.type == CardType.Spell && caster.player_id == player_id)
+                if (caster.CardData.type == CardType.DefensivePlayer && caster.player_id == player_id)
                 {
                     FXTool.DoFX(iability.caster_fx, transform.position);
                     AudioTool.Get().PlaySFX("fx", iability.cast_audio);

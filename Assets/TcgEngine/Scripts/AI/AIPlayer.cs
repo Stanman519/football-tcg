@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using TcgEngine.Gameplay;
+using Assets.TcgEngine.Scripts.Gameplay;
 
 namespace TcgEngine.AI
 {
@@ -14,7 +14,7 @@ namespace TcgEngine.AI
         public int player_id;
         public int ai_level;
 
-        protected GameLogic gameplay;
+        protected GameLogicService gameplay;
 
         public virtual void Update()
         {
@@ -30,7 +30,7 @@ namespace TcgEngine.AI
             return can_play && !gameplay.IsResolving();
         }
 
-        public static AIPlayer Create(AIType type, GameLogic gameplay, int id, int level = 0)
+        public static AIPlayer Create(AIType type, GameLogicService gameplay, int id, int level = 0)
         {
             if (type == AIType.Random)
                 return new AIPlayerRandom(gameplay, id, level);

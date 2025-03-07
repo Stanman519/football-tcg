@@ -1,8 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using TcgEngine.Client;
-using TcgEngine;
-using TcgEngine.UI;
+using Assets.TcgEngine.Scripts.Gameplay;
 
 public class FieldSlotManager : MonoBehaviour
 {

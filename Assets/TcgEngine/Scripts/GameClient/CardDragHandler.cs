@@ -3,6 +3,7 @@ using UnityEngine.EventSystems;
 using System.Collections.Generic;
 using TcgEngine.Client;
 using TcgEngine;
+using Assets.TcgEngine.Scripts.Gameplay;
 
 public class CardDragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
@@ -39,7 +40,7 @@ public class CardDragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, I
 
     private void HighlightValidSlots()
     {
-        PlayerPositionGrp position = draggingCard.GetComponent<Card>().playerPosition;
+        PlayerPositionGrp position = draggingCard.GetComponent<Card>().Data.playerPosition;
         List<BoardSlot> slots = FindFirstObjectByType<FieldSlotManager>().GetSlotsForPosition(position);
 
         foreach (BoardSlot slot in slots)
@@ -50,7 +51,7 @@ public class CardDragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, I
 
     private void ResetSlotHighlights()
     {
-        List<BoardSlot> slots = FindFirstObjectByType<FieldSlotManager>().GetSlotsForPosition(draggingCard.GetComponent<Card>().playerPosition);
+        List<BoardSlot> slots = FindFirstObjectByType<FieldSlotManager>().GetSlotsForPosition(draggingCard.GetComponent<Card>().Data.playerPosition);
         foreach (BoardSlot slot in slots)
         {
             slot.UnhighlightSlot();

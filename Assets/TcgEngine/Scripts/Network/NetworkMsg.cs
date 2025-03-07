@@ -1,4 +1,6 @@
 ﻿
+using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.UI;
 using Unity.Netcode;
 using UnityEngine.Events;
 
@@ -309,6 +311,17 @@ namespace TcgEngine
         public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
         {
             NetworkTool.NetSerializeArray(serializer, ref cards);
+        }
+    }
+    public class MsgPlaySelection : INetworkSerializable
+    {
+        public PlayType selectedPlay;
+        public string enhancerUid;
+
+        public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+        {
+            serializer.SerializeValue(ref selectedPlay);
+            serializer.SerializeValue(ref enhancerUid);
         }
     }
 

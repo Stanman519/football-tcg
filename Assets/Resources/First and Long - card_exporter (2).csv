@@ -1,0 +1,144 @@
+Name,pos,Superstar?,passive? ,Run Bonus,Short Pass ,Deep Pass,Run Coverage Bonus,Short Pass Coverage Bonus,Deep Pass Coverage Bonus,Stamina,Grit
+Randall McBride,OL,0,Cancel the first defensive base yardage on each drive.,3,0,0,0,0,0,12,1
+Marcus Boone,OL,0,Pass Pro: 10% chance to nullify first sack,0,1,1,0,0,0,12,2
+Darnell Hayes,OL,0,falls on ball: recovers 1st fumble play ends at spot.,1,0,0,0,0,0,12,1
+Tony Carter,OL,0,Runs inside the 5 always score,0,0,0,0,0,0,12,2
+Dominic Lawson,OL,0,Adds 1 stamina to offense on 4th downs,0,2,0,0,0,0,12,1
+Ezekiel Monroe,OL,0,Bonuses only occur if O Line star players outnumbers D Line star players,6,0,0,0,0,0,12,2
+Ray  Vaughn,OL,0,Discard a card before every snap. if you have no cards in hand return player to hand,2,4,0,0,0,0,12,2
+Jaxon Brooks,OL,0,Remove a D line star for 2nd down if you were both on field for previous play,1,1,0,0,0,0,12,1
+Maxwell Payne,OL,0,Charge up: After 20 helmets +20 to next run,1,0,0,0,0,0,12,1
+Jon Holloway,OL,0,Every time you draw a card +1 to run bonus,-4,1,0,0,0,0,12,2
+Desmond Wallace,OL,0,run bonus +2 after every consecutive run. resets after first non-run,1,0,0,0,0,0,12,1
+Terrence Miden,OL,0,Add a slot on 3rd downs,0,-1,-2,0,0,0,12,1
+Isaiah Foster,OL,0,Does not count toward your coaches O line max,1,2,0,0,0,0,12,1
+Jamal Blackwood,OL,0,add 2 to other O line short pass bonus,1,-2,0,0,0,0,12,1
+Quincy Maddox,OL,0,If 3 or less stamina +2 on each bonus,1,0,0,0,0,0,7,2
+Xavier Hudson,OL,0,remove 1 stamina from a star D line each time you run for 5+ yards,2,0,0,0,0,0,10,1
+Dallas Garrett,OL,0,At the start of each drive you may discard 1 card to add +3 run on first play,3,0,0,0,0,0,11,1
+Elijah Grady,OL,0,Every time you see at least 2 Stars on slot add +2 short pass this drive,0,2,0,0,0,0,10,1
+Andre Cross,OL,1,Charge Up after 10 football icons add +5 run and restore 2 stamina to a star player,5,0,0,0,0,0,10,1
+"Quentin ""Bear"" Dawson",OL,0,If your short pass is completed for 7 or fewer yards draw 1 card,0,2,0,0,0,0,10,2
+Mo Faletutulu,OL,0,If your run nets 10 or less yards you may discard 1 card to add +6 more yards,1,1,0,0,0,0,10,1
+Duece Watson,OL,0,If the defense has 2 or fewer stars add +3 run,3,0,0,0,0,0,10,1
+Tyson Rivers,OL,0,Charge Up after 5 Star icons next run is +4 and draws a card,2,0,0,0,0,0,10,1
+Fort Nix,OL,0,After every 2 plays on the field add +1 to run stacking up to 4 times,1,0,0,0,0,0,12,1
+Julius Dixon,OL,0,If you have 6 or more cards in hand short pass gets +2,0,2,0,0,0,0,10,1
+Desean Collins,OL,0,Add +1 run for each consecutive run up to +5 then reset on pass,1,0,0,0,0,0,11,1
+Dean Matthers,OL,0,If the defense has no DL star in play add +3 run,3,0,0,0,0,0,10,1
+Dan Van Pow,OL,0,Each time a pass is incomplete you may draw 1 card and discard 1 card,0,0,1,0,0,0,10,1
+Lucas Kingston,OL,0,If you completed a short pass last play add +2 run this play,2,0,0,0,0,0,10,1
+Reggie Carrier,OL,1,Ongoing effect add +1 run for every run call then reset if pass is called,4,1,1,0,0,0,12,1
+Kendrick Clovis,OL,0,Charge Up after 10 helmet icons your next short pass cannot be sacked,0,2,0,0,0,0,10,3
+Jonah Wade,OL,0,Each time you discard a card add +1 to short pass up to 3 times,0,3,0,0,0,0,10,1
+Tre Rostic,OL,0,Charge Up after 8 football icons add +5 run on next running play,2,0,0,0,0,0,10,1
+Cal Tice,OL,0,If your hand is empty this card adds +3 to run else adds +1,3,0,0,0,0,0,10,2
+Damian Jefferson,OL,0,The first time you fail a short pass reduce base yardage to 0 but pass is completed,0,2,0,0,0,0,11,2
+Jett Benson,OL,0,If the previous play lost yardage add +6 run on this play,3,0,0,0,0,0,10,1
+"Max ""Rig"" Duncan",OL,0,When placed on the field shuffle 1 random OL from your discard into your deck,1,0,0,0,0,0,11,2
+DeAndre Torrence,OL,0,On 4th down add +2 to run or short pass if you have 2 or more OL in play,2,2,0,0,0,0,10,1
+Desmond Cross,OL,0,You may skip drawing a card to add +6 run this turn,3,0,0,0,0,0,10,2
+Andre Strickland,OL,0,On each run play if you gained 15 or more yards draw 1 card,1,0,0,0,0,0,12,1
+Tyson Campbell,OL,0,Once per game you may negate a fumble if it occurs and lose 6 stamina,1,0,0,0,0,0,10,2
+Jalen White,OL,0,If you control more OL than your opponent has total defensive players add +2 run,2,0,0,0,0,0,10,2
+Dom Garrett,OL,0,If the defense guesses incorrectly add +2 to run and short pass for this play,2,0,1,0,0,0,8,2
+Brock Canyon,QB,0,Only gains play bonuses if defense has wrong coverage,0,5,1,0,0,0,35,0
+Trent Hawthorne,QB,0,Add +5 yards on 4th downs.,0,2,3,0,0,0,35,0
+Max Rourke,QB,0,On Long Pass plays draw 1 card after completion,0,2,2,0,0,0,35,0
+Hunter Roarke,QB,0,Short pass completions increase deep pass bonus by 1 any incompletion reverts bonus to 0.,0,2,0,0,0,0,35,0
+Nash Thornton,QB,0,Opponent discards a card when you throw an incomplete pass,0,4,2,0,0,0,35,1
+Malik Rhodes,RB,0,+15 short pass slot trigger 15%,1,2,0,0,0,0,12,1
+Xavier Knight,RB,0,`+2 yard on runs for every OL on field,2,0,2,0,0,0,12,0
+Donovan West,RB,0,Add +5 yards to any Run play with SLOT 25%,2,1,1,0,0,0,12,1
+Kyler Hawkins,RB,0,set the tone: +5 yards on first downs,3,1,0,0,0,0,12,0
+Deion McCall,RB,0,Sit out every 3rd down,4,1,0,0,0,0,12,1
+Raylan Brooks,RB,0,checkdown: gain 3 yards if slots roll incomplete,2,1,0,0,0,0,12,2
+Keenan Frost,RB,0,First Snap: if it is 4th down run bonus is +16 this play,1,2,1,0,0,0,5,1
+Marcus Valdez,RB,0,slot trigger: 10 percent chance to fumble on run,7,2,0,0,0,0,10,1
+Isaiah Haynes,RB,0,First Snap: If your O line includes at least 1 star player run bonus becomes +5,2,2,0,0,0,0,8,1
+Jace Whitaker,RB,0,If short pass gains 15 or more yards draw 1 card,1,2,0,0,0,0,9,1
+Damien Vaughn,RB,0,For each consecutive run add +1 run up to +3 then reset if a pass is called,2,2,1,0,0,0,10,1
+Preston Ward,RB,0,.+2 short pass if defense has 1 or fewer LB,1,2,0,0,0,0,10,2
+Zaire Lawson,RB,0,slot trigger: 5 percent chance to break for +15 extra yards on short pass,1,2,0,0,0,0,10,1
+Myles King,RB,0,If you run on 1st or 2nd down and gain 8 or fewer yards draw 1 card,2,0,2,0,0,0,10,2
+Jermaine Cross,RB,0,if you have 3 or more OL in play your next run is +4,4,0,0,0,0,0,10,1
+Derek Castillo,RB,0,If you play a play enhancer add +2 short pass,2,2,0,0,0,0,9,1
+Landon Pierce,RB,0,Short pass +5 if you have a TE and your run gained 10 or more yards last play,0,3,1,0,0,0,10,1
+Keon Greene,RB,0,If defense has a pass coverage run bonus +3,2,1,0,0,0,0,7,2
+Grady Shaw,TE,0,+3 yards on deep pass plays preceded by a run play,1,0,1,0,0,0,12,3
+Brent Caspin,TE,0,add football to left slot while on the field,1,2,0,0,0,0,12,1
+Brooks McAllister,TE,0,boost rb run bonus if 1+ star on a run play,2,0,0,0,0,0,12,2
+Jaxon Monroe,WR,0,Long passes gain +8 yards if SLOT 25%,0,1,1,0,0,0,12,0
+Rashad James,WR,0,Deep pass bonus increases +1 with every star on slots,0,2,-3,0,0,0,12,0
+Roman Castillo-Hampton,WR,0,Wrenches decrease short pass bonus by 1,0,4,3,0,0,0,12,0
+Trent Bishop,WR,0,Add +3 yards to pass plays when inside the red zone.,0,2,0,0,0,0,12,0
+Adam Carter,WR,0,If pass completes with at least 1 star on slots add 5 yards per star else subtract 5 total if 0 stars,0,2,3,0,0,0,10,1
+Caleb Marshall,WR,0,If you have another WR on field deep pass bonus gets +3 yards ,0,1,3,0,0,0,10,0
+Damien Price,WR,0,When placed if your short pass was completed last play draw 1 card,0,2,0,0,0,0,10,0
+Ethan White,WR,0,If no star icons appear on a completed pass lose 5 yards from total gain,0,3,3,0,0,0,10,0
+Francis Brewer,WR,0,wrong defensive coverage: +4 short pass bonus this play,0,4,0,0,0,0,10,1
+George Barnes,WR,0,slot trigger 5 percent chance to gain +10 yards on deep pass,0,1,4,0,0,0,10,1
+Harold Reed,WR,0,If pass is incomplete once per drive you may discard 1 card to respin,0,2,1,0,0,0,10,1
+Isaac Hill,WR,0,If you have 2 or more WR in play each star icon adds +3 yards to short pass,0,3,1,0,0,0,11,1
+Kevin Gray,WR,0,+4 pass bonuses on 3rd downs,0,3,2,0,0,0,10,1
+Leonard Sanders,WR,0,If the previous play was a run of 10 or more yards add +3 to short pass,0,3,0,0,0,0,10,1
+Mark Jordan,WR,0,If your QB is a superstar this WR adds +4 yards to his deep pass,0,1,2,0,0,0,10,0
+Paul Edwards,WR,0,slot trigger 15 percent chance to cause an interception on incomplete pass otherwise add +2 short pass,0,2,0,0,0,0,10,0
+Quincy Miller,WR,0,If you have a TE on the field add +3 to short pass and +1 to deep pass,0,3,1,0,0,0,10,0
+Ron Smith,WR,0,Every time you discard a card before snapping add +2 deep pass until end of drive,0,0,3,0,0,0,10,0
+Ulysses Turner,WR,0,If you have 2 or more star OL add +4 yards short pass bonus,0,4,0,0,0,0,10,0
+Yahir Ross,WR,0,If you have at least 3 WR in play your deep pass gains +3,0,0,3,0,0,0,10,0
+Cody Flores,WR,0,Once per half you may skip drawing a card to add +7 yards to deep pass,0,0,4,0,0,0,10,0
+Derek West,WR,0,After every incomplete pass add 3 to deep pass,0,5,0,0,0,0,10,1
+Jon Lee,WR,0,On 4th down if you complete a pass add +5 yards,0,3,2,0,0,0,10,1
+Kevin Ross,WR,0,If you have exactly 1 other WR in play add +4 to short pass,0,4,1,0,0,0,10,0
+Martin Green,WR,0,First Snap:  if your total OL are 3 or more add +3 deep pass,0,0,3,0,0,0,10,0
+Oliver Gray,WR,0,slot trigger 10 percent chance to force your opponent to discard 1 card if pass is incomplete,0,2,2,0,0,0,10,0
+Damon Norris,DB,0,If pass is incomplete on 1st down add 2 to your defense's grit,0,0,0,0,2,2,10,1
+Elijah Reyes,DB,0,If the slot has 2 helmets reduce short pass by 3 this play,0,0,0,0,3,2,10,1
+Felix Stone,DB,0,If coverage guess is correct reduce pass by an extra 1 yard for each helmet icon,0,0,0,0,2,3,10,1
+Ibrahim Lewis,DB,0,On consecutive pass plays reduce the second pass by 3 resets after 2nd pass.,0,0,0,0,2,3,10,1
+Kevin Myers,DB,0,After an incomplete pass you may discard 1 card to add 3 grit to your team's defensive pool,0,0,0,0,2,2,10,0
+Marcus Wells,DB,0,If you have 3 or more DBs reduce deep pass by 4,0,0,0,0,0,3,10,2
+Nate Franklin,DB,0,If a pass yields 15 or more yards once per drive remove 2 stamina from that WR,0,0,0,0,2,2,10,1
+Owen Maxwell,DB,0,If your grit is greater than offense on 4th down reduce any pass by 2,0,0,0,0,2,1,10,1
+Aaron Miller,DL,0,While on the field if your grit is higher reduce run by an additional 2 each play,0,0,0,2,0,0,10,2
+Bruce Coleman,DL,0,Slot trigger 10 percent chance to force a fumble on run,0,0,0,1,0,0,10,1
+Charles Hayes,DL,0,When placed if offense has 1 or fewer OL reduce their run by 3 this play,0,0,0,2,0,0,10,1
+Damian Garcia,DL,0,+2 run bonus on correct run coverage plays,0,0,0,3,0,0,10,1
+Eric Brown,DL,0,If offense tries short pass 20 percent chance to deflect for minus 4 yards this play,0,0,0,2,1,0,10,2
+Frank Johnson,DL,0,If you have at least 2 star DL your run coverage is +2,0,0,0,3,0,0,10,2
+Benji Adujilo,DL,0,if you have more DL than OL 50% chance to reduce 1 stamina from highest OL stamina,0,0,0,2,1,2,11,3
+Henry Walker,DL,0,Charge Up after 5 star icons next run coverage is +6,0,0,0,3,0,0,10,2
+Keith Ward,DL,0,3rd down run bonus +3,0,0,0,3,0,0,10,1
+Lewis Rice,DL,0,Slot trigger 5 percent chance to sack if deep pass is called,0,0,0,0,0,4,10,2
+Mark Sanchez,DL,0,If you have more DL than offense has OL reduce run and short pass by 3,0,0,0,4,0,0,10,1
+Noah Bailey,DL,0,Each time you call correct pass coverage reduce next run by 3,0,0,0,3,0,0,10,2
+Oscar Green,DL,0,If your coverage is run and offense tries short pass reduce short pass by 2,0,0,0,3,2,0,10,2
+Ray Medina,DL,0,Slot trigger 15 percent chance to cause minus tackle at L.O.S if run is 10 or less at time of slot,0,0,0,3,0,0,10,1
+Scott Flores,DL,0,,0,0,0,3,1,2,10,4
+Thomas Clark,DL,0,4th down run bonus +5,0,0,0,5,0,0,10,1
+William Ford,DL,0,Charge Up after 3 incomplete passes reduce next run by 6,0,0,0,4,0,0,10,2
+Xander Pratt,DL,0,If offense gained 15 or more yards last play run bonus +4,0,0,0,4,0,0,10,1
+Yuri Owen,DL,0,If you have more DL stars than offense has OL stars reduce run by 4,0,0,0,4,0,0,10,2
+Zach Henderson,DL,0,if you have more DL than offense has OL 3 stars = sack on pass play,0,0,0,0,3,1,10,1
+Alan Russell,DL,0,if your grit is higher run bonus +3,0,0,0,3,0,0,12,2
+Brandon Perry,DL,0,,0,0,0,-1,1,4,10,0
+Cameron Yates,DL,0,,0,0,0,3,1,0,10,3
+Darius Underwood,DL,0,If you have a LB on the field reduce short pass by 2,0,0,0,2,2,0,10,1
+William Adams,LB,0,If your total star players is at least 2 more than offense deep pass bonus +2,0,0,0,0,4,0,10,2
+Xavier Morris,LB,0,If offense runs on consecutive downs reduce the second run by 3,0,0,0,3,0,0,10,2
+Yosef Garcia,LB,0,If RB on field has 5 or fewer stamina run bonus +2,0,0,0,2,0,0,10,2
+Zachary Bell,LB,1, grit is tied or higher short pass bonus +5,0,0,0,1,3,1,12,2
+Allan Boyd,LB,0,if there are 5 or less plays remaining in the half short pass has 30% chance to fumble,0,0,0,1,2,0,10,1
+Bruce Cunningham,LB,0,reduce 1 stamina of receiver on completed short passes ,0,0,0,2,1,0,10,2
+Corey Wolfe,LB,0,If you have 2 + LBs in play add 2 grit,0,0,0,2,1,0,10,4
+Dylan James,LB,0,If offense discards a card reduce next pass by 3,0,0,0,2,2,0,10,4
+Eli Cohen,LB,0,10% chance to reduce one stamina of receiver with highest deep pass bonus,0,0,0,0,4,0,10,2
+Fred Holland,LB,0,If offense calls a trick play you may discard 1 card to negate it once per half,0,0,0,2,2,0,10,1
+Gordon Ward,LB,0,On 4th down if pass is incomplete add 2 to your grit,0,0,0,1,2,1,10,2
+Harvey Lambert,LB,0,If your grit is lower you may add 1 grit each time you see a star icon this drive,0,0,0,0,2,0,10,3
+Ian Cox,LB,0,If a TE is not on field reduce short pass by 3,0,0,0,1,2,0,10,1
+Joseph Fuller,LB,0,If you have 3 or more LB on the field reduce run by 4,0,0,0,4,0,0,10,1
+Kyle Nguyen,LB,0,If a pass nets 15 or more yards once per drive remove 2 stamina from that WR,0,0,0,0,2,0,10,3
+Nicholas Payne,LB,0,+2 pass bonuses on 1st down,0,0,0,0,2,1,10,2

@@ -1,8 +1,7 @@
-﻿using System.Collections;
+﻿using Assets.TcgEngine.Scripts.Gameplay;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using TcgEngine.Client;
-using TcgEngine.Gameplay;
 
 namespace TcgEngine.AI
 {
@@ -17,7 +16,7 @@ namespace TcgEngine.AI
 
         private System.Random rand = new System.Random();
 
-        public AIPlayerRandom(GameLogic gameplay, int id, int level)
+        public AIPlayerRandom(GameLogicService gameplay, int id, int level)
         {
             this.gameplay = gameplay;
             player_id = id;
@@ -33,7 +32,7 @@ namespace TcgEngine.AI
 
             if (game_data.IsPlayerTurn(player) && !gameplay.IsResolving())
             {
-                if(!is_playing && game_data.selector == SelectorType.None && game_data.current_offsense_player == player_id)
+                if(!is_playing && game_data.selector == SelectorType.None && game_data.current_offensive_player == player_id)
                 {
                     is_playing = true;
                     TimeTool.StartCoroutine(AiTurn());

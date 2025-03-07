@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-
+using Assets.TcgEngine.Scripts.Gameplay;
 namespace TcgEngine
 {
     //Pick X number of targets at random from the source array
