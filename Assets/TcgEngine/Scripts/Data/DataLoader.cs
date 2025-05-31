@@ -57,7 +57,7 @@ namespace TcgEngine
             card_ids.Clear();
             foreach (CardData card in CardData.GetAll())
             {
-                if (string.IsNullOrEmpty(card.id))
+/*                if (string.IsNullOrEmpty(card.id))
                     Debug.LogError(card.name + " id is empty");
                 if (card_ids.Contains(card.id))
                     Debug.LogError("Dupplicate Card ID: " + card.id);
@@ -87,7 +87,7 @@ namespace TcgEngine
                     if(ability == null)
                         Debug.LogError(card.id + " has null ability");
                 }
-
+*/
                 card_ids.Add(card.id);
             }
         }

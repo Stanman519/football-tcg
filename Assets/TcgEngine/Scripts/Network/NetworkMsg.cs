@@ -317,11 +317,13 @@ namespace TcgEngine
     {
         public PlayType selectedPlay;
         public string enhancerUid;
+        public int playerId;
 
         public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
         {
             serializer.SerializeValue(ref selectedPlay);
             serializer.SerializeValue(ref enhancerUid);
+            serializer.SerializeValue(ref playerId);
         }
     }
 

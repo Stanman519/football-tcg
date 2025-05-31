@@ -50,7 +50,10 @@ namespace TcgEngine.Client
             assignedCard = card;
             UpdateSlotVisual();
         }
-
+        public bool IsEmpty()
+        {
+            return assignedCard == null;
+        }
         public void RemoveCard()
         {
             assignedCard = null;
@@ -75,13 +78,31 @@ namespace TcgEngine.Client
             base.Update();
             if (!GameClient.Get()?.IsReady() ?? false) return;
 
-            target_alpha = IsValidDragTarget() ? 1f : 0f;
+            bool valid = IsValidDragTarget();
+
+            // Visual Feedback (Optional: alpha or tint)
+            if (spriteRenderer != null)
+            {
+                Color col = valid ? Color.white : new Color(1f, 1f, 1f, 0.2f);  // Dim when not valid
+                spriteRenderer.color = col;
+            }
+
+            target_alpha = valid ? 1f : 0f;
         }
 
         public bool IsValidDragTarget()
         {
             Card dragCard = HandCard.GetDrag()?.GetCard();
-            return dragCard != null && dragCard.Data.playerPosition == player_position_type;
+            if (dragCard == null || dragCard.Data.playerPosition != player_position_type)
+                return false;
+
+            Game game = GameClient.Get().GetGameData();
+            Player player = game.GetPlayer(GameClient.Get().GetPlayerID());
+
+            int currentCount = player.cards_board.FindAll(c => c.Data.playerPosition == player_position_type).Count;
+            int maxAllowed = player.head_coach.positional_Scheme[player_position_type].pos_max;
+
+            return currentCount < maxAllowed;
         }
 
         public void OnDrop(PointerEventData eventData)

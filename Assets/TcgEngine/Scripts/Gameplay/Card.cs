@@ -1,12 +1,39 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using TcgEngine;
 using UnityEngine;
 
 namespace Assets.TcgEngine.Scripts.Gameplay
 {
+    public static class PositionExtensions
+    {
+        private static readonly PlayerPositionGrp[] _receivers = { PlayerPositionGrp.RB_TE, PlayerPositionGrp.WR };
+        private static readonly PlayerPositionGrp[] _offensivePositions = { PlayerPositionGrp.RB_TE, PlayerPositionGrp.WR, PlayerPositionGrp.OL, PlayerPositionGrp.QB };
+        private static readonly PlayerPositionGrp[] _defensivePositions = { PlayerPositionGrp.DL, PlayerPositionGrp.DB, PlayerPositionGrp.LB };
+        private static readonly PlayerPositionGrp[] _specialTeamsPositions = { PlayerPositionGrp.K, PlayerPositionGrp.P };
+
+        public static bool IsReceiverEligible(this PlayerPositionGrp pos)
+        {
+            return _receivers.Contains(pos);
+        }
+        public static bool IsOffense(this PlayerPositionGrp pos)
+        {
+            return _offensivePositions.Contains(pos);
+        }
+
+        public static bool IsDefense(this PlayerPositionGrp pos)
+        {
+            return _defensivePositions.Contains(pos);
+        }
+        public static bool IsSpecialTeams(this PlayerPositionGrp pos)
+        {
+            return _specialTeamsPositions.Contains(pos);
+        }
+    }
     public enum PlayerPositionGrp
     {
         NONE = 0, // NECESSARY FOR ALL NON PLAYERS
+
         QB = 1,
         RB_TE = 2,
         WR = 3, 
@@ -17,8 +44,10 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         DB = 12,
 
         K = 20,
-        P = 21
+        P = 2
     }
+
+
 
     //Represent the current state of a card during the game (data only)
     [System.Serializable]
@@ -44,7 +73,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         public int mana_ongoing = 0;
         public int attack_ongoing = 0;
         public int hp_ongoing = 0;
-        public int samina_ongoing = 0;
+        public int stamina_ongoing = 0;
 
         public string equipped_uid = null;
 
@@ -355,7 +384,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
         public void AddAbility(AbilityData ability)
         {
-            abilities.Add(ability.id);
+            //abilities.Add(ability.id); TODO: took this out just to make it run early in testing
 			if (abilities_data != null)
 				abilities_data.Add(ability);
         }

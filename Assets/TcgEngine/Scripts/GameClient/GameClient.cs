@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.Events;
 using Unity.Netcode;
 using Assets.TcgEngine.Scripts.Gameplay;
+using System.Linq;
 
 namespace TcgEngine.Client
 {
@@ -26,7 +27,7 @@ namespace TcgEngine.Client
         public UnityAction onConnectServer;
         public UnityAction onConnectGame;
         public UnityAction<int> onPlayerReady;
-
+        public UnityAction onBothPlaysSelected;
         public UnityAction onGameStart;
         public UnityAction<int> onGameEnd;              //winner player_id
         public UnityAction<int> onNewTurn;              //current player_id
@@ -85,6 +86,7 @@ namespace TcgEngine.Client
             RegisterRefresh(GameAction.GameStart, OnGameStart);
             RegisterRefresh(GameAction.GameEnd, OnGameEnd);
             RegisterRefresh(GameAction.NewTurn, OnNewTurn);
+            RegisterRefresh(GameAction.SelectPlay, OnPlaySelectionReceived);
             RegisterRefresh(GameAction.CardPlayed, OnCardPlayed);
             RegisterRefresh(GameAction.CardMoved, OnCardMoved);
             RegisterRefresh(GameAction.CardSummoned, OnCardSummoned);
@@ -92,7 +94,7 @@ namespace TcgEngine.Client
             RegisterRefresh(GameAction.CardDiscarded, OnCardDiscarded);
             RegisterRefresh(GameAction.CardDrawn, OnCardDraw);
             RegisterRefresh(GameAction.ValueRolled, OnValueRolled);
-
+/*            RegisterRefresh(GameAction.LineupReady, OnLineupReadyReceived);*/
             RegisterRefresh(GameAction.AttackStart, OnAttackStart);
             RegisterRefresh(GameAction.AttackEnd, OnAttackEnd);
             RegisterRefresh(GameAction.AttackPlayerStart, OnAttackPlayerStart);
@@ -289,6 +291,10 @@ namespace TcgEngine.Client
         {
             SendAction(GameAction.GameSettings, settings, NetworkDelivery.ReliableFragmentedSequenced);
         }
+/*        public void SendLineupReady()
+        {
+            SendAction(GameAction.LineupReady);
+        }*/
 
         public void PlayCard(Card card, CardPositionSlot slot)
         {
@@ -337,6 +343,12 @@ namespace TcgEngine.Client
             mdata.card_uid = card.uid;
             SendAction(GameAction.SelectCard, mdata);
         }
+        public void SendPlayerReady()
+        {
+            MsgPlayer mdata = new MsgPlayer();
+            mdata.player_id = GetPlayerID();
+            SendAction(GameAction.PlayerReady, mdata, NetworkDelivery.Reliable);
+        }
 
         public void SelectPlayer(Player player)
         {
@@ -349,23 +361,39 @@ namespace TcgEngine.Client
         {
             SendAction(GameAction.SelectSlot, slot);
         }
+
+        private void OnLineupReadyReceived(SerializedData sdata)
+        {
+            MsgInt msg = sdata.Get<MsgInt>();
+            int pid = msg.value;
+
+            game_data.GetPlayer(pid).ready = true;
+
+            if (game_data.players.All(p => p.ready))
+            {
+                GameManager.Instance.OnAllPlayersPlaced();
+            }
+        }
+
         public void SendPlaySelection(PlayType play, Card enhancer)
         {
             MsgPlaySelection msg = new MsgPlaySelection();
             msg.selectedPlay = play;
             msg.enhancerUid = enhancer != null ? enhancer.uid : "";
+            msg.playerId = player_id;
 
             SendAction(GameAction.SelectPlay, msg);
 
             if (game_data.AllPlayersReadyForPlay())
             {
                 RevealPlays();
+                onBothPlaysSelected?.Invoke();
             }
         }
 
         private void RevealPlays()
         {
-            Player offense = game_data.GetOffensePlayer();
+            Player offense = game_data.current_offensive_player;
             Player defense = game_data.GetDefensePlayer();
 
 
@@ -518,7 +546,7 @@ namespace TcgEngine.Client
         private void OnPlaySelectionReceived(SerializedData sdata)
         {
             MsgPlaySelection msg = sdata.Get<MsgPlaySelection>();
-            Player player = game_data.GetOpponentPlayer(player_id);
+            Player player = game_data.GetPlayer(player_id);
             player.SelectedPlay = msg.selectedPlay;
             player.PlayEnhancer = game_data.GetCard(msg.enhancerUid);
 
@@ -532,7 +560,14 @@ namespace TcgEngine.Client
         {
             MsgPlayCard msg = sdata.Get<MsgPlayCard>();
             Card card = game_data.GetCard(msg.card_uid);
+
             onCardPlayed?.Invoke(card, msg.slot);
+
+            BSlot bslot = BSlot.Get(msg.slot);
+            if (bslot is BoardSlot boardSlot)
+            {
+                boardSlot.AssignCard(card);
+            }
         }
 
         private void OnCardSummoned(SerializedData sdata)

@@ -17,7 +17,7 @@ public class IconResultData
     public Sprite Image;
     public SlotMachineIconType IconId;
 }
-
+[Serializable]
 public class SlotMachineResultDTO
 {
     public List<ReelSpriteData> Results { get; set; }

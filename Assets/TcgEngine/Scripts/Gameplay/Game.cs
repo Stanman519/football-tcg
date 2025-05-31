@@ -18,18 +18,21 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         public int turn_count = 0;
         public float turn_timer = 0f;
         public int current_down = 1;
+        public int current_half = 1;
         public int raw_ball_on = 25;
+        public FieldDirection fieldDirection;
         public int plays_left_in_half = 11;
         public int yardage_this_play;
         public int yardage_to_go;
 
-        public int current_offensive_player;
+        public Player current_offensive_player;
 
         public GameState state = GameState.Connecting;
         public GamePhase phase = GamePhase.None;
 
         //Players
         public Player[] players;
+        public Dictionary<int, bool> playerPhaseReady = new Dictionary<int, bool>();
 
         //SlotMaching
         public SlotMachineResultDTO current_slot_data;
@@ -76,10 +79,39 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                     { PlayerPositionGrp.WR, new HCPlayerSchemeData { pos_max = 3 } },
                     { PlayerPositionGrp.RB_TE, new HCPlayerSchemeData { pos_max = 2 } },
                     { PlayerPositionGrp.OL, new HCPlayerSchemeData { pos_max = 5 } },
-                            { PlayerPositionGrp.DL, new HCPlayerSchemeData { pos_max = 2 } },
+                    { PlayerPositionGrp.DL, new HCPlayerSchemeData { pos_max = 2 } },
                     { PlayerPositionGrp.LB, new HCPlayerSchemeData { pos_max = 2 } },
                     { PlayerPositionGrp.DB, new HCPlayerSchemeData { pos_max = 3 } }
+                },
+                baseOffenseYardage = new Dictionary<PlayType, int>
+                {
+                    { PlayType.ShortPass, 5 },
+                    { PlayType.LongPass, 10 },
+                    { PlayType.Run, 3 }
+                },
+                baseDefenseYardage = new Dictionary<PlayType, int>
+                {
+                    { PlayType.ShortPass, 3 },
+                    { PlayType.LongPass, 7 },
+                    { PlayType.Run, 2 }
+                },
+                completionRequirements = new Dictionary<PlayType, List<CompletionRequirement>>
+                {
+                    {
+                        PlayType.ShortPass, new List<CompletionRequirement>
+                        {
+                            new CompletionRequirement { icon = SlotMachineIconType.Football, minCount = 1 },
+                            new CompletionRequirement { icon = SlotMachineIconType.Helmet, minCount = 1 }
+                        }
+                    },
+                    {
+                        PlayType.LongPass, new List<CompletionRequirement>
+                        {
+                            new CompletionRequirement { icon = SlotMachineIconType.Star, minCount = 1 }
+                        }
+                    }
                 }
+
             };
 
             HeadCoachCard coach2 = new HeadCoachCard
@@ -93,6 +125,34 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                     { PlayerPositionGrp.DL, new HCPlayerSchemeData { pos_max = 2 } },
                     { PlayerPositionGrp.LB, new HCPlayerSchemeData { pos_max = 2 } },
                     { PlayerPositionGrp.DB, new HCPlayerSchemeData { pos_max = 3 } }
+                },
+                baseOffenseYardage = new Dictionary<PlayType, int>
+                {
+                    { PlayType.ShortPass, 5 },
+                    { PlayType.LongPass, 10 },
+                    { PlayType.Run, 3 }
+                },
+                baseDefenseYardage = new Dictionary<PlayType, int>
+                {
+                    { PlayType.ShortPass, 3 },
+                    { PlayType.LongPass, 7 },
+                    { PlayType.Run, 2 }
+                },
+                completionRequirements = new Dictionary<PlayType, List<CompletionRequirement>>
+                {
+                    {
+                        PlayType.ShortPass, new List<CompletionRequirement>
+                        {
+                            new CompletionRequirement { icon = SlotMachineIconType.Football, minCount = 1 },
+                            new CompletionRequirement { icon = SlotMachineIconType.Helmet, minCount = 1 }
+                        }
+                    },
+                    {
+                        PlayType.LongPass, new List<CompletionRequirement>
+                        {
+                            new CompletionRequirement { icon = SlotMachineIconType.Star, minCount = 1 }
+                        }
+                    }
                 }
             };
 
@@ -131,18 +191,14 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             return IsPlayerActionTurn(player);
         }
 
-        public Player GetOffensePlayer()
-        {
-            return players.FirstOrDefault(p => p.player_id == current_offensive_player);
-        }
 
         public Player GetDefensePlayer()
         {
-            return players.FirstOrDefault(p => p.player_id != current_offensive_player);
+            return players.FirstOrDefault(p => p != current_offensive_player);
         }
-        public void SetOffensivePlayer(int playerId)
+        public void SetOffensivePlayer(Player player)
         {
-            current_offensive_player = playerId;
+            current_offensive_player = player;
         }
 
         public virtual bool IsPlayerActionTurn(Player player)
@@ -171,8 +227,8 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
             Player player = GetPlayer(card.player_id);
 
-            if ((player.player_id != current_offensive_player && offensive_pos_grps.Contains(card.CardData.playerPosition)) ||
-                (player.player_id == current_offensive_player && defensive_pos_grps.Contains(card.CardData.playerPosition)))
+            if ((player != current_offensive_player && offensive_pos_grps.Contains(card.CardData.playerPosition)) ||
+                (player == current_offensive_player && defensive_pos_grps.Contains(card.CardData.playerPosition)))
             {
                 return false; //wrong side of the ball. but doesnt account for special teams players in the future i guess you put K and P in offensive?
             }
@@ -410,10 +466,11 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             return null;
         }
 
-        public Player GetActivePlayer()
+        public Player GetCurrentDefensivePlayer()
         {
-            return GetPlayer(current_offensive_player);
+            return players[0] == current_offensive_player ? players[0] : players[1];
         }
+
 
         public Player GetOpponentPlayer(int id)
         {
@@ -652,6 +709,23 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             return raw_ball_on <= 0;
         }
 
+        public bool AreAllPlayersPhaseReady()
+        {
+            foreach (Player p in players)
+            {
+                if (!playerPhaseReady.TryGetValue(p.player_id, out bool ready) || !ready)
+                    return false;
+            }
+            return true;
+        }
+
+        public void ResetPhaseReady()
+        {
+            foreach (Player p in players)
+            {
+                playerPhaseReady[p.player_id] = false;
+            }
+        }
         public bool AllPlayersReadyForPlay()
         {
             return players[0].SelectedPlay != PlayType.Huddle && players[1].SelectedPlay != PlayType.Huddle;
@@ -743,18 +817,35 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         SelectorChoice = 30,
         SelectorCost = 40,
     }
-
     [System.Serializable]
-    public enum CardStatType
-    { //use insdead of strings.
-        ShortPassBonus,
-        RunBonus,
-        DeepPassBonus,
-        ShortPassCoverageBonus,
-        RunCoverageBonus,
-        DeepPassCoverageBonus,
-        Stamina,
-        Grit,
-        None // Default
+    public enum FailPlayEventType
+    {
+        None = 0,
+        TackleForLoss= 1,
+        Sack = 2,
+        QBFumble  = 3,       
+        BattedPass = 4,
+        TippedPass = 5,       
+        Interception = 6,
+        IncompletePass = 7,          
+        RunnerFumble = 8,   
     }
+    public enum FieldDirection
+    {
+        Player0GoesUp = 0,
+        Player0GoesDown = 1
+    }
+    /*    [System.Serializable]
+        public enum CardStatType
+        { //use insdead of strings.
+            ShortPassBonus,
+            RunBonus,
+            DeepPassBonus,
+            ShortPassCoverageBonus,
+            RunCoverageBonus,
+            DeepPassCoverageBonus,
+            Stamina,
+            Grit,
+            None // Default
+        }*/
 }

@@ -99,7 +99,8 @@ namespace TcgEngine
                 card_list.AddRange(Resources.LoadAll<CardData>(folder));
 
                 foreach (CardData card in card_list)
-                    card_dict.Add(card.id, card);
+                    if (!card_dict.ContainsKey(card.id))
+                        card_dict.Add(card.id, card);
             }
         }
 
@@ -150,7 +151,7 @@ namespace TcgEngine
             string txt = "";
             foreach (AbilityData ability in abilities)
             {
-                if (!string.IsNullOrWhiteSpace(ability.desc))
+                if (ability != null && !string.IsNullOrWhiteSpace(ability.desc))
                     txt += "<b>" + ability.GetTitle() + ":</b> " + ability.GetDesc(this) + "\n";
             }
             return txt;

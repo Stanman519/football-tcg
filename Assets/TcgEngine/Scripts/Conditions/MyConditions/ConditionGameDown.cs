@@ -7,11 +7,10 @@ namespace Assets.TcgEngine.Scripts.Conditions
     public class ConditionGameDown : ConditionData
     {
         public int required_down;
-        public ConditionOperatorInt oper;
 
         public override bool IsTriggerConditionMet(Game data, AbilityData ability, Card caster)
         {
-            return CompareInt(data.current_down, oper, required_down);
+            return CompareInt(data.current_down, ConditionOperatorInt.Equal, required_down);
         }
     }
 }

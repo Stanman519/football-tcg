@@ -9,13 +9,18 @@ public class FieldSlotManager : MonoBehaviour
     public RectTransform fieldPanel;
     private Dictionary<PlayerPositionGrp, List<BoardSlot>> slotMap = new Dictionary<PlayerPositionGrp, List<BoardSlot>>();
     private Formation currentFormation;
-
+    public static FieldSlotManager Instance { get; private set; }
     public void InitializeFormation(Formation formation)
     {
         currentFormation = formation;
         GenerateSlots();
     }
 
+
+    void Awake()
+    {
+        Instance = this;
+    }
     private void GenerateSlots()
     {
         foreach (var entry in currentFormation.slotPositions)

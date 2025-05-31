@@ -3,6 +3,7 @@ using System.IO;
 using UnityEngine;
 using UnityEditor;
 using TcgEngine;
+using Assets.TcgEngine.Scripts.Gameplay;
 
 public class CardImporter : EditorWindow
 {

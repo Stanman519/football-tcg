@@ -32,8 +32,9 @@ namespace TcgEngine
         
         public SlotMachineIconType slotIcon = SlotMachineIconType.None; // Default to None
         public int requiredCount = 1;
+        public FailPlayEventType failEventType;
 
-        public CardStatType affected_Stat = CardStatType.None;
+        public StatusTypePrintedStats affected_stat = StatusTypePrintedStats.None;
         public int stat_bonus_amount = 0;
 
 
@@ -674,6 +675,14 @@ namespace TcgEngine
 
         OnDeath = 40, //When dying
         OnDeathOther = 42, //When another dying
+
+
+        OnPassResolution = 50,  // TODO: Called after slots are spun, pass logic begins
+        OnRunResolution = 51,   // TODO: Called after slots are spun, run logic begins
+
+
+        CoverTopReceiver = 80,
+        CoverNextReceiver = 81,
     }
 
     public enum AbilityTarget
@@ -690,6 +699,13 @@ namespace TcgEngine
         AllCardsAllPiles = 12,
         AllSlots = 15,
         AllCardData = 17,       //For card Create effects only
+
+        AllBoardOffense = 18,
+        AllBoardDefense = 19,
+
+
+
+
 
         PlayTarget = 20,        //The target selected at the same time the spell was played (spell only)      
         AbilityTriggerer = 25,   //The card that triggered the trap

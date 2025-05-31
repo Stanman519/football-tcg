@@ -123,7 +123,7 @@ namespace TcgEngine.AI
         private void CalculateNode(Game data, NodeState node)
         {
             Profiler.BeginSample("Add Actions");
-            Player offensivePlayer = data.GetPlayer(data.current_offensive_player);
+            Player offensivePlayer = data.current_offensive_player;
             var player = data.GetPlayer(node.current_player);
             var isOffense = offensivePlayer == player;
             List<AIAction> action_list = list_pool.Create();
@@ -241,7 +241,7 @@ namespace TcgEngine.AI
             if (action.type == GameAction.None)
                 return;
 
-            int player_id = data.current_offensive_player;
+            int player_id = data.current_offensive_player.player_id;
 
             //Clone data so we can update it in a new node
             Profiler.BeginSample("Clone Data");

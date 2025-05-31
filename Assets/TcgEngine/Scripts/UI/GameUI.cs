@@ -143,11 +143,25 @@ namespace TcgEngine.UI
 
         public void OnClickNextTurn()
         {
-            if (!Tutorial.Get().CanDo(TutoEndTrigger.EndTurn))
-                return;
+            Game game = GameClient.Get().GetGameData();
 
-            GameClient.Get().EndTurn();
-            end_turn_timer = 0f; //Disable button immediately (dont wait for refresh)
+            // If we're in a phase that requires both players to be ready
+            if (game.phase == GamePhase.ChoosePlayers
+                || game.phase == GamePhase.ChoosePlay
+                || game.phase == GamePhase.LiveBall)
+            {
+                GameClient.Get().SendAction(GameAction.PlayerReadyPhase);
+            }
+            else
+            {
+                // Old behavior
+                if (!Tutorial.Get().CanDo(TutoEndTrigger.EndTurn))
+                    return;
+
+                GameClient.Get().EndTurn();
+            }
+
+            end_turn_timer = 0f;
         }
 
         public void OnClickRestart()

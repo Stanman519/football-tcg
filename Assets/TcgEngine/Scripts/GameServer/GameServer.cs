@@ -71,7 +71,7 @@ namespace TcgEngine.Server
             RegisterAction(GameAction.EndTurn, ReceiveEndTurn);
             RegisterAction(GameAction.Resign, ReceiveResign);
             RegisterAction(GameAction.ChatMessage, ReceiveChat);
-
+            RegisterAction(GameAction.PlayerReadyPhase, ReceivePlayerReadyPhase);
             //Events
             gameplay.onGameStart += OnGameStart;
             gameplay.onGameEnd += OnGameEnd;
@@ -292,6 +292,21 @@ namespace TcgEngine.Server
             if (settings != null)
             {
                 SetGameSettings(settings);
+            }
+        }
+        public void ReceivePlayerReadyPhase(ClientData iclient, SerializedData sdata)
+        {
+            Player player = GetPlayer(iclient);
+            if (player != null && !gameplay.IsResolving())
+            {
+                game_data.playerPhaseReady[player.player_id] = true;
+                RefreshAll();
+
+                if (game_data.AreAllPlayersPhaseReady())
+                {
+                    game_data.ResetPhaseReady();
+                    gameplay.NextStep();
+                }
             }
         }
 
@@ -710,7 +725,7 @@ namespace TcgEngine.Server
         protected virtual void OnTurnStart()
         {
             MsgPlayer msg = new MsgPlayer();
-            msg.player_id = game_data.current_offensive_player;
+            msg.player_id = game_data.current_offensive_player.player_id;
             SendToAll(GameAction.NewTurn, msg, NetworkDelivery.Reliable);
         }
 

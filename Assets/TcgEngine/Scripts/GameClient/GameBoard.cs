@@ -105,7 +105,7 @@ namespace TcgEngine.Client
         private IEnumerator EndGameRun()
         {
             Game data = GameClient.Get().GetGameData();
-            Player pwinner = data.GetPlayer(data.current_offensive_player);
+            Player pwinner = data.current_offensive_player;
             Player player = GameClient.Get().GetPlayer();
             bool win = pwinner != null && player.player_id == pwinner.player_id;
             bool tied = pwinner == null;
@@ -139,7 +139,7 @@ namespace TcgEngine.Client
             yield return new WaitForSeconds(2f);
 
 
-            EndGamePanel.Get().ShowEnd(data.current_offensive_player);
+            EndGamePanel.Get().ShowEnd(data.current_offensive_player.player_id);
         }
 
         //Raycast mouse position to board position

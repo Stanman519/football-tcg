@@ -5,6 +5,21 @@ using UnityEngine;
 namespace TcgEngine
 {
 
+    /*    public static Dictionary<StatusType, >*/
+
+    public enum StatusTypePrintedStats {
+        None = 0,
+        AddedRunBonus = 40,
+        AddedShortPassBonus = 41,
+        AddedDeepPassBonus = 42,
+
+        AddedRunCoverageBonus = 50,
+        AddedShortPassCoverageBonus = 51,
+        AddedDeepPassCoverageBonus = 52,
+
+        AddStamina = 60,
+        AddGrit = 61
+    }
     public enum StatusType
     {
         None = 0,
@@ -32,9 +47,20 @@ namespace TcgEngine
         Paralysed = 32,     //Cant do any actions for X turns
         Poisoned = 34,     //Lose hp each start of turn
         Sleep = 36,         //Doesnt untap at the start of turn
+        
+        AddedRunBonus = StatusTypePrintedStats.AddedRunBonus,
+        AddedShortPassBonus = StatusTypePrintedStats.AddedShortPassBonus,
+        AddedDeepPassBonus = StatusTypePrintedStats.AddedDeepPassBonus,
 
+        AddedRunCoverageBonus = StatusTypePrintedStats.AddedRunCoverageBonus,
+        AddedShortPassCoverageBonus = StatusTypePrintedStats.AddedShortPassCoverageBonus,
+        AddedDeepPassCoverageBonus = StatusTypePrintedStats.AddedDeepPassCoverageBonus,
+
+        AddStamina = StatusTypePrintedStats.AddStamina,
+        AddGrit = StatusTypePrintedStats.AddGrit
 
     }
+
 
     /// <summary>
     /// Defines all status effects data

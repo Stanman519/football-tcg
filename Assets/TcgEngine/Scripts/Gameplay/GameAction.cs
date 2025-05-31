@@ -41,7 +41,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         public const ushort NewTurn = 2015;
 
 
-
+        public const ushort PlayerReadyPhase = 2017; 
         public const ushort CardPlayed = 2020;
         public const ushort CardSummoned = 2022;
         public const ushort CardTransformed = 2023;

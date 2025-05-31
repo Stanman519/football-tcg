@@ -1,7 +1,9 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 
 namespace Assets.TcgEngine.Scripts.Gameplay
 {
+    [Serializable]
     public class CardHistory
     {
         public int PlayId { get; set; }

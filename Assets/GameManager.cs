@@ -2,6 +2,8 @@ using UnityEngine;
 using System.Collections;
 using TMPro;
 using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Client;
+using System;
 
 public class GameManager : MonoBehaviour
 {
@@ -49,18 +51,22 @@ public class GameManager : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
+        GameClient.Get().onBothPlaysSelected += OnPlaysReady;
+
         // You might begin with a TitleScreen or directly start the game
         TransitionToPhase(GamePhase.StartTurn);
 
     }
-
+    private void OnPlaysReady()
+    {
+        TransitionToPhase(GamePhase.RevealPlayCalls);
+    }
 
     /// <summary>
     /// Call this to transition from one GameState to another.
     /// </summary>
     public void TransitionToPhase(GamePhase newState)
     {
-        currentGameState = newState;
         switch (newState)
         {
 
@@ -92,6 +98,35 @@ public class GameManager : MonoBehaviour
                 HandleEndOfPlay();
                 break;
         }
+    }
+
+    private void HandleLiveBallPhase()
+    {
+        throw new NotImplementedException();
+    }
+
+    private void HandleRevealPlayCalls()
+    {
+        throw new NotImplementedException();
+    }
+
+    private void HandleChoosePlayers()
+    {
+        throw new NotImplementedException();
+    }
+
+    public void OnAllPlayersPlaced()
+    {
+        Debug.Log("Both players confirmed lineup. Moving to reveal.");
+        TransitionToPhase(GamePhase.RevealPlayers);
+    }
+    private void HandlePlayerReveal()
+    {
+        foreach (Player p in GameClient.Get().GetGameData().players)
+            p.ready = false;
+
+        // TODO: figure out how to trigger any bonuses that would be triggered here.
+        TransitionToPhase(GamePhase.ChoosePlay);
     }
 
     private void HandleTitleScreen()
@@ -170,5 +205,10 @@ public class GameManager : MonoBehaviour
     {
         // Show final score, etc.
         /*uiManager.ShowGameOver();*/
+    }
+    void OnDestroy()
+    {
+        if (GameClient.Get() != null)
+            GameClient.Get().onBothPlaysSelected -= OnPlaysReady;
     }
 }

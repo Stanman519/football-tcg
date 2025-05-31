@@ -164,7 +164,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             }
             //Choose first player
             game_data.state = GameState.Play;
-            game_data.current_offensive_player = random.NextDouble() < 0.5 ? 0 : 1;
+            game_data.current_offensive_player = random.NextDouble() < 0.5 ? game_data.players[0] : game_data.players[1];
 
             game_data.turn_count = 1;
 
@@ -198,7 +198,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
                 //Add coin second player
                 bool is_random = true; //level == null || level.first_player == LevelFirst.Random;
-                if (is_random && player.player_id != game_data.current_offensive_player)
+                if (is_random && player != game_data.current_offensive_player)
                 {
                     Card card = Card.Create(GameplayData.Get().second_bonus, VariantData.GetDefault(), player);
                     player.cards_hand.Add(card);
@@ -234,7 +234,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             {
 
                 //Cards draw
-                if (game_data.turn_count > 1 || player.player_id != game_data.current_offensive_player)
+                if (game_data.turn_count > 1 || player != game_data.current_offensive_player)
                 {
                     DrawCard(player, GameplayData.Get().cards_per_turn);
                 }
@@ -274,47 +274,11 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             // Wait for both players to choose their player cards
             resolve_queue.AddCallback(WaitForPlayerSelection);
             resolve_queue.ResolveAll();
+            //TransitionToPlaycall(); this might be being done already above.
         }
 
-
-        private void Temp() { 
-            // play up to max allowable players - add applicable player cards to a list somewhere
-
-
-
-            // resolve_queue.AddCallback();
-
-
-
-            // store reel result. yardage manager to tally all bonuses, look for turnover events.
-
-
-
-
-
-            /*
-            //Mana 
-            player.mana_max += GameplayData.Get().mana_per_turn;
-            player.mana_max = Mathf.Min(player.mana_max, GameplayData.Get().mana_max);
-            player.mana = player.mana_max;
-
-
-
-
-
-            //Player poison
-            if (player.HasStatus(StatusType.Poisoned))
-                player.hp -= player.GetStatusValue(StatusType.Poisoned);
-
-            if (player.hero != null)
-                player.hero.Refresh();
-            */
-
-
-            // reveal players
-
-
-
+        private void TransitionToPlaycall()
+        {
             resolve_queue.AddCallback(RevealNewPlayers);
             resolve_queue.ResolveAll(0.2f);
 
@@ -325,8 +289,6 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         {
             if (game_data.state == GameState.GameEnded)
                 return;
-
-            game_data.current_offensive_player = (game_data.current_offensive_player + 1) % game_data.settings.nb_players;
 
             if (game_data.current_offensive_player == game_data.current_offensive_player)
                 game_data.turn_count++;
@@ -481,9 +443,8 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                     card.ReduceStatusDurations();
             }
 
-            //End of turn abilities
-            Player player = game_data.GetActivePlayer();
-            TriggerPlayerCardsAbilityType(player, AbilityTrigger.EndOfTurn);
+            TriggerPlayerCardsAbilityType(game_data.current_offensive_player, AbilityTrigger.EndOfTurn);
+            TriggerPlayerCardsAbilityType(game_data.GetCurrentDefensivePlayer(), AbilityTrigger.EndOfTurn);
 
             onTurnEnd?.Invoke();
             RefreshData();
@@ -500,7 +461,6 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 game_data.state = GameState.GameEnded;
                 game_data.phase = GamePhase.None;
                 game_data.selector = SelectorType.None;
-                game_data.current_offensive_player = winner; //Winner player
                 resolve_queue.Clear();
                 Player player = game_data.GetPlayer(winner);
                 onGameEnd?.Invoke(player);
@@ -1188,7 +1148,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
             //Trample
             Player tplayer = game_data.GetPlayer(target.player_id);
-            if (!spell_damage && extra > 0 && attacker.player_id == game_data.current_offensive_player && attacker.HasStatus(StatusType.Trample))
+            if (!spell_damage && extra > 0 && attacker.player_id == game_data.current_offensive_player.player_id && attacker.HasStatus(StatusType.Trample))
                 tplayer.hp -= extra;
 
             //Lifesteal
@@ -1644,8 +1604,54 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         }
         private void ResolvePlayOutcome()
         {
-            Debug.Log("Resolving play outcome...");
+            var playResolution = new PlayResolution();
             // TODO: Implement logic for resolving what happens after a play (e.g., determining success/failure)
+
+            // TODO: order of potential play enders / turnover event priority, (TFL, Sack,tipped pass, batted down pass, interception/fumble)?
+            // at this point we will have all the slot based bonuses and events.
+            // need a way to look at all the events and action on them in order of operations
+            // probably split into two streams here, run or pass.
+
+
+
+
+            // PASS logic
+            // look for sack, tipped pass, batted down pass, interception
+            // action on those
+
+            // if none, calculate if pass is completed.
+            // rank all potential receivers based on bonuses
+            // decipher coverage on top receivers to determine who is the best eligible receiver.
+            // tabulate net yardage
+            // look for fumbles
+            // move to live ball phase
+
+            //STEP 0: check if pass or run then split off
+            if (game_data.current_offensive_player.SelectedPlay == PlayType.Run)
+                playResolution = ResolveRunOutcome();
+            else
+                playResolution = ResolvePassOutcome();
+
+
+            // check if play is over..
+
+            if (!playResolution.BallIsLive)
+            {
+                // go to end play 
+                ResolvePlay(playResolution);
+            }
+
+            // if yardage gained at this point gives you a safety or a touchdown, play is also over
+            if (game_data.raw_ball_on + playResolution.YardageGained >= 100 || game_data.raw_ball_on + playResolution.YardageGained <= 0)
+            {
+                playResolution.BallIsLive = false;
+                ResolvePlay(playResolution);
+            }
+
+
+            // Step 8: Move to Live Ball Phase
+            StartLiveBallPhase();
+
         }
 
         private void HandleTurnoverOrScore()
@@ -1821,31 +1827,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 card.mana_ongoing += status.value;
         }
 
-        //---- Secrets ------------
 
-        public virtual bool TriggerPlayerSecrets(Player player, AbilityTrigger secret_trigger)
-        {
-            for (int i = player.cards_secret.Count - 1; i >= 0; i--)
-            {
-                Card card = player.cards_secret[i];
-                CardData icard = card.CardData;
-                if (icard.type == CardType.Secret && !card.exhausted)
-                {
-                    if (card.AreAbilityConditionsMet(secret_trigger, game_data, card, card))
-                    {
-                        resolve_queue.AddSecret(secret_trigger, card, card, ResolveSecret);
-                        resolve_queue.SetDelay(0.5f);
-                        card.exhausted = true;
-
-                        if (onSecretTrigger != null)
-                            onSecretTrigger.Invoke(card, card);
-
-                        return true; //Trigger only 1 secret per trigger
-                    }
-                }
-            }
-            return false;
-        }
         public void PlayTriggeredSlotSpin()
         {
             SlotMachineResultDTO finalResults = slotMachineManager.CalculateSpinResults();
@@ -1858,7 +1840,8 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
             for (int p = 0; p < game_data.players.Length; p++)
             {
-                if (p != game_data.current_offensive_player)
+                var loopPlayer = game_data.players[p];
+                if (loopPlayer != game_data.current_offensive_player)
                 {
                     Player other_player = game_data.players[p];
                     for (int i = other_player.cards_secret.Count - 1; i >= 0; i--)
@@ -2113,6 +2096,413 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             }
         }
 
+/*        //Pass play and run play outcomes
+        private List<AbilityQueueElement> CheckForPassFailEvents()
+        { // just return the abilities that are relevant and deal with them elsewhere. 
+            return resolve_queue.GetAbilityQueue()
+                .Where(a => a.ability.trigger == AbilityTrigger.OnPassResolution &&
+                            a.ability.failEventType != FailPlayEventType.None)
+                .OrderBy(a => a.ability.failEventType) // Sort by priority
+                .ToList();
+        }*/
+
+        private PlayResolution ResolvePassOutcome()
+        {
+
+            var passCompleteViaSlotMachine = CheckPassCompletion(game_data.current_offensive_player.SelectedPlay, game_data.current_slot_data.Results.Select(r => r.Middle.IconId).ToList());
+
+            var failEvent = ResolvePassFailEvents(passCompleteViaSlotMachine);
+           
+            if (failEvent != null)
+            {
+                return failEvent;
+            }
+
+            List<Card> availableReceivers = game_data.current_offensive_player.GetAvailableReceivers();
+
+            ReceiverRankingSystem rankingSystem = new ReceiverRankingSystem(availableReceivers, game_data.current_offensive_player.SelectedPlay == PlayType.LongPass);
+
+            var targetReceiver = rankingSystem.ApplyCoverage(game_data, rankingSystem);
+            if (targetReceiver == null)
+            {
+                // not sure what we do, is it incomplete? or does it just not get any player bonuses?
+            }
+            var currPlayType = game_data.current_offensive_player.SelectedPlay;
+            var currentPlayStatus = currPlayType == PlayType.LongPass ? StatusType.AddedDeepPassBonus : StatusType.AddedShortPassBonus;
+
+            var statusYardage = targetReceiver.status
+                .FirstOrDefault(_ => _.type == currentPlayStatus)?.value ?? 0;
+
+            var baseYardage = currentPlayStatus == StatusType.AddedDeepPassBonus ? targetReceiver.Data.deep_pass_bonus : targetReceiver.Data.short_pass_bonus;
+
+            var coachYardage = game_data.current_offensive_player.head_coach.baseOffenseYardage[game_data.current_offensive_player.SelectedPlay];
+            var otherPositionGroupsToCount = new PlayerPositionGrp[2]
+            {
+                PlayerPositionGrp.QB,
+                PlayerPositionGrp.OL
+            };
+
+
+            var otherOffPlayerYardage = game_data.current_offensive_player.cards_board
+                .Where(c => otherPositionGroupsToCount.Contains(c.Data.playerPosition))
+                .Sum(c => (currPlayType == PlayType.LongPass ? c.Data.deep_pass_bonus : c.Data.short_pass_bonus) +
+                    c.GetStatusValue(currentPlayStatus));
+
+            var otherDefPlayerYardage = game_data.GetCurrentDefensivePlayer().cards_board
+                .Sum(c => (currPlayType == PlayType.LongPass ? c.Data.deep_pass_coverage_bonus : c.Data.short_pass_coverage_bonus) +
+                    c.GetStatusValue(currentPlayStatus));
+
+            return new PlayResolution
+            {
+                BallIsLive = true,
+                Turnover = false,
+                YardageGained = baseYardage + statusYardage + otherOffPlayerYardage + coachYardage,
+                ContributingAbilities = new List<AbilityQueueElement>()
+            };
+
+        }
+        private bool CheckPassCompletion(PlayType playType, List<SlotMachineIconType> slotResults)
+        {
+
+            var requirements = game_data.current_offensive_player.head_coach.completionRequirements[playType];
+            if (requirements == null) return false;
+
+            // Count how many of each icon type appeared in the slots
+            var slotCounts = new Dictionary<SlotMachineIconType, int>();
+            foreach (var result in slotResults)
+            {
+                if (slotCounts.ContainsKey(result))
+                    slotCounts[result]++;
+                else
+                    slotCounts[result] = 1;
+            }
+            var isComplete = false;
+            // Check if slot counts meet the minimum requirements
+            foreach (var requirement in requirements)
+            {
+                if (slotCounts.ContainsKey(requirement.icon) && slotCounts[requirement.icon] >= requirement.minCount)
+                    isComplete = true;
+            }
+
+            return isComplete;
+        }
+        // basically returning a resolution that could have multiple abilities to playback in order
+        private PlayResolution ResolvePassFailEvents(bool passCompleteViaSlotMachine)
+        { 
+            if (!passCompleteViaSlotMachine)
+            {
+                var basicIncompletePass = new AbilityData
+                {
+                    trigger = AbilityTrigger.OnPassResolution,
+                    failEventType = FailPlayEventType.IncompletePass
+                };
+                
+                resolve_queue.AddAbility(basicIncompletePass, null, null, null);
+            }
+
+            var failList = resolve_queue.GetAbilityQueue()
+                .Where(a => a.ability.trigger == AbilityTrigger.OnPassResolution &&
+                            a.ability.failEventType != FailPlayEventType.None)
+                .OrderBy(a => a.ability.failEventType) // Priority-based order
+                .ToList();
+
+            foreach (var failEvent in failList)
+            {
+                switch (failEvent.ability.failEventType)
+                {
+                    case FailPlayEventType.Sack:
+                        return HandleSack(failEvent, failList.ToList());
+
+                    case FailPlayEventType.Interception:
+                        return HandleInterception(failEvent);
+
+                    case FailPlayEventType.BattedPass:
+                        return HandleBattedPass(failEvent);
+
+                    case FailPlayEventType.TippedPass:
+                        return TryToInterceptTippedPass(failEvent);
+
+                    case FailPlayEventType.IncompletePass:
+                        return HandleIncompletePass(failEvent);
+
+                    case FailPlayEventType.RunnerFumble:
+                        if (passCompleteViaSlotMachine)
+                            return HandleFumble(failEvent);
+                        else break;
+
+                    default:
+                        break;
+                }
+            }
+            return null; // No fail events resolved → proceed to completion check
+        }
+
+        private PlayResolution ResolveRunFailEvents()
+        {
+
+            var failList = resolve_queue.GetAbilityQueue()
+                .Where(a => a.ability.trigger == AbilityTrigger.OnPassResolution &&
+                            a.ability.failEventType != FailPlayEventType.None)
+                .OrderBy(a => a.ability.failEventType) // Priority-based order
+                .ToList();
+
+            foreach (var failEvent in failList)
+            {
+                switch (failEvent.ability.failEventType)
+                {
+                    case FailPlayEventType.RunnerFumble:
+                        return HandleFumble(failEvent);
+                    case FailPlayEventType.TackleForLoss:
+                        return HandleTackleForLoss(failEvent);
+                    default:
+                        break;
+                }
+            }
+            return null;
+        }
+
+        private PlayResolution HandleTackleForLoss(AbilityQueueElement failEvent)
+        {
+            var casterGrit = failEvent.caster.Data.grit;
+            return new PlayResolution
+            {
+                BallIsLive =false,
+                YardageGained = failEvent.caster.Data.grit < 3 ? -3 : -failEvent.caster.Data.grit,
+                ContributingAbilities = new List<AbilityQueueElement>
+                {
+                    failEvent
+                },
+                Turnover = false
+
+            };
+            // lose yardage, end of play
+        }
+
+        private PlayResolution HandleSack(AbilityQueueElement failEvent, List<AbilityQueueElement> otherEvents)
+        {
+            var fumble = otherEvents.FirstOrDefault(e => e.ability.failEventType == FailPlayEventType.QBFumble);
+
+            if (fumble != null) 
+            {
+                var playFailRes = HandleQbFumble(fumble);
+                playFailRes.ContributingAbilities.Prepend(failEvent);
+                return playFailRes;
+            }
+            else
+            {
+                return new PlayResolution
+                {
+                    BallIsLive = false,
+                    ContributingAbilities = new List<AbilityQueueElement> { failEvent },
+                    Turnover = false,
+                    YardageGained = game_data.current_offensive_player.SelectedPlay == PlayType.LongPass ? -8 : -4
+                };
+            }
+            // remove yardage. 
+            // check if theres a qb fumble somehow?
+            // if not end the play
+
+
+        }
+
+        private PlayResolution HandleQbFumble(AbilityQueueElement fumble)
+        {
+            var offGrit = game_data.current_offensive_player.GetCurrentBoardCardGrit();
+            var defGrit = game_data.GetCurrentDefensivePlayer().GetCurrentBoardCardGrit();
+
+            var turnover = defGrit > offGrit; //tie goes to offense???!? TODO:
+
+            var diff = (int)Math.Abs(defGrit - offGrit);
+
+
+            return new PlayResolution
+            {
+                BallIsLive = true,
+                ContributingAbilities = new List<AbilityQueueElement> { fumble },
+                Turnover = turnover,
+                YardageGained = turnover ? (2 * diff) : (1 * diff),
+            };
+        }
+
+        private PlayResolution HandleInterception(AbilityQueueElement failEvent)
+        {
+            var offGrit = game_data.current_offensive_player.GetCurrentBoardCardGrit();
+            var defGrit = game_data.GetCurrentDefensivePlayer().GetCurrentBoardCardGrit();
+
+            var playType = game_data.current_offensive_player.SelectedPlay;
+
+
+            var netYardageInterceptionPoint =
+                game_data.current_offensive_player.GetBoardCardsBaseYardageForPlayType(playType, true) -
+                game_data.GetCurrentDefensivePlayer().GetBoardCardsBaseYardageForPlayType(playType, false);
+
+            var hasDefSurplus = defGrit > offGrit;
+
+            return new PlayResolution
+            {
+                BallIsLive = true,
+                Turnover = true,
+                ContributingAbilities = new List<AbilityQueueElement> { failEvent },
+                YardageGained = hasDefSurplus ? netYardageInterceptionPoint - (defGrit - offGrit) : netYardageInterceptionPoint
+            };
+        }
+
+
+        private PlayResolution TryToInterceptTippedPass(AbilityQueueElement failEvent)
+        {
+            var offGrit = game_data.current_offensive_player.GetCurrentBoardCardGrit();
+            var defGrit = game_data.GetCurrentDefensivePlayer().GetCurrentBoardCardGrit();
+
+            if (defGrit + 3 >= offGrit && defGrit >= offGrit * 2) // interception!
+            {
+                return new PlayResolution
+                {
+                    BallIsLive = true,
+                    Turnover = true,
+                    ContributingAbilities = new List<AbilityQueueElement> { failEvent },
+                    YardageGained = (defGrit - offGrit) * 2
+                };
+            } else // incomplete!
+            {
+                return new PlayResolution
+                {
+                    BallIsLive = false,
+                    Turnover = game_data.current_down == 4 ? true : false,
+                    ContributingAbilities = new List<AbilityQueueElement> { failEvent },
+                    YardageGained = 0
+                };
+            }
+        }
+
+        private PlayResolution HandleBattedPass(AbilityQueueElement failEvent)
+        {
+            return new PlayResolution
+            {
+                BallIsLive = false,
+                Turnover = game_data.current_down == 4 ? true : false,
+                ContributingAbilities = new List<AbilityQueueElement> { failEvent },
+                YardageGained = 0
+            };
+        }
+
+        private PlayResolution HandleFumble(AbilityQueueElement failEvent)
+        {
+            var offGrit = game_data.current_offensive_player.GetCurrentBoardCardGrit();
+            var defGrit = game_data.GetCurrentDefensivePlayer().GetCurrentBoardCardGrit();
+
+            var turnover = defGrit > offGrit; //tie goes to offense???!? TODO:
+
+            var diff = (int)Math.Abs(defGrit - offGrit);
+
+
+            return new PlayResolution
+            {
+                BallIsLive = true,
+                ContributingAbilities = new List<AbilityQueueElement> { failEvent },
+                Turnover = turnover,
+                YardageGained = turnover ? (2 * diff) : (1 * diff),
+            };
+        }
+        private PlayResolution HandleIncompletePass(AbilityQueueElement failEvent)
+        {
+            return new PlayResolution
+            {
+                BallIsLive = false,
+                Turnover = game_data.current_down == 4 ? true : false,
+                ContributingAbilities = new List<AbilityQueueElement>(),
+                YardageGained = 0
+            };
+        }
+
+        private void ResolvePlay(PlayResolution playRes)
+        {
+            
+            //ADD current play to play history
+            // play history ideas (anything that could be used by an ability!)
+            // slot
+            // playcalls
+            // cards in play
+            // hand sizes at end of play?
+            // yardage
+            // ball on at start of play
+            // ball on at end of play
+            //turnover?
+            // player stats (reception, yardage)
+            // plays left
+            //score
+            //pass completion
+            // cards drawn / discarded
+            // abilities used
+
+
+
+            game_data.plays_left_in_half--;
+            // check if there are no plays left in the half.
+
+            if (game_data.plays_left_in_half < 1)
+            {
+                if (game_data.current_half == 1)
+                {
+                    //go to second half
+                }
+                else
+                {
+                    //end game
+                }
+            }
+            if (game_data.current_down == 4)
+            {
+                game_data.current_offensive_player = GameData.GetCurrentDefensivePlayer();
+                game_data.current_down = 1;
+                //start turn?
+            }
+            else
+            {
+                game_data.current_down++;
+                game_data.raw_ball_on =
+                    ((game_data.fieldDirection == FieldDirection.Player0GoesUp && game_data.current_offensive_player.player_id == 0) ||
+                    (game_data.fieldDirection == FieldDirection.Player0GoesDown && game_data.current_offensive_player.player_id == 1)) ?
+                    game_data.raw_ball_on + game_data.yardage_this_play :
+                    game_data.raw_ball_on - game_data.yardage_this_play;   //TODO: this might be incredibly wrong.
+
+            }
+
+            //Clear stuff?
+        }
+
+
+        private PlayResolution ResolveRunOutcome()
+        {
+            var failEvent = ResolveRunFailEvents();
+            if (failEvent != null)
+            {
+                return failEvent;
+            }
+
+
+            int baseYardage = game_data.current_offensive_player.head_coach.baseOffenseYardage[PlayType.Run];
+
+            int playerRunBase = game_data.current_offensive_player.cards_board.Sum(p => p.Data.run_bonus);
+            int playerAddedBonuses = game_data.current_offensive_player.cards_board
+                .Sum(c => c.GetStatusValue(StatusType.AddedRunBonus));
+
+            var defPlayerCoverageBase = game_data.GetCurrentDefensivePlayer().cards_board.Sum(p => p.Data.run_coverage_bonus);
+            var defAddedBonuses = game_data.GetCurrentDefensivePlayer().cards_board
+                .Sum(c => c.GetStatusValue(StatusType.AddedRunCoverageBonus));
+
+
+            return new PlayResolution
+            {
+                BallIsLive = true,
+                ContributingAbilities = new List<AbilityQueueElement>(),
+                Turnover = false,
+                YardageGained = (baseYardage + playerAddedBonuses) - (defPlayerCoverageBase + defAddedBonuses),
+            };
+            
+               
+        }
+
+
         //-----Trigger Selector-----
 
         protected virtual void GoToSelectTarget(AbilityData iability, Card caster)
@@ -2160,6 +2550,8 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 player.ready = false;
             RefreshData();
         }
+
+
 
         //-------------
 

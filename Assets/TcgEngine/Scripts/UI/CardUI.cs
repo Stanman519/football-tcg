@@ -103,17 +103,17 @@ namespace TcgEngine.UI
             if (hp != null)
                 hp.text = card.stamina.ToString();
 
-            if (team_icon != null)
+/*            if (team_icon != null)
             {
                 team_icon.sprite = card.team.icon;
                 team_icon.enabled = team_icon.sprite != null;
-            }
+            }*/
 
-            if (rarity_icon != null)
+/*            if (rarity_icon != null)
             {
                 rarity_icon.sprite = card.rarity.icon;
                 rarity_icon.enabled = rarity_icon.sprite != null && card.type != CardType.Hero;
-            }
+            }*/
 
             foreach (TraitUI stat in stats)
                 stat.SetCard(card);

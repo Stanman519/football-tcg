@@ -1,5 +1,6 @@
 ﻿using Assets.TcgEngine.Scripts.Gameplay;
 using System.Collections.Generic;
+using System.Linq;
 using TcgEngine;
 using UnityEngine;
 
@@ -34,8 +35,8 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
         public Dictionary<string, Card> cards_all = new Dictionary<string, Card>(); //Dictionnary for quick access to any card by UID
         public Card hero = null;
-        public HeadCoachCard head_coach = new HeadCoachCard
-        {
+        public HeadCoachCard head_coach = new HeadCoachCard();
+/*        {
             positional_Scheme = new Dictionary<PlayerPositionGrp, HCPlayerSchemeData>
             {
                 { PlayerPositionGrp.NONE, new HCPlayerSchemeData { pos_max = 0 } },
@@ -49,7 +50,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 { PlayerPositionGrp.P, new HCPlayerSchemeData {pos_max = 1}},
                 { PlayerPositionGrp.K, new HCPlayerSchemeData {pos_max = 1}},
             }
-        };
+        };*/
 
         public List<Card> cards_deck = new List<Card>();    //Cards in the player's deck
         public List<Card> cards_hand = new List<Card>();    //Cards in the player's hand
@@ -224,6 +225,21 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         public bool IsOnBoard(Card card)
         {
             return card != null && GetBoardCard(card.uid) != null;
+        }
+
+        public int GetBoardCardsBaseYardageForPlayType(PlayType playType, bool isOffense)
+        {
+            switch (playType)
+            {
+                case PlayType.Run:
+                    return cards_board.Sum(c => isOffense ? c.Data.run_bonus : c.Data.run_coverage_bonus);
+                case PlayType.ShortPass:
+                    return cards_board.Sum(c => isOffense ? c.Data.short_pass_bonus : c.Data.short_pass_coverage_bonus);
+                case PlayType.LongPass:
+                    return cards_board.Sum(c => isOffense ? c.Data.deep_pass_bonus : c.Data.deep_pass_coverage_bonus);
+                default:
+                    return 0;
+            }
         }
 
 
@@ -425,6 +441,11 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             }
         }
 
+        public List<Card> GetAvailableReceivers()
+        {
+            return cards_board.Where(p => p.Data.playerPosition.IsReceiverEligible()).ToList();
+        }
+
         public void AddOngoingStatus(StatusType effect, int value)
         {
             if (effect != StatusType.None)
@@ -477,6 +498,10 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             all_status.AddRange(status);
             all_status.AddRange(ongoing_status);
             return all_status;
+        }
+        public int GetCurrentBoardCardGrit()
+        {
+            return cards_board.Sum(c => c.Data.grit + c.status.Where(s => s.type == StatusType.AddGrit).Sum(_ => _.value));
         }
 
         public bool HasStatus(StatusType effect)

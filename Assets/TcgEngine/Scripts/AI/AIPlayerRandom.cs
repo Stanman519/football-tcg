@@ -32,7 +32,7 @@ namespace TcgEngine.AI
 
             if (game_data.IsPlayerTurn(player) && !gameplay.IsResolving())
             {
-                if(!is_playing && game_data.selector == SelectorType.None && game_data.current_offensive_player == player_id)
+                if(!is_playing && game_data.selector == SelectorType.None && game_data.current_offensive_player.player_id == player_id)
                 {
                     is_playing = true;
                     TimeTool.StartCoroutine(AiTurn());
