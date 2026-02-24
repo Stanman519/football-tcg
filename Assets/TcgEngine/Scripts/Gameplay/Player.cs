@@ -16,41 +16,53 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         public string avatar;
         public string cardback;
         public string deck;
-
+        public int hp;
+        public int hp_max;
+        public int kill_count;
         public bool is_ai = false;
         public int ai_level;
-
+        public int points;
         public bool connected = false; //Connected to server and game
         public bool ready = false;     //Sent all player data, ready to play
 
-        public int points;
-        public int hp;
-        public int hp_max;
-
-        public int kill_count = 0;
+        //Phase readiness tracking
         private Dictionary<GamePhase, bool> readyForPhase = new Dictionary<GamePhase, bool>();
+        public Dictionary<PlayType, int> consecutive_play_count = new Dictionary<PlayType, int>();
 
+        /// <summary>
+        /// Reset ready state for new turn
+        /// </summary>
+        public void ResetReadyState()
+        {
+            readyForPhase.Clear();
+        }
+
+        /// <summary>
+        /// Check if player is ready for a specific phase
+        /// </summary>
+        public bool IsReadyForPhase(GamePhase phase)
+        {
+            return readyForPhase.ContainsKey(phase) && readyForPhase[phase];
+        }
+
+        /// <summary>
+        /// Set player ready for a specific phase
+        /// </summary>
+        public void SetReadyForPhase(GamePhase phase, bool isReady)
+        {
+            readyForPhase[phase] = isReady;
+        }
         public PlayType SelectedPlay;
         public Card PlayEnhancer;
+
+        public int GetConsecutivePlayCount(PlayType playType)
+        {
+            return consecutive_play_count.ContainsKey(playType) ? consecutive_play_count[playType] : 0;
+        }
 
         public Dictionary<string, Card> cards_all = new Dictionary<string, Card>(); //Dictionnary for quick access to any card by UID
         public Card hero = null;
         public HeadCoachCard head_coach = new HeadCoachCard();
-/*        {
-            positional_Scheme = new Dictionary<PlayerPositionGrp, HCPlayerSchemeData>
-            {
-                { PlayerPositionGrp.NONE, new HCPlayerSchemeData { pos_max = 0 } },
-                { PlayerPositionGrp.WR, new HCPlayerSchemeData {pos_max = 2}},
-                { PlayerPositionGrp.RB_TE, new HCPlayerSchemeData {pos_max = 2}},
-                { PlayerPositionGrp.QB, new HCPlayerSchemeData {pos_max = 1}},
-                { PlayerPositionGrp.OL, new HCPlayerSchemeData {pos_max = 2}},
-                { PlayerPositionGrp.DL, new HCPlayerSchemeData {pos_max = 2}},
-                { PlayerPositionGrp.DB, new HCPlayerSchemeData {pos_max = 2}},
-                { PlayerPositionGrp.LB, new HCPlayerSchemeData {pos_max = 2}},
-                { PlayerPositionGrp.P, new HCPlayerSchemeData {pos_max = 1}},
-                { PlayerPositionGrp.K, new HCPlayerSchemeData {pos_max = 1}},
-            }
-        };*/
 
         public List<Card> cards_deck = new List<Card>();    //Cards in the player's deck
         public List<Card> cards_hand = new List<Card>();    //Cards in the player's hand
@@ -77,23 +89,6 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         public virtual void ClearOngoing() { ongoing_status.Clear(); ongoing_traits.Clear(); }
 
 
-        public bool IsReadyForPhase(GamePhase phase)
-        {
-            if (readyForPhase.ContainsKey(phase))
-                return readyForPhase[phase];
-
-            return false; // Default to not ready if no entry exists
-        }
-
-        public void SetReadyForPhase(GamePhase phase, bool isReady)
-        {
-            readyForPhase[phase] = isReady;
-        }
-
-        public void ResetReadyState()
-        {
-            readyForPhase.Clear(); // Clears all ready statuses at the start of a new turn
-        }
 
 
         //---- Cards ---------
@@ -242,13 +237,8 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             }
         }
 
-
         //---- Slots ---------
 
-        public CardPositionSlot GetRandomSlot(System.Random rand)
-        {
-            return CardPositionSlot.GetRandom(player_id, rand);
-        }
         public virtual CardPositionSlot GetRandomEmptySlotForPosition(System.Random rand, List<CardPositionSlot> list_mem = null)
         {
             List<CardPositionSlot> valid = GetEmptySlots(list_mem);
@@ -643,9 +633,9 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             //dest.connected = source.connected;
             //dest.ready = source.ready;
 
-            dest.hp = source.hp;
-            dest.hp_max = source.hp_max;
-            dest.kill_count = source.kill_count;
+            //dest.hp = source.hp;
+            //dest.hp_max = source.hp_max;
+            //dest.kill_count = source.kill_count;
 
             Card.CloneNull(source.hero, ref dest.hero);
             Card.CloneDict(source.cards_all, dest.cards_all);
@@ -659,6 +649,40 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
             CardStatus.CloneList(source.status, dest.status);
             CardStatus.CloneList(source.ongoing_status, dest.ongoing_status);
+        }
+
+        //------ Grit & Stamina ------
+
+        /// <summary>
+        /// Get total grit from all defensive cards on board
+        /// </summary>
+        public int GetTotalGrit()
+        {
+            int total = 0;
+            foreach (Card card in cards_board)
+            {
+                if (card != null && card.Data != null)
+                {
+                    total += card.Data.grit;
+                }
+            }
+            return total;
+        }
+
+        /// <summary>
+        /// Get total stamina from all offensive cards on board
+        /// </summary>
+        public int GetTotalStamina()
+        {
+            int total = 0;
+            foreach (Card card in cards_board)
+            {
+                if (card != null && card.Data != null)
+                {
+                    total += card.Data.stamina;
+                }
+            }
+            return total;
         }
     }
 

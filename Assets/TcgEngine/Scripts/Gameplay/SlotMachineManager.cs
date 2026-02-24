@@ -1,3 +1,4 @@
+using Assets.TcgEngine.Scripts.Effects;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -14,8 +15,11 @@ public class ReelSpriteData
 [Serializable]
 public class IconResultData
 {
-    public Sprite Image;
     public SlotMachineIconType IconId;
+
+    // Image is NOT serialized - client looks it up based on IconId
+    [System.NonSerialized]
+    public Sprite Image;
 }
 [Serializable]
 public class SlotMachineResultDTO
@@ -76,20 +80,107 @@ public class SlotMachineManager
         return null; // Fallback case if no sprite is found
     }
 
-
-    public SlotMachineResultDTO CalculateSpinResults()
+    /// <summary>
+    /// Calculate spin results with optional modifiers (for abilities like Risk-Taker)
+    /// </summary>
+    /// <param name="modifiers">List of slot modifiers from abilities</param>
+    /// <returns>Spin results with modifiers applied</returns>
+    public SlotMachineResultDTO CalculateSpinResults(List<SlotModifier> modifiers = null)
     {
         var results = new List<ReelSpriteData>();
+        
+        // Check for extra reels from modifiers
+        bool hasExtraReels = modifiers != null && modifiers.Any(m => m.addReel);
+        
+        // Process each base reel
         foreach (var slot in slot_data)
         {
-            results.Add(PickThreeIcons(slot.reelIconInventory));
+            List<SlotIconData> iconsToUse = ApplyModifiersToReel(slot.reelIconInventory, modifiers, slot.id);
+            results.Add(PickThreeIcons(iconsToUse));
         }
+        
+        // Add extra reels if any modifier adds them
+        if (hasExtraReels)
+        {
+            int extraReelCount = modifiers.Count(m => m.addReel);
+            for (int i = 0; i < extraReelCount; i++)
+            {
+                // Create a new reel with default distribution (or could be custom)
+                List<SlotIconData> extraReelIcons = CreateDefaultReelIcons();
+                extraReelIcons = ApplyModifiersToReel(extraReelIcons, modifiers, -1); // -1 = extra reel
+                results.Add(PickThreeIcons(extraReelIcons));
+            }
+            isExtraReelActive = true;
+        }
+        
         return new SlotMachineResultDTO
         {
             Results = results,
-            SlotDataCopy = slot_data
+            //SlotDataCopy = slot_data
         };
+    }
+
+    /// <summary>
+    /// Apply symbol modifiers to a single reel's icon list
+    /// </summary>
+    private List<SlotIconData> ApplyModifiersToReel(List<SlotIconData> baseIcons, List<SlotModifier> modifiers, int reelId)
+    {
+        // Start with a copy of base icons
+        var modified = CopyIconList(baseIcons);
         
+        if (modifiers == null || modifiers.Count == 0)
+            return modified;
+            
+        foreach (var mod in modifiers)
+        {
+            // Skip reel additions - handled separately
+            if (mod.addReel)
+                continue;
+                
+            // Skip if this modifier is for a specific reel and doesn't match
+            if (mod.targetReel >= 0 && mod.targetReel != reelId)
+                continue;
+            
+            // Add the symbol(s) - increase weight to guarantee it appears
+            // Alternatively, could add a new entry to ensure it triggers
+            for (int i = 0; i < mod.count; i++)
+            {
+                // Find existing or add new
+                var existing = modified.FirstOrDefault(x => x.IconID == mod.symbolType);
+                if (existing != null)
+                {
+                    // Increase weight significantly to make it likely to appear
+                    existing.Weight += 5f;
+                }
+                else
+                {
+                    // Add new symbol to this reel
+                    modified.Add(new SlotIconData
+                    {
+                        IconID = mod.symbolType,
+                        Weight = 5f,
+                        IconSprite = null
+                    });
+                }
+            }
+        }
+        
+        return modified;
+    }
+    
+    /// <summary>
+    /// Create default icon list for extra reels
+    /// </summary>
+    private List<SlotIconData> CreateDefaultReelIcons()
+    {
+        return new List<SlotIconData>
+        {
+            new SlotIconData { IconID = SlotMachineIconType.Football, Weight = 3f },
+            new SlotIconData { IconID = SlotMachineIconType.Helmet, Weight = 2f },
+            new SlotIconData { IconID = SlotMachineIconType.Star, Weight = 1f },
+            new SlotIconData { IconID = SlotMachineIconType.Wrench, Weight = 1f },
+            new SlotIconData { IconID = SlotMachineIconType.WildCard, Weight = 1f }
+        };
     }
 
     private ReelSpriteData PickThreeIcons(List<SlotIconData> baseIcons)

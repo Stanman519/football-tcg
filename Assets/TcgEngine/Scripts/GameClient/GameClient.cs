@@ -4,6 +4,7 @@ using UnityEngine.Events;
 using Unity.Netcode;
 using Assets.TcgEngine.Scripts.Gameplay;
 using System.Linq;
+using System.Collections;
 
 namespace TcgEngine.Client
 {
@@ -21,6 +22,9 @@ namespace TcgEngine.Client
         public static PlayerSettings player_settings = PlayerSettings.Default;
         public static PlayerSettings ai_settings = PlayerSettings.DefaultAI;
         public static string observe_user = null; //Which user should it observe, null if not an obs
+
+        //Board card prefab for spawning visual cards on board
+        public GameObject boardCardPrefab;
 
         //-----
 
@@ -69,7 +73,7 @@ namespace TcgEngine.Client
         private int observe_player_id = 0;
         private float timer = 0f;
 
-        private Dictionary<ushort, RefreshEvent> registered_commands = new Dictionary<ushort, RefreshEvent>();
+        private Dictionary<ushort, RefreshEvent> registered_commands = new Dictionary< ushort, RefreshEvent>();
 
         private static GameClient instance;
 
@@ -127,8 +131,26 @@ namespace TcgEngine.Client
 
             Game gameData = GetGameData();
 
-        }
 
+            StartCoroutine(TestNetworkAfterDelay());
+        }
+        private IEnumerator TestNetworkAfterDelay()
+        {
+            yield return new WaitForSeconds(2f); // Wait for connection
+
+            DebugNetworkState();
+
+            // Try sending a simple test message
+            if (TcgNetwork.Get().IsConnected())
+            {
+                Debug.Log("Attempting test message send...");
+                SendAction(GameAction.EndTurn); // Simple message with no data
+            }
+            else
+            {
+                Debug.LogWarning("Not connected after 2 seconds!");
+            }
+        }
         protected virtual void OnDestroy()
         {
             TcgNetwork.Get().onConnect -= OnConnectedServer;
@@ -165,7 +187,29 @@ namespace TcgEngine.Client
         }
 
         //--------------------
+        private void DebugNetworkState()
+        {
+            var network = TcgNetwork.Get();
+            Debug.Log($"Network State Debug:");
+            Debug.Log($"  IsActive: {network.IsActive()}");
+            Debug.Log($"  IsConnected: {network.IsConnected()}");
+            Debug.Log($"  IsHost: {network.IsHost}");
+            Debug.Log($"  IsServer: {network.IsServer}");
+            Debug.Log($"  ClientID: {network.ClientID}");
+            Debug.Log($"  ServerID: {network.ServerID}");
 
+            if (network.NetworkManager != null)
+            {
+                Debug.Log($"  NetworkManager IsListening: {network.NetworkManager.IsListening}");
+                Debug.Log($"  NetworkManager IsConnectedClient: {network.NetworkManager.IsConnectedClient}");
+                Debug.Log($"  NetworkManager IsHost: {network.NetworkManager.IsHost}");
+                Debug.Log($"  NetworkManager IsServer: {network.NetworkManager.IsServer}");
+            }
+            else
+            {
+                Debug.Log("  NetworkManager is NULL!");
+            }
+        }
         public virtual void ConnectToAPI()
         {
             //Should already be logged in from the menu
@@ -199,19 +243,28 @@ namespace TcgEngine.Client
         {
             await TimeTool.Delay(100); //Wait for initialization to finish
 
+            Debug.Log($"ConnectToServer called. IsActive: {TcgNetwork.Get().IsActive()}");
+
             if (TcgNetwork.Get().IsActive())
+            {
+                Debug.Log("Already connected, returning");
                 return; // Already connected
+            }
+
 
             if (game_settings.IsHost() && NetworkData.Get().solo_type == SoloType.Offline)
             {
+                Debug.Log("Starting Host Offline");
                 TcgNetwork.Get().StartHostOffline();    //WebGL dont support hosting a game, must join a dedicated server, in solo it starts a offline mode that doesn't use netcode at all
             }
             else if (game_settings.IsHost())
             {
+                Debug.Log($"Starting Host on port {NetworkData.Get().port}");
                 TcgNetwork.Get().StartHost(NetworkData.Get().port);       //Host a game, either solo or for P2P, still using netcode in solo to have consistant behavior when testing solo vs multi
             }
             else
             {
+                Debug.Log($"Starting Client connecting to {game_settings.GetUrl()}:{NetworkData.Get().port}");
                 TcgNetwork.Get().StartClient(game_settings.GetUrl(), NetworkData.Get().port);       //Join server
             }
         }
@@ -268,6 +321,7 @@ namespace TcgEngine.Client
         public void OnReceiveRefresh(ulong client_id, FastBufferReader reader)
         {
             reader.ReadValueSafe(out ushort type);
+            Debug.Log("OnReceiveRefresh - Got tag: " + type);
             bool found = registered_commands.TryGetValue(type, out RefreshEvent command);
             if (found)
             {
@@ -298,11 +352,14 @@ namespace TcgEngine.Client
 
         public void PlayCard(Card card, CardPositionSlot slot)
         {
+            // Added logging to trace PlayCard calls
+            Debug.Log($"GameClient.PlayCard called: card={card?.uid}, slot={(slot != null ? slot.posGroupType.ToString() : "null")}-{(slot != null ? slot.p.ToString() : "null")}, IsConnected={TcgNetwork.Get().IsConnected()}");
             MsgPlayCard mdata = new MsgPlayCard();
             mdata.card_uid = card.uid;
             mdata.slot = slot;
             SendAction(GameAction.PlayCard, mdata);
         }
+
 
         public void AttackTarget(Card card, Card target)
         {
@@ -470,6 +527,13 @@ namespace TcgEngine.Client
 
         public void SendAction<T>(ushort type, T data, NetworkDelivery delivery = NetworkDelivery.Reliable) where T : INetworkSerializable
         {
+            Debug.Log($"SendAction called: type={type}, IsConnected={TcgNetwork.Get().IsConnected()}");
+
+            if (!TcgNetwork.Get().IsConnected())
+            {
+                Debug.LogWarning("Cannot send action - not connected to network!");
+                return;
+            }
             FastBufferWriter writer = new FastBufferWriter(128, Unity.Collections.Allocator.Temp, TcgNetwork.MsgSizeMax);
             writer.WriteValueSafe(type);
             writer.WriteNetworkSerializable(data);
@@ -488,6 +552,13 @@ namespace TcgEngine.Client
 
         public void SendAction(ushort type)
         {
+            Debug.Log($"SendAction called: type={type}, IsConnected={TcgNetwork.Get().IsConnected()}");
+
+            if (!TcgNetwork.Get().IsConnected())
+            {
+                Debug.LogWarning("Cannot send action - not connected to network!");
+                return;
+            }
             FastBufferWriter writer = new FastBufferWriter(128, Unity.Collections.Allocator.Temp, TcgNetwork.MsgSizeMax);
             writer.WriteValueSafe(type);
             Messaging.Send("action", ServerID, writer, NetworkDelivery.Reliable);
@@ -556,17 +627,72 @@ namespace TcgEngine.Client
             }
         }
 
-        private void OnCardPlayed(SerializedData sdata)
+/*        private void OnCardPlayed(SerializedData sdata)
         {
             MsgPlayCard msg = sdata.Get<MsgPlayCard>();
+            Debug.Log($"OnCardPlayed refresh: card_uid={msg.card_uid}, slot={msg.slot.posGroupType}-{msg.slot.p}");
             Card card = game_data.GetCard(msg.card_uid);
 
             onCardPlayed?.Invoke(card, msg.slot);
 
-            BSlot bslot = BSlot.Get(msg.slot);
+            BoardSlot bslot = BoardSlot.Get(msg.slot);
             if (bslot is BoardSlot boardSlot)
             {
+                Debug.Log($"OnCardPlayed: assigning card {msg.card_uid} to board slot {msg.slot.posGroupType}-{msg.slot.p}");
                 boardSlot.AssignCard(card);
+                Debug.Log($"OnCardPlayed: assigned card {msg.card_uid} to board slot {msg.slot.posGroupType}-{msg.slot.p}");
+            }
+            else
+            {
+                Debug.LogWarning($"OnCardPlayed: No BoardSlot found for slot {msg.slot.posGroupType}-{msg.slot.p}");
+            }
+        }*/
+
+        private void OnCardPlayed(SerializedData sdata)
+        {
+            // Enhanced logging for received CardPlayed refresh
+            MsgPlayCard msg = sdata.Get<MsgPlayCard>();
+            Debug.Log($"OnCardPlayed refresh received: card_uid={msg.card_uid}, slot={(msg.slot != null ? msg.slot.posGroupType.ToString() : "null")}-{(msg.slot != null ? msg.slot.p.ToString() : "null")}");
+
+            Card card = game_data.GetCard(msg.card_uid);
+            if (card == null)
+            {
+                Debug.LogWarning($"OnCardPlayed: could not find card with uid {msg.card_uid} in game_data");
+            }
+
+            onCardPlayed?.Invoke(card, msg.slot);
+
+            BoardSlot bslot = BoardSlot.Get(msg.slot);
+            if (bslot is BoardSlot boardSlot)
+            {
+                Debug.Log($"OnCardPlayed: assigning card {msg.card_uid} to board slot {(msg.slot != null ? msg.slot.posGroupType.ToString() : "null")}-{(msg.slot != null ? msg.slot.p.ToString() : "null")}.");
+                boardSlot.AssignCard(card);
+                Debug.Log($"OnCardPlayed: assigned card {msg.card_uid} to board slot {(msg.slot != null ? msg.slot.posGroupType.ToString() : "null")}-{(msg.slot != null ? msg.slot.p.ToString() : "null")}.");
+
+/*                // Spawn BoardCard visual at the slot position
+                if (boardCardPrefab != null)
+                {
+                    Vector3 slotPosition = boardSlot.transform.position;
+                    GameObject boardCardGO = Instantiate(boardCardPrefab, slotPosition, Quaternion.identity);
+                    BoardCard boardCard = boardCardGO.GetComponent<BoardCard>();
+                    if (boardCard != null)
+                    {
+                        boardCard.SetCard(card);
+                        Debug.Log($"OnCardPlayed: spawned BoardCard visual for {msg.card_uid} at slot {msg.slot.posGroupType}");
+                    }
+                }*/
+
+                // Remove HandCard UI from hand
+                HandCard handCard = HandCard.Get(msg.card_uid);
+                if (handCard != null)
+                {
+                    handCard.Kill();
+                    Debug.Log($"OnCardPlayed: removed HandCard UI for {msg.card_uid} from hand");
+                }
+            }
+            else
+            {
+                Debug.LogWarning($"OnCardPlayed: No BoardSlot found for slot {(msg.slot != null ? msg.slot.posGroupType.ToString() : "null")}-{(msg.slot != null ? msg.slot.p.ToString() : "null")}.");
             }
         }
 

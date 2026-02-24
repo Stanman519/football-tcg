@@ -1,0 +1,171 @@
+﻿..draw more than one card and put the others you dont choose at the bottom (coach ability?)
+
+
+
+
+The year is 2039 all-human american football leagues have been deemed too dangerous to play 11 v 11 football…
+
+
+First and Long
+
+Overview: American football trading card deck building game. I want it to be an app or a pc game. Head to head football game. There are 2 halves. Each half has a total of 11 plays.  22 total plays in the game.  Players take turns on offense and defense.  Each possession, by default, is only 4 attempts. There are no first downs. Each drive starts at your own 25 yard line.  Possession can be fumbled, intercepted, punted, turned over on downs, kicked field goal, or advance enough yards to score a touchdown. Players start out game with “replacement” players (robots?) on the field at each position. They are just there for show, they have no special abilities. But throughout the game you will replace those players with star and superstar players from your deck.
+
+
+
+
+When the ball is snapped, a communal slot machine will spin. Its results will interact with cards that the users have played or cards in their hands. By default the slot machine has 3 slots. Each one has 3 footballs, 2 helmets, 2 stars, 1 wrench. Additionally, the middle slot als has a wild card, and the right slot as an extra helmet (3 total).
+
+
+Each player has a deck of cards, and each deck has a head coach card which starts in play automatically.  The rest of the cards could be offensive players, defensive players, play enhancers, or live ball cards.  
+
+
+A head coach card has:
+-base yardage gains for run, short pass, and deep pass plays on offense
+-base coverage yardage for run, short pass, and long pass coverage on defense (these are subtracted from the offensive team’s gains every play)
+-an ability/effect (i.e. draw 2 cards on 4th down)
+-positional maximums for types of star players you can have on the field at the same time
+-bonus/penalty coverage yards for when you guess the correct/incorrect defensive coverage
+
+
+
+
+A turn works in this order:
+-Offense (O) and Defense (D) users place any new player cards on the board simultaneously in preparation for the next play. 
+-O & D simultaneously choose a play and coverage, respectively (run, short pass, long pass) and add a play enhancer card to their play call if they so choose
+-Slot machines roll and trigger abilities on cards in play.
+-these potential automated ball actions occur in this order if they have been triggered:
+        - pre-throw actions (sack, qb fumble) rare
+        - throw actions (tipped pass, batted down) very rare
+        - completion actions (complete pass/ incomplete pass) incomplete is very rare
+- on run play or completed pass, play is still live at this point. Net yardage is determined.
+- live ball cards are played simultaneously 
+        - defensive live ball cards might include 
+                -tackle: end play at immediate spot
+                -cause fumble
+        - offensive live ball cards might include 
+                - juke/ spin move, etc.: get extra yards
+                - break tackle: cancel a tackle card.
+-total net yardage determined. 
+-next down begins (if it was 1st and 75, and you gained 10 yards - it is now 2nd and 65)
+-players draw new cards (how many?)  and start the next turn
+
+
+Passing:
+When an offense calls a pass, only the player bonus from the receiver that would create the most yards is applied. So if you have a WR, a TE and a RB on the field with +4, +2, +1 deep pass bonuses, respectively, when you call a deep pass, the WR will be the primary receiver. Because of this, some defensive cards can say, "perfect coverage on top receiver for deep pass plays" and the WR bonus will not be applied. instead, the TE bonus will be applied because he becomes the top receiver. This opens up a lot of possibilities for defensive cards.
+
+
+
+
+
+
+Offensive player cards:
+* Can be QB, RB, WR, TE, OL (need to determine if QB starts in your hand automatically or something)
+* Split into the categories (line, receivers, and mid (RB/TE))
+* Your head coach card determines the max of how many you can have in each category at a time on the field
+* Each player card has information on:
+   * bonus yardage they might add for each play type
+   * A passive ability (i.e. add +3 yards to any run play with 2+ footballs on slots)
+   * Position
+   * Name
+   * Superstar status (more on that later, much better abilities, but you can only have one in play at a time)
+   * Stamina (some players might only last of the field for a certain number of plays) stamina can also be increased or decreased by abilities
+   * Grit
+* Some synergies and themes I’ve been working on for O player cards 
+   * Oline can prevent sacks/fumbles based on certain slot results, downs, playcalls, number of other player types on field
+   * Draw cards based on triggers
+   * Add yardage to the play based on:
+      * Current Offensive Playcall
+      * Playcall sequencing (+3 on short pass plays preceded by a run play)
+      * Current down
+      * Slot results
+      * If defense guessed correct/incorrect coverage
+      * Quantity of a certain position of offensive star player on the field (+4 on RB for running plays when you have 4+ oline)
+      * Quantity of a certain position of defensive star player on the field (+3 on RB for running plays when defense has 1 or fewer LB)
+      * How many cards you have drawn since on field
+      * How many cards you’ve discarded
+      * Number of cards in your hand
+      * Every time slots spin gain a yard
+   * Force opponent star player to sit out next play
+   * Charge up moves: (ie. after 10 footballs while on the field, and 10 yards to next complete pass)
+   * Ignore coverage (top WRs)
+   * Add stamina 
+   * Remove stamina
+   * Etc. ?
+
+
+Defensive player cards
+* Can be DL, LB, DB 
+* your head coach card determines the max of how many you can have in each category at a time on the field
+* Each player card has information on
+   * Coverage yardage they might subtract from each play type
+   * A passive ability (ie. intercept a deep pass if you guess correct coverage and 2+ stars on slots)
+   * Position
+   * Name
+   * Superstar status
+   * Stamina 
+   * Grit
+* Some synergies and themes ive been working on for D player cards 
+   * D line can cause sacks/fumbles based on certain slot results, downs, playcalls, number of other player types on field
+   * Similarly DBs can cause interceptions based on rare triggers
+   * Draw cards based on triggers
+   * remove yardage from the play based on:
+      * Current Offensive Playcall
+      * Defensive coverage
+      * Current down
+      * Slot results
+      * If defense guessed correct/incorrect coverage
+      * How many cards you have drawn since on field
+      * How many cards you’ve discarded
+      * Quantity of a certain position of offensive star player on the field 
+      * Quantity of a certain position of defensive star player on the field 
+      * Number of cards in your hand
+      * Every time slots spin gain a yard
+   * Force opponent star player to sit out next play
+   * Add stamina 
+   * Remove stamina
+   * Hurt opponent (make him put the player on the bottom of their deck)
+   * Charge up moves: (ie. after 10 footballs while on the field, sack)
+   * Etc. ?
+
+
+The slot machine acts as a communal mana/RNG that makes rare triggered events more exciting. 
+
+
+Turnovers:
+When a fumble or an interception happens, grit (an attribute on player cards) helps determine the outcome of the play. On a fumble the team with more grit will recover the ball and advance it in the respective direction 2x the amount of grit difference, by default (this can be altered by some cards). on an interception the defense will return the ball 2x their grit surplus.
+
+
+
+
+Play enhancer cards
+* Offense may play a play enhancer when choosing play call
+* Defense may play a play enhancer when choosing defensive coverage
+* Enhancers may have a required play call or coverage that they must be combined with
+* They may need certain things on the slot machine to activate their ability
+* Some abilities, synergies and themes ive been working on for play enhancer cards 
+   * Draw extra cards
+   * Force opponent to discard a card to bottom of their draw pile
+   * Discard your own cards
+   * Shuffle your draw pile
+   * Remove a opposing player for a play
+   * Cards based on hand size
+   * Add an extra slot to the slot machine for this play
+   * Add a wild to a slot machine for this play/rest of game
+   * Add other icons to the slot machine for this play/rest of game
+   * Spin slots twice this turn. Only the 2nd spin counts
+   * Affect all players stamina this play (this play counts as 2, this play doesnt affect stamina)
+   * Add to the remaining plays in the half
+   * Remove from the remaining plays in the half
+   * If you guess the correct defensive coverage…
+   * Ignore all player bonus yardage this play
+   * Freeze 1 slot in its current position for this play (helps you guarantee or improve chances of certain ability outcomes)
+   * Abilities where you see opposing players hand.  
+
+
+
+
+
+
+
+
+IMPORTANT NOTES TO ADD SOMEWHERE

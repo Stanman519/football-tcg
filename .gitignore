@@ -393,3 +393,14 @@ Packages/manifest.lock
 # OS-specific files
 .DS_Store
 Thumbs.db
+# Unity specific
+*.unity
+*.unitypackage
+*.asset
+*.mat
+*.prefab
+ProjectSettings/
+Audio/
+# Don't ignore actual project files
+!*.csproj
+!*.sln

@@ -14,8 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   id: 00077_WR_Ethan_White
   title: WR Ethan White
-  art_full: {fileID: 0}
-  art_board: {fileID: 0}
+  art_full: {fileID: 8250895191184822403, guid: 9633832ec3b3d6343b6cea34d6a08d50,
+    type: 3}
+  art_board: {fileID: 8250895191184822403, guid: 9633832ec3b3d6343b6cea34d6a08d50,
+    type: 3}
   type: 10
   team: {fileID: 0}
   rarity: {fileID: 0}

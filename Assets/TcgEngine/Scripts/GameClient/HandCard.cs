@@ -147,6 +147,18 @@ namespace TcgEngine.Client
             return drag;
         }
 
+        // New public control methods for drag state
+        public void StartDrag()
+        {
+            drag = true;
+        }
+
+        public void EndDrag()
+        {
+            Debug.Log($"HandCard.EndDrag() called for {card_uid}");
+            drag = false;
+        }
+
         public Card GetCard()
         {
             Game gdata = GameClient.Get().GetGameData();
@@ -192,62 +204,7 @@ namespace TcgEngine.Client
             AudioTool.Get().PlaySFX("hand_card", AssetData.Get().hand_card_click_audio);
         }
 
-        public void OnMouseUpCard()
-        {
-            Vector2 mpos = GameCamera.Get().MouseToPercent(Input.mousePosition);
-            Vector3 board_pos = GameBoard.Get().RaycastMouseBoard();
-            if (drag && mpos.y > 0.25f)
-                TryPlayCard(board_pos);
-            else if (!GameTool.IsMobile())
-                HandCardArea.Get().SortCards();
-            drag = false;
-        }
-
-        public void TryPlayCard(Vector3 board_pos)
-        {
-            if (!GameClient.Get().IsYourTurn())
-            {
-                WarningText.ShowNotYourTurn();
-                return;
-            }
-
-            BSlot bslot = BSlot.GetNearest(board_pos);
-            int player_id = GameClient.Get().GetPlayerID();
-            Game gdata = GameClient.Get().GetGameData();
-            Player player = gdata.GetPlayer(player_id);
-            Card card = GetCard();
-
-            CardPositionSlot slot = CardPositionSlot.None;
-            if (bslot != null)
-                slot = bslot.GetEmptySlot(board_pos);
-            if(bslot != null && card.CardData.IsRequireTarget())
-                slot = bslot.GetSlot(board_pos);
-
-            if (!Tutorial.Get().CanDo(TutoEndTrigger.PlayCard, card))
-                return;
-
-            List<Card> slot_cards = bslot?.GetSlotCards(board_pos);
-            if (bslot != null && card.CardData.IsRequireTargetSpell() && slot_cards != null && slot_cards.Any(card => card.HasStatus(StatusType.SpellImmunity)))
-            {
-                WarningText.ShowSpellImmune();
-                return;
-            }
-
-
-            if (gdata.CanPlayCard(card, slot, true))
-            {
-                PlayCard(slot);
-            }
-        }
-
-        public void PlayCard(CardPositionSlot slot)
-        {
-            GameClient.Get().PlayCard(GetCard(), slot);
-            HandCardArea.Get().DelayRefresh(GetCard());
-            Destroy(gameObject);
-            if (GameTool.IsMobile())
-                BoardCard.UnfocusAll();
-        }
+      
 
         public CardData CardData { get { return GetCardData(); } }
 

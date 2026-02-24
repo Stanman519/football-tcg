@@ -26,12 +26,13 @@ namespace TcgEngine.Server
         private float expiration = 0f;
         private float win_expiration = 0f;
         private bool is_dedicated_server = false;
+        private bool lastHadQueuedActions = false;  // Track if we already logged the queue warning
 
         private List<ClientData> players = new List<ClientData>();            //Exclude observers, stays in array when disconnected, only players can send commands
         private List<ClientData> connected_clients = new List<ClientData>();  //Include obervers, removed from array when disconnected, all clients receive refreshes
         private List<AIPlayer> ai_list = new List<AIPlayer>();                //List of all AI players
         private Queue<QueuedGameAction> queued_actions = new Queue<QueuedGameAction>(); //List of action waiting to be processed
-        
+
         private Dictionary<ushort, CommandEvent> registered_commands = new Dictionary<ushort, CommandEvent>();
 
         public GameServer(string uid, int players, bool online)
@@ -175,10 +176,28 @@ namespace TcgEngine.Server
             }
 
             //Process queued actions
-            if (queued_actions.Count > 0 && !gameplay.IsResolving())
+            if (queued_actions.Count > 0)
             {
-                QueuedGameAction action = queued_actions.Dequeue();
-                ExecuteAction(action.type, action.client, action.sdata);
+                if (!lastHadQueuedActions)
+                {
+                    // Peek at the first action without removing it
+                    QueuedGameAction peekedAction = queued_actions.Peek();
+                    Debug.LogWarning($"⚠️ [Update] BLOCKED: {queued_actions.Count} queued action(s) waiting. First action type={peekedAction.type}. IsResolving={gameplay.IsResolving()}");
+                    lastHadQueuedActions = true;
+                }
+
+                bool isResolving = gameplay.IsResolving();
+                if (!isResolving)
+                {
+                    QueuedGameAction action = queued_actions.Dequeue();
+                    Debug.Log($"✓ [Update] Processing queued action type={action.type}");
+                    ExecuteAction(action.type, action.client, action.sdata);
+                    lastHadQueuedActions = false;
+                }
+            }
+            else
+            {
+                lastHadQueuedActions = false;
             }
 
             //Update game logic
@@ -238,6 +257,7 @@ namespace TcgEngine.Server
             if (client != null)
             {
                 reader.ReadValueSafe(out ushort type);
+                Debug.Log($"[ReceiveAction] type={type}, IsResolving={gameplay.IsResolving()}");
                 SerializedData sdata = new SerializedData(reader);
                 if (!gameplay.IsResolving())
                 {
@@ -247,6 +267,7 @@ namespace TcgEngine.Server
                 else
                 {
                     //Resolving, wait before executing
+                    Debug.Log($"[ReceiveAction] Queuing action type={type}");
                     QueuedGameAction action = new QueuedGameAction();
                     action.type = type;
                     action.client = client;
@@ -259,9 +280,17 @@ namespace TcgEngine.Server
 
         public void ExecuteAction(ushort type, ClientData client, SerializedData sdata)
         {
+            Debug.Log($"[ExecuteAction] type={type}");
             bool found = registered_commands.TryGetValue(type, out CommandEvent command);
             if(found)
+            {
+                Debug.Log($"[ExecuteAction] Handler found, invoking callback");
                 command.callback.Invoke(client, sdata);
+            }
+            else
+            {
+                Debug.LogWarning($"[ExecuteAction] No handler for type={type}");
+            }
         }
 
         //-------
@@ -454,6 +483,16 @@ namespace TcgEngine.Server
             Player player = GetPlayer(iclient);
             if (player != null && game_data.IsPlayerTurn(player))
             {
+                // Reject EndTurn during phase-locked phases - should use PlayerReadyPhase instead
+                bool is_phase_locked = game_data.phase == GamePhase.ChoosePlayers
+                                    || game_data.phase == GamePhase.ChoosePlay
+                                    || game_data.phase == GamePhase.LiveBall;
+                if (is_phase_locked)
+                {
+                    Debug.LogWarning($"[ReceiveEndTurn] Rejected: EndTurn not allowed during {game_data.phase}. Use PlayerReadyPhase instead.");
+                    return;
+                }
+
                 gameplay.NextStep();
             }
         }

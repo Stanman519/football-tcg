@@ -30,25 +30,28 @@ namespace TcgEngine.AI
             Game game_data = gameplay.GetGameData();
             Player player = game_data.GetPlayer(player_id);
 
-            /* phases to care about 
-             chooese players
-            choose play
-            live ball
-             
-             */
+            // Don't start a new turn if already playing, or if we're not in a relevant phase
+            if (is_playing)
+                return;
 
-
-            if (!is_playing && relevantPhases.Contains(game_data.phase))
+            // Only start if in a relevant action phase AND player is not yet ready
+            if (relevantPhases.Contains(game_data.phase))
             {
-                is_playing = true;
-                TimeTool.StartCoroutine(AiTurn());
+                bool playerReady = player != null && player.IsReadyForPhase(game_data.phase);
+                if (!playerReady)
+                {
+                    is_playing = true;
+                    TimeTool.StartCoroutine(AiTurn());
+                }
             }
 
+            // Handle mulligan if needed
             if (!is_playing && game_data.IsPlayerMulliganTurn(player))
             {
                 SkipMulligan();
             }
 
+            // Stop AI calculations if we've moved to a non-relevant phase
             if (!relevantPhases.Contains(game_data.phase) && ai_logic.IsRunning())
                 Stop();
         }
@@ -58,6 +61,8 @@ namespace TcgEngine.AI
             yield return new WaitForSeconds(1f);
 
             Game game_data = gameplay.GetGameData();
+            GamePhase startPhase = game_data.phase;
+
             ai_logic.RunAI(game_data);
 
             while (ai_logic.IsRunning())
@@ -70,15 +75,29 @@ namespace TcgEngine.AI
             if (best != null)
             {
                 Debug.Log("Execute AI Action: " + best.GetText(game_data) + "\n" + ai_logic.GetNodePath());
-                //foreach (NodeState node in ai_logic.GetFirst().childs)
-                //   Debug.Log(ai_logic.GetNodePath(node));
-
                 ExecuteAction(best);
+            }
+            else
+            {
+                Debug.Log($"AI Player {player_id}: No action found for {startPhase}");
             }
 
             ai_logic.ClearMemory();
 
-            yield return new WaitForSeconds(0.5f);
+            // Immediately signal ready after executing action
+            game_data = gameplay.GetGameData();
+            if (startPhase == GamePhase.ChoosePlayers || startPhase == GamePhase.ChoosePlay || startPhase == GamePhase.LiveBall)
+            {
+                Player player = game_data.GetPlayer(player_id);
+                if (player != null && !player.IsReadyForPhase(startPhase))
+                {
+                    player.SetReadyForPhase(startPhase, true);
+                    game_data.playerPhaseReady[player_id] = true;
+                    Debug.Log($"AI Player {player_id} ready for {startPhase}");
+                }
+            }
+
+            yield return new WaitForSeconds(0.2f);
             is_playing = false;
         }
 
@@ -165,6 +184,11 @@ namespace TcgEngine.AI
                 EndTurn();
             }
 
+            if (action.type == GameAction.PlayerReadyPhase)
+            {
+                PlayerReadyPhase();
+            }
+
             if (action.type == GameAction.Resign)
             {
                 Resign();
@@ -191,7 +215,6 @@ namespace TcgEngine.AI
                 game_data.GetPlayer(player_id).PlayEnhancer = card;
             }
             game_data.GetPlayer(player_id).SelectedPlay = playType;
-
         }
 
         private void MoveCard(string card_uid, CardPositionSlot slot)
@@ -302,6 +325,12 @@ namespace TcgEngine.AI
             {
                 gameplay.EndTurn();
             }
+        }
+
+        private void PlayerReadyPhase()
+        {
+            Game game_data = gameplay.GetGameData();
+            game_data.SetPlayerReady(player_id, true);
         }
 
         private void Resign()

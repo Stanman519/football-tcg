@@ -2,6 +2,7 @@
 
 namespace Assets.TcgEngine.Scripts.Gameplay
 {
+    [System.Serializable]
     public class SlotHistory
     {
         public int turnId { get; set; }

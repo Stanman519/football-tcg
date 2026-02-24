@@ -204,7 +204,7 @@ namespace TcgEngine.Client
             if (destroyed && back_to_hand && timer > 0.5f)
                 return back_to_hand_target;
 
-            BSlot slot = BSlot.Get(card.slot);
+            BoardSlot slot = BoardSlot.Get(card.slot);
             if (slot != null)
             {
                 Vector3 targ_pos = slot.GetPosition(card.slot);

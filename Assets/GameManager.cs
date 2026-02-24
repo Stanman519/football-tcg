@@ -15,12 +15,12 @@ public class GameManager : MonoBehaviour
 
     // References to other managers
     [Header("Core Managers")]
-/*    public DeckManager deckManagerOffense;
-    public DeckManager deckManagerDefense;
-    public FieldManager fieldManager;
-    public SlotMachineManager slotMachineManager;*/
-    public PlayCallUIScript playcallUIManager;
-
+    /*    public DeckManager deckManagerOffense;
+        public DeckManager deckManagerDefense;
+        public FieldManager fieldManager;
+        public SlotMachineManager slotMachineManager;
+        public PlayCallUIScript playcallUIManager;*/
+    public PlayCallManager playCallManager;
     // Example: track downs, halves, possessions
     private int currentDown = 1;
     private int half = 1;
@@ -143,10 +143,11 @@ public class GameManager : MonoBehaviour
 
     private void HandlePlayCall()
     {
+        playCallManager.ShowPlayCallMenu();
         // Offense chooses run/short pass/long pass
         // Defense chooses coverage
         // Possibly place "enhancer" cards
-        playcallUIManager.ShowPlayCallUI();
+        //playcallUIManager.ShowPlayCallUI();
 
         // The UI calls back when the selection is made
         // Then we go to slot spin:

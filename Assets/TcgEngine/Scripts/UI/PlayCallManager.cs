@@ -7,17 +7,8 @@ using TcgEngine;
 using UnityEngine.Rendering.Universal;
 using Assets.TcgEngine.Scripts.Gameplay;
 
-public enum PlayType
-{
-    Huddle,
-    Run,
-    ShortPass,
-    LongPass
-}
-
 public class PlayCallManager : MonoBehaviour
 {
-    public GameObject playCallPanel; // The main panel that pops up
     public Button runButton;
     public Button shortPassButton;
     public Button longPassButton;
@@ -31,20 +22,38 @@ public class PlayCallManager : MonoBehaviour
 
     void Start()
     {
-        playCallPanel.SetActive(false);
+        Debug.Log("[PlayCallManager] Start() called");
 
-        runButton.onClick.AddListener(() => SelectPlay(PlayType.Run));
-        shortPassButton.onClick.AddListener(() => SelectPlay(PlayType.ShortPass));
-        longPassButton.onClick.AddListener(() => SelectPlay(PlayType.LongPass));
-        confirmButton.onClick.AddListener(ConfirmPlaySelection);
-    }
+        if (runButton == null)
+            Debug.LogError("[PlayCallManager] ERROR: runButton is not assigned in Inspector!");
+        else
+            Debug.Log("[PlayCallManager] runButton assigned ✓");
 
-    public void OpenPlayCallMenu()
-    {
-        playCallPanel.SetActive(true);
-        isPlayLocked = false;
-        selectedPlay = PlayType.Huddle; // Reset
-        selectedEnhancer = null;
+        if (shortPassButton == null)
+            Debug.LogError("[PlayCallManager] ERROR: shortPassButton is not assigned in Inspector!");
+        else
+            Debug.Log("[PlayCallManager] shortPassButton assigned ✓");
+
+        if (longPassButton == null)
+            Debug.LogError("[PlayCallManager] ERROR: longPassButton is not assigned in Inspector!");
+        else
+            Debug.Log("[PlayCallManager] longPassButton assigned ✓");
+
+        if (confirmButton == null)
+            Debug.LogError("[PlayCallManager] ERROR: confirmButton is not assigned in Inspector!");
+        else
+            Debug.Log("[PlayCallManager] confirmButton assigned ✓");
+
+        if (runButton != null)
+            runButton.onClick.AddListener(() => SelectPlay(PlayType.Run));
+        if (shortPassButton != null)
+            shortPassButton.onClick.AddListener(() => SelectPlay(PlayType.ShortPass));
+        if (longPassButton != null)
+            longPassButton.onClick.AddListener(() => SelectPlay(PlayType.LongPass));
+        if (confirmButton != null)
+            confirmButton.onClick.AddListener(ConfirmPlaySelection);
+
+        Debug.Log("[PlayCallManager] Setup complete");
     }
 
     private void SelectPlay(PlayType play)
@@ -53,6 +62,12 @@ public class PlayCallManager : MonoBehaviour
 
         selectedPlay = play;
         Debug.Log("Selected Play: " + play);
+    }
+
+    public void ShowPlayCallMenu()
+    {
+        // This method can be called by GameManager if needed
+        ResetState();
     }
 
     public void SetEnhancerCard(Card card)
@@ -71,10 +86,18 @@ public class PlayCallManager : MonoBehaviour
             return;
         }
 
+        Debug.Log("[PlayCallManager] ConfirmPlaySelection() - Sending play selection to server");
         isPlayLocked = true;
-        playCallPanel.SetActive(false);
 
         // Send choice to GameClient for syncing with opponent
         GameClient.Get().SendPlaySelection(selectedPlay, selectedEnhancer);
+    }
+
+    public void ResetState()
+    {
+        selectedPlay = PlayType.Huddle;
+        selectedEnhancer = null;
+        isPlayLocked = false;
+        Debug.Log("[PlayCallManager] State reset for new play call");
     }
 }

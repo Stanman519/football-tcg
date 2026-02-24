@@ -24,8 +24,10 @@ namespace TcgEngine
 
         private void OnConnect()
         {
+            Debug.Log($"NetworkMessaging OnConnect called. Registering {msg_dict.Count} message handlers");
             foreach (KeyValuePair<string, System.Action<ulong, FastBufferReader>> pair in msg_dict)
             {
+                Debug.Log($"Registering message handler: {pair.Key}");
                 RegisterNetMsg(pair.Key, pair.Value);
             }
         }
@@ -46,12 +48,15 @@ namespace TcgEngine
 
         private void RegisterNetMsg(string type, System.Action<ulong, FastBufferReader> callback)
         {
+            Debug.Log($"RegisterNetMsg called for: {type}, IsOnline: {IsOnline}");
             if (IsOnline)
             {
                 network.NetworkManager.CustomMessagingManager.RegisterNamedMessageHandler(type, (ulong client_id, FastBufferReader reader) =>
                 {
+                    Debug.Log($"Message received: {type} from client {client_id}");
                     ReceiveNetMessage(type, client_id, reader);
                 });
+                Debug.Log($"Successfully registered handler for: {type}");
             }
         }
 
@@ -282,9 +287,21 @@ namespace TcgEngine
         public void Send(string type, ulong target, FastBufferWriter writer, NetworkDelivery delivery)
         {
             if (IsOnline)
-                SendOnline(type, target, writer, delivery);
-            else if(target == ClientID)
+            {
+                //  Send to self locally if Host and sending to self
+                if (network.IsHost && target == network.ClientID)
+                {
+                    SendOffline(type, writer);  // Direct local loopback
+                }
+                else
+                {
+                    SendOnline(type, target, writer, delivery); // Normal online send
+                }
+            }
+            else if (target == ClientID)
+            {
                 SendOffline(type, writer);
+            }
         }
 
         public void Send(string type, IReadOnlyList<ulong> targets, FastBufferWriter writer, NetworkDelivery delivery)

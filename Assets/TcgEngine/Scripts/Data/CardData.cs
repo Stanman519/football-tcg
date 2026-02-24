@@ -1,4 +1,5 @@
 ﻿using Assets.TcgEngine.Scripts.Gameplay;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -337,6 +338,11 @@ namespace TcgEngine
         public static List<CardData> GetAll()
         {
             return card_list;
+        }
+
+        internal void SetPositionGroup(PlayerPositionGrp playerPositionGrp)
+        {
+            throw new NotImplementedException();
         }
     }
 }

@@ -30,6 +30,10 @@ namespace TcgEngine.AI
             Game game_data = gameplay.GetGameData();
             Player player = game_data.GetPlayer(player_id);
 
+            // Guard: Don't start AI turn if game is ended or not player's turn
+            if (game_data.HasEnded() || !game_data.IsPlayerTurn(player))
+                return;
+
             if (game_data.IsPlayerTurn(player) && !gameplay.IsResolving())
             {
                 if(!is_playing && game_data.selector == SelectorType.None && game_data.current_offensive_player.player_id == player_id)
@@ -180,8 +184,8 @@ namespace TcgEngine.AI
                 Card random = player.GetRandomCard(player.cards_hand, rand);
                 CardPositionSlot slot = player.GetRandomEmptySlot(rand);
 
-                if (random != null && random.CardData.IsRequireTargetSpell())
-                    slot = game_data.GetRandomSlot(rand); //Spell can target any slot, not just your side
+                //if (random != null && random.CardData.IsRequireTargetSpell())
+                //    slot = game_data.GetRandomSlot(rand); //Spell can target any slot, not just your side
 
                 if(random != null && random.CardData.IsEquipment())
                     slot = player.GetRandomOccupiedSlot(rand);

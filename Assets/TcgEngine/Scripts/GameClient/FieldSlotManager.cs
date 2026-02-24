@@ -6,14 +6,15 @@ using Assets.TcgEngine.Scripts.Gameplay;
 public class FieldSlotManager : MonoBehaviour
 {
     public GameObject slotPrefab; // Reference to the BoardSlot prefab
+    public GameObject boardCardPrefab;
     public RectTransform fieldPanel;
-    private Dictionary<PlayerPositionGrp, List<BoardSlot>> slotMap = new Dictionary<PlayerPositionGrp, List<BoardSlot>>();
+    private Dictionary<int, Dictionary<PlayerPositionGrp, List<BoardSlot>>> slotMap = new Dictionary<int, Dictionary<PlayerPositionGrp, List<BoardSlot>>>();
     private Formation currentFormation;
     public static FieldSlotManager Instance { get; private set; }
     public void InitializeFormation(Formation formation)
     {
         currentFormation = formation;
-        GenerateSlots();
+        //GenerateSlots();
     }
 
 
@@ -21,14 +22,14 @@ public class FieldSlotManager : MonoBehaviour
     {
         Instance = this;
     }
-    private void GenerateSlots()
+/*    private void GenerateSlots()
     {
         foreach (var entry in currentFormation.slotPositions)
         {
             PlayerPositionGrp position = entry.Key;
             Vector3[] positions = entry.Value;
 
-            slotMap[position] = new List<BoardSlot>();
+            slotMap[][position] = new List<BoardSlot>();
 
             foreach (Vector3 pos in positions)
             {
@@ -46,11 +47,10 @@ public class FieldSlotManager : MonoBehaviour
                 slotMap[position].Add(slot);
             }
         }
-    }
+    }*/
 
     public void GenerateSlotsForPlayer(Player player)
     {
-        // Get formation data from the player's Head Coach
         HeadCoachCard headCoach = player.head_coach;
         if (headCoach == null || headCoach.positional_Scheme == null)
         {
@@ -58,12 +58,18 @@ public class FieldSlotManager : MonoBehaviour
             return;
         }
 
+        if (!slotMap.ContainsKey(player.player_id))
+            slotMap[player.player_id] = new Dictionary<PlayerPositionGrp, List<BoardSlot>>();
+
         foreach (var entry in headCoach.positional_Scheme)
         {
             PlayerPositionGrp position = entry.Key;
+            var isDefense = (position == PlayerPositionGrp.DL || position == PlayerPositionGrp.LB || position == PlayerPositionGrp.DB);
+
             int maxPlayers = entry.Value.pos_max;
 
-            slotMap[position] = new List<BoardSlot>();
+            if (!slotMap[player.player_id].ContainsKey(position))
+                slotMap[player.player_id][position] = new List<BoardSlot>();
 
             for (int i = 0; i < maxPlayers; i++)
             {
@@ -76,14 +82,14 @@ public class FieldSlotManager : MonoBehaviour
                     slotObj.transform.SetParent(fieldPanel, false);
 
 
-                    slotObj.transform.localScale = Vector3.one * 60f;
+                    slotObj.transform.localScale = Vector3.one * 20f;
                     slotObj.transform.localPosition = slotPositions[j];
                     BoardSlot slot = slotObj.GetComponent<BoardSlot>();
-                    slot.Initialize(position, i, player.player_id);
+                    slot.Initialize(position, player.player_id, !isDefense);
 
                     slotObj.transform.localPosition = ConvertToWorldPosition(slotPositions[j]);
 
-                    slotMap[position].Add(slot);
+                    slotMap[player.player_id][position].Add(slot);
                 }
 
             }
@@ -137,8 +143,10 @@ public class FieldSlotManager : MonoBehaviour
         };
     }
 
-    public List<BoardSlot> GetSlotsForPosition(PlayerPositionGrp position)
+    public List<BoardSlot> GetSlotsForPosition(PlayerPositionGrp position, int playerId)
     {
-        return slotMap.ContainsKey(position) ? slotMap[position] : new List<BoardSlot>();
+        if (slotMap.ContainsKey(playerId) && slotMap[playerId].ContainsKey(position))
+            return slotMap[playerId][position];
+        return new List<BoardSlot>();
     }
 }

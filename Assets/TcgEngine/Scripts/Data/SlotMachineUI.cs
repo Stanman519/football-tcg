@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
+using TcgEngine.Client;
+using Assets.TcgEngine.Scripts.Gameplay;
 
 [Serializable]
 public class ReelUI
@@ -18,6 +20,44 @@ public class SlotMachineUI : MonoBehaviour
     public GameObject reelPrefab; // Assign in Inspector
     public Transform reelContainer; // Parent object for reels
     public List<ReelUI> reelUIs = new List<ReelUI>();
+    private GameObject slotMachinePanel; // The panel containing the slot machine
+
+    private void Start()
+    {
+        // Find the main panel/container for the slot machine
+        slotMachinePanel = reelContainer?.parent?.gameObject;
+        if (slotMachinePanel != null)
+        {
+            slotMachinePanel.SetActive(false);
+        }
+
+        // Listen for game data changes
+        GameClient client = GameClient.Get();
+        if (client != null)
+        {
+            client.onRefreshAll += OnGameDataRefreshed;
+        }
+    }
+
+    private void OnDestroy()
+    {
+        GameClient client = GameClient.Get();
+        if (client != null)
+        {
+            client.onRefreshAll -= OnGameDataRefreshed;
+        }
+    }
+
+    private void OnGameDataRefreshed()
+    {
+        // Show slot machine only during SlotSpin phase
+        Game gameData = GameClient.Get().GetGameData();
+        if (gameData != null && slotMachinePanel != null)
+        {
+            bool shouldShow = (gameData.phase == GamePhase.SlotSpin);
+            slotMachinePanel.SetActive(shouldShow);
+        }
+    }
 
     public void InitializeReels(int numReels)
     {

@@ -23,7 +23,7 @@ namespace TcgEngine.FX
         private Vector3 target_offset;
         private float timer = 0f;
 
-        public void DelayDamage()
+       /* public void DelayDamage()
         {
             BoardCard tcard = target?.GetComponent<BoardCard>();
             if (tcard != null)
@@ -99,6 +99,6 @@ namespace TcgEngine.FX
             GameBoard board = GameBoard.Get();
             Vector3 facing = board != null ? board.transform.forward : Vector3.forward;
             return Quaternion.LookRotation(facing, dir);
-        }
+        }*/
     }
 }

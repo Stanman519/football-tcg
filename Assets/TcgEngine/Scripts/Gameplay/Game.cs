@@ -1,10 +1,65 @@
-﻿using System.Collections.Generic;
+﻿using Assets.TcgEngine.Scripts.Effects;
+using System.Collections.Generic;
 using System.Linq;
 using TcgEngine;
+using UnityEngine;
 
 namespace Assets.TcgEngine.Scripts.Gameplay
 {
+    /// <summary>
+    /// Type of offensive play called
+    /// </summary>
+    public enum PlayType
+    {
+        Huddle,
+        Run,
+        ShortPass,
+        LongPass
+    }
+
+    /// <summary>
+    /// Result of a play for ability triggers
+    /// </summary>
+    public enum PlayResult
+    {
+        None = 0,
+        Complete = 1,      // Pass complete
+        Incomplete = 2,     // Pass incomplete
+        Touchdown = 3,      // Scored
+        Turnover = 4,       // Turnover (INT or Fumble)
+        FirstDown = 5,      // First down gained
+        Sack = 6,           // QB sacked
+        Fumble = 7,         // Fumble occurred
+        Interception = 8    // Pass intercepted
+    }
+
     //Contains all gameplay state data that is sync across network
+
+    /// <summary>
+    /// Snapshot of a single play's outcome and state
+    /// </summary>
+    [System.Serializable]
+    public class PlayHistory
+    {
+        public int turn_number;                 // Which turn this play occurred on
+        public int play_number_in_drive;        // Nth play in the current drive
+        public PlayType offensive_play;         // What the offense called
+        public PlayType defensive_play;         // What the defense guessed
+        public PlayResult play_result;          // How the play ended
+        public int yards_gained;                // Net yardage (can be negative for sacks/TFLs)
+        public bool defense_guess_correct;      // Did defense guess the play correctly
+        public int current_down;                // Down when play occurred
+        public int current_half;                // Half when play occurred
+        public int ball_position;               // Ball position after play
+        public bool was_touchdown;              // Did this play result in TD
+        public bool was_field_goal;             // Did this play result in FG
+
+        // Can be extended to include:
+        // public List<string> offensive_cards_played;
+        // public List<string> defensive_cards_played;
+        // public int defensive_yards;
+        // etc.
+    }
 
     [System.Serializable]
     public class Game
@@ -24,15 +79,51 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         public int plays_left_in_half = 11;
         public int yardage_this_play;
         public int yardage_to_go;
+        
+        // Slot machine modifiers (from abilities)
+        public List<SlotModifier> temp_slot_modifiers;
+
+        // Play history
+        public List<PlayHistory> play_history = new List<PlayHistory>();
+
+        //Players
+        public Player[] players;
+        public Dictionary<int, bool> playerPhaseReady = new Dictionary<int, bool>();
 
         public Player current_offensive_player;
 
         public GameState state = GameState.Connecting;
         public GamePhase phase = GamePhase.None;
 
-        //Players
-        public Player[] players;
-        public Dictionary<int, bool> playerPhaseReady = new Dictionary<int, bool>();
+        /// <summary>
+        /// Check if all players are ready for the next phase
+        /// </summary>
+        public bool AreAllPlayersPhaseReady()
+        {
+            // Must have entries for all players
+            if (players == null || players.Length < 2)
+                return false;
+            
+            // Check if both players have set their ready status to true
+            return playerPhaseReady.ContainsKey(0) && playerPhaseReady.ContainsKey(1) &&
+                   playerPhaseReady[0] && playerPhaseReady[1];
+        }
+
+        /// <summary>
+        /// Set a player's ready status
+        /// </summary>
+        public void SetPlayerReady(int playerId, bool ready)
+        {
+            playerPhaseReady[playerId] = ready;
+        }
+
+        /// <summary>
+        /// Clear all player ready states (for new phase)
+        /// </summary>
+        public void ClearPlayerReady()
+        {
+            playerPhaseReady.Clear();
+        }
 
         //SlotMaching
         public SlotMachineResultDTO current_slot_data;
@@ -53,9 +144,120 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         public int rolled_value;
         public int selected_value;
 
+        //clawdbot variables
+        public PlayType last_play_type;
+        public bool after_touchdown = false;
+        public bool after_field_goal = false;
+        public int first_downs_this_half = 0;
+        
+        // Game state tracking for abilities
+        public PlayType defense_guess = PlayType.Huddle; // What defense guessed (run/pass)
+        public PlayResult last_play_result = PlayResult.None; // Result of last play
+        public int last_play_yardage = 0; // Yards gained on last play
+        public int drive_count = 1; // Which drive number
+        public int play_count_this_drive = 0; // Plays in current drive
+        
+        // Charge tracking (card_id -> charge_value)
+        public Dictionary<string, int> charge_tracker = new Dictionary<string, int>();
+        
+        // Respin tracking (player_id -> uses remaining)
+        public Dictionary<int, int> respin_available = new Dictionary<int, int>();
+        
+        // First snap tracking
+        public bool first_snap_taken = false;
+        
+        // Coverage guess correct tracking
+        public bool last_coverage_guess_correct = false;
+        
+        // Once-per-game ability tracking (ability_id -> uses remaining)
+        public Dictionary<string, int> once_per_game_abilities = new Dictionary<string, int>();
+
         //Other reference arrays 
         public HashSet<string> ability_played = new HashSet<string>();
         public HashSet<string> cards_attacked = new HashSet<string>();
+
+        // ===== Play History Helper Methods =====
+        
+        /// <summary>
+        /// Get player by ID
+        /// </summary>
+        public Player GetPlayer(int playerId)
+        {
+            if (players == null || playerId < 0 || playerId >= players.Length)
+                return null;
+            return players[playerId];
+        }
+        
+        /// <summary>
+        /// Get opponent player
+        /// </summary>
+        public Player GetOpponentPlayer(int playerId)
+        {
+            int opponentId = 1 - playerId; // Assumes 2 players, 0 and 1
+            return GetPlayer(opponentId);
+        }
+        
+        /// <summary>
+        /// Get the most recent play
+        /// </summary>
+        public PlayHistory GetLastPlay()
+        {
+            if (play_history == null || play_history.Count == 0)
+                return null;
+            return play_history[play_history.Count - 1];
+        }
+        
+        /// <summary>
+        /// Get a play by index from the end (0 = most recent)
+        /// </summary>
+        public PlayHistory GetPlay(int indexFromEnd)
+        {
+            if (play_history == null || indexFromEnd < 0 || indexFromEnd >= play_history.Count)
+                return null;
+            return play_history[play_history.Count - 1 - indexFromEnd];
+        }
+        
+        /// <summary>
+        /// Get total number of plays
+        /// </summary>
+        public int GetPlayCount()
+        {
+            return play_history != null ? play_history.Count : 0;
+        }
+        
+        /// <summary>
+        /// Check if a result occurred in the last N plays
+        /// </summary>
+        public bool WasPlayResultInLastPlays(PlayResult result, int count)
+        {
+            if (play_history == null || count <= 0)
+                return false;
+            
+            int start = Mathf.Max(0, play_history.Count - count);
+            for (int i = play_history.Count - 1; i >= start; i--)
+            {
+                if (play_history[i].play_result == result)
+                    return true;
+            }
+            return false;
+        }
+        
+        /// <summary>
+        /// Count how many times a result occurred in the current half
+        /// </summary>
+        public int CountPlayResultThisHalf(PlayResult result)
+        {
+            if (play_history == null)
+                return 0;
+            
+            int count = 0;
+            foreach (var play in play_history)
+            {
+                if (play.current_half == current_half && play.play_result == result)
+                    count++;
+            }
+            return count;
+        }
 
         public Game() { }
         
@@ -203,9 +405,15 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
         public virtual bool IsPlayerActionTurn(Player player)
         {
-            return player != null;
-            //&& current_offsense_player == player.player_id 
-              //  && state == GameState.Play && phase == GamePhase.LiveBall && selector == SelectorType.None;
+            if (player == null)
+                return false;
+            
+            // Only true during phases where the player can take action
+            bool is_action_phase = phase == GamePhase.ChoosePlayers || 
+                                   phase == GamePhase.ChoosePlay || 
+                                   phase == GamePhase.LiveBall;
+            
+            return is_action_phase && !player.IsReadyForPhase(phase);
         }
 
         public virtual bool IsPlayerSelectorTurn(Player player)
@@ -222,15 +430,32 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         //Check if a card is allowed to be played on slot
         public virtual bool CanPlayCard(Card card, CardPositionSlot slot, bool skip_cost = false)
         {
-            if (card == null)
+            if (card == null) 
                 return false;
 
             Player player = GetPlayer(card.player_id);
+            if (player == null)
+                return false;
 
-            if ((player != current_offensive_player && offensive_pos_grps.Contains(card.CardData.playerPosition)) ||
-                (player == current_offensive_player && defensive_pos_grps.Contains(card.CardData.playerPosition)))
+            // Check if player is trying to play a card for the wrong side of the ball
+            bool is_player_offensive = (player.player_id == current_offensive_player.player_id);
+            bool is_offensive_card = card.CardData.playerPosition != PlayerPositionGrp.NONE && 
+                                      offensive_pos_grps.Contains(card.CardData.playerPosition);
+            bool is_defensive_card = card.CardData.playerPosition != PlayerPositionGrp.NONE && 
+                                      defensive_pos_grps.Contains(card.CardData.playerPosition);
+
+            // If player is on offense, they can't play defensive cards
+            if (is_player_offensive && is_defensive_card)
             {
-                return false; //wrong side of the ball. but doesnt account for special teams players in the future i guess you put K and P in offensive?
+                Debug.LogWarning($"Offensive player tried to play defensive card: {card.card_id}");
+                return false;
+            }
+
+            // If player is on defense, they can't play offensive cards
+            if (!is_player_offensive && is_offensive_card)
+            {
+                Debug.LogWarning($"Defensive player tried to play offensive card: {card.card_id}");
+                return false;
             }
 
             if (card.CardData.playerPosition != PlayerPositionGrp.NONE // is a player card and slot is maxed out for position OR is incorrect slot type
@@ -441,9 +666,6 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             if (caster == null)
                 return false;
 
-            if (target.IsPlayerSlot())
-                return IsPlayTargetValid(caster, GetPlayer(target.p)); //Slot 0,0, means we are targeting a player
-
             List<Card> slot_cards = GetSlotCards(target);
             if (slot_cards.Count > 0) //TODO: Just taking the first card to check, to get multi card slots to work.
                 return IsPlayTargetValid(caster, slot_cards[0]); //Slot has card, check play target on that card
@@ -459,24 +681,13 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             return true;
         }
 
-        public Player GetPlayer(int id)
-        {
-            if (id >= 0 && id < players.Length)
-                return players[id];
-            return null;
-        }
+
 
         public Player GetCurrentDefensivePlayer()
         {
             return players[0] == current_offensive_player ? players[0] : players[1];
         }
 
-
-        public Player GetOpponentPlayer(int id)
-        {
-            int oid = id == 0 ? 1 : 0;
-            return GetPlayer(oid);
-        }
 
         public Card GetCard(string card_uid)
         {
@@ -629,11 +840,6 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             return player.GetRandomCard(player.cards_board, rand);
         }
 
-        public virtual CardPositionSlot GetRandomSlot(System.Random rand)
-        {
-            Player player = GetRandomPlayer(rand);
-            return player.GetRandomSlot(rand);
-        }
 
         public bool IsInHand(Card card)
         {
@@ -709,23 +915,23 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             return raw_ball_on <= 0;
         }
 
-        public bool AreAllPlayersPhaseReady()
-        {
-            foreach (Player p in players)
-            {
-                if (!playerPhaseReady.TryGetValue(p.player_id, out bool ready) || !ready)
-                    return false;
-            }
-            return true;
-        }
+        //public bool AreAllPlayersPhaseReady()
+        //{
+        //    foreach (Player p in players)
+        //    {
+        //        if (!playerPhaseReady.TryGetValue(p.player_id, out bool ready) || !ready)
+        //            return false;
+        //    }
+        //    return true;
+        //}
 
-        public void ResetPhaseReady()
+/*        public void ResetPhaseReady()
         {
             foreach (Player p in players)
             {
                 playerPhaseReady[p.player_id] = false;
             }
-        }
+        }*/
         public bool AllPlayersReadyForPlay()
         {
             return players[0].SelectedPlay != PlayType.Huddle && players[1].SelectedPlay != PlayType.Huddle;
@@ -780,6 +986,199 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             dest.Clear();
             foreach (string str in source)
                 dest.Add(str);
+        }
+        // ----- Helper methods for ability/state tracking -----
+
+        /// <summary>
+        /// Set the defense's play guess
+        /// </summary>
+        public void SetDefenseGuess(PlayType guess)
+        {
+            defense_guess = guess;
+        }
+
+        /// <summary>
+        /// Check if defense guessed correctly (compares to offense play)
+        /// </summary>
+        public bool WasDefenseGuessCorrect()
+        {
+            if (current_offensive_player == null) return false;
+            return defense_guess == current_offensive_player.SelectedPlay;
+        }
+
+        /// <summary>
+        /// Record the result of a play for ability triggers and history tracking
+        /// Call this at the END of play resolution
+        /// </summary>
+        public void RecordPlayResult(PlayResult result, int yardage)
+        {
+            last_play_result = result;
+            last_play_yardage = yardage;
+            last_coverage_guess_correct = WasDefenseGuessCorrect();
+
+            // Create and store play history snapshot
+            PlayHistory history = new PlayHistory
+            {
+                turn_number = turn_count,
+                play_number_in_drive = play_count_this_drive,
+                offensive_play = current_offensive_player.SelectedPlay,
+                defensive_play = defense_guess,
+                play_result = result,
+                yards_gained = yardage,
+                defense_guess_correct = last_coverage_guess_correct,
+                current_down = current_down,
+                current_half = current_half,
+                ball_position = raw_ball_on,
+                was_touchdown = IsTouchdown(),
+                was_field_goal = after_field_goal
+            };
+
+            play_history.Add(history);
+        }
+
+        /// <summary>
+        /// Add charge to a card
+        /// </summary>
+        public void AddCharge(string cardId, int amount)
+        {
+            if (!charge_tracker.ContainsKey(cardId))
+                charge_tracker[cardId] = 0;
+            charge_tracker[cardId] += amount;
+        }
+
+        /// <summary>
+        /// Get charge value for a card
+        /// </summary>
+        public int GetCharge(string cardId)
+        {
+            return charge_tracker.ContainsKey(cardId) ? charge_tracker[cardId] : 0;
+        }
+
+        /// <summary>
+        /// Reset charge for a card
+        /// </summary>
+        public void ResetCharge(string cardId)
+        {
+            if (charge_tracker.ContainsKey(cardId))
+                charge_tracker[cardId] = 0;
+        }
+
+        /// <summary>
+        /// Use a once-per-game ability
+        /// </summary>
+        public bool UseOncePerGameAbility(string abilityId)
+        {
+            if (!once_per_game_abilities.ContainsKey(abilityId))
+                once_per_game_abilities[abilityId] = 1;
+            else if (once_per_game_abilities[abilityId] > 0)
+            {
+                once_per_game_abilities[abilityId]--;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Check if once-per-game ability is available
+        /// </summary>
+        public bool IsOncePerGameAbilityAvailable(string abilityId)
+        {
+            return !once_per_game_abilities.ContainsKey(abilityId) || once_per_game_abilities[abilityId] > 0;
+        }
+
+        /// <summary>
+        /// Grant a respin to a player
+        /// </summary>
+        public void GrantRespin(int playerId, int count = 1)
+        {
+            if (!respin_available.ContainsKey(playerId))
+                respin_available[playerId] = 0;
+            respin_available[playerId] += count;
+        }
+
+        /// <summary>
+        /// Use a respin
+        /// </summary>
+        public bool UseRespin(int playerId)
+        {
+            if (respin_available.ContainsKey(playerId) && respin_available[playerId] > 0)
+            {
+                respin_available[playerId]--;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Check if respin available
+        /// </summary>
+        public bool HasRespin(int playerId)
+        {
+            return respin_available.ContainsKey(playerId) && respin_available[playerId] > 0;
+        }
+
+        /// <summary>
+        /// Set player ready for current phase
+        /// </summary>
+        public void SetPhaseReady(int playerId, bool ready)
+        {
+            if (players != null && players.Length >= 2)
+            {
+                playerPhaseReady[playerId] = ready;
+            }
+        }
+
+        /// <summary>
+        /// Reset phase ready for new turn/phase
+        /// </summary>
+        public void ResetPhaseReady()
+        {
+            playerPhaseReady.Clear();
+            // Initialize both players as not ready
+            if (players != null && players.Length >= 2)
+            {
+                playerPhaseReady[0] = false;
+                playerPhaseReady[1] = false;
+            }
+        }
+
+
+
+
+
+        /// <summary>
+        /// Check if defense guessed correctly in the last play
+        /// </summary>
+        public bool WasLastDefenseGuessCorrect()
+        {
+            PlayHistory last = GetLastPlay();
+            return last != null && last.defense_guess_correct;
+        }
+
+
+
+        /// <summary>
+        /// Get total yards gained in the current drive
+        /// </summary>
+        public int GetDriveYardage()
+        {
+            int totalYards = 0;
+            foreach (PlayHistory play in play_history)
+            {
+                if (play.play_number_in_drive > 0 && play.turn_number >= (turn_count - play_count_this_drive))
+                {
+                    totalYards += play.yards_gained;
+                }
+            }
+            return totalYards;
+        }
+
+        /// <summary>
+        /// Check if this is the first play of the game
+        /// </summary>
+        public bool IsFirstPlayOfGame()
+        {
+            return play_history.Count == 0;
         }
     }
 
@@ -848,4 +1247,6 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             Grit,
             None // Default
         }*/
+
+
 }

@@ -18,24 +18,44 @@ namespace TcgEngine.Server
         private GameServer server;
 
         private Dictionary<ulong, ClientData> client_list = new Dictionary<ulong, ClientData>();  //List of clients
+        private bool serverStarted = false;
 
         protected virtual void Start()
         {
-            if (GameClient.game_settings.IsHost())
+            if (serverStarted)
             {
-                StartServer(); //Start local server if not playing online
+                Debug.LogWarning("ServerManagerLocal.Start: Already started, skipping");
+                return;
+            }
+            
+            Debug.Log("ServerManagerLocal.Start: IsHost=" + (GameClient.game_settings?.IsHost().ToString() ?? "game_settings null"));
+            if (GameClient.game_settings != null && GameClient.game_settings.IsHost())
+            {
+                StartServer();
+                serverStarted = true;
+            }
+            else
+            {
+                Debug.LogWarning("ServerManagerLocal.Start: Not starting server - game_settings.IsHost() is false");
             }
         }
 
         protected virtual void StartServer()
         {
+            Debug.Log("ServerManagerLocal.StartServer called, server=" + (server == null ? "null" : "already set"));
             TcgNetwork network = TcgNetwork.Get();
             network.onClientJoin += OnClientJoin;
             network.onClientQuit += OnClientQuit;
             network.Messaging.ListenMsg("connect", ReceiveConnectPlayer);
             network.Messaging.ListenMsg("action", ReceiveGameAction);
 
-            client_list[network.ServerID] = new ClientData(network.ServerID); //Add yourself
+            var client = new ClientData(network.ServerID);
+            client.username = "PlayerLocal";
+            client.user_id = "user_local";
+            client.game_uid = GameClient.game_settings.game_uid;  // match what the client expects
+            client_list[network.ServerID] = client;
+
+            /*            client_list[network.ServerID] = new ClientData(network.ServerID); //Add yourself*/
             server = new GameServer(GameClient.game_settings.game_uid, GameClient.game_settings.nb_players, false);
         }
 
@@ -71,6 +91,12 @@ namespace TcgEngine.Server
 
         protected virtual void ReceiveConnectPlayer(ulong client_id, FastBufferReader reader)
         {
+            if (server == null)
+            {
+                Debug.LogWarning("ReceiveConnectPlayer: server is null!");
+                return;
+            }
+
             reader.ReadNetworkSerializable(out MsgPlayerConnect msg);
 
             if (msg != null)
@@ -107,6 +133,12 @@ namespace TcgEngine.Server
 
         protected virtual void ReceiveGameAction(ulong client_id, FastBufferReader reader)
         {
+            if (server == null)
+            {
+                Debug.LogWarning("ReceiveGameAction: server is null!");
+                return;
+            }
+
             ClientData client = GetClient(client_id);
             if (client != null)
             {

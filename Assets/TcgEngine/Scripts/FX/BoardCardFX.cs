@@ -37,7 +37,7 @@ namespace TcgEngine.FX
             client.onCardPlayed += OnPlayed;
             client.onCardDamaged += OnCardDamaged;
             client.onAttackStart += OnAttack;
-            client.onAttackPlayerStart += OnAttackPlayer;
+
             client.onAbilityStart += OnAbilityStart;
             client.onAbilityTargetCard += OnAbilityEffect;
             client.onAbilityEnd += OnAbilityAfter;
@@ -52,7 +52,7 @@ namespace TcgEngine.FX
             client.onCardPlayed -= OnPlayed;
             client.onCardDamaged -= OnCardDamaged;
             client.onAttackStart -= OnAttack;
-            client.onAttackPlayerStart -= OnAttackPlayer;
+
             client.onAbilityStart -= OnAbilityStart;
             client.onAbilityTargetCard -= OnAbilityEffect;
             client.onAbilityEnd -= OnAbilityAfter;
@@ -236,32 +236,7 @@ namespace TcgEngine.FX
 
         }
 
-        private void OnAttackPlayer(Card attacker, Player player)
-        {
-            if (attacker == null || player == null)
-                return;
 
-            Card card = bcard.GetCard();
-            if (card.uid == attacker.uid)
-            {
-                bool is_other = player.player_id != GameClient.Get().GetPlayerID();
-                CardData icard = bcard.GetCardData();
-                BoardSlotPlayer zone = BoardSlotPlayer.Get(is_other);
-
-                ChargeIntoPlayer(zone);
-
-                AudioClip audio = icard?.attack_audio != null ? icard.attack_audio : AssetData.Get().card_attack_audio;
-                AudioTool.Get().PlaySFX("card_attack", audio);
-
-                //Equip FX
-                Card ecard = bcard.GetEquipCard();
-                if (ecard != null)
-                {
-                    FXTool.DoFX(ecard.CardData.attack_fx, transform.position);
-                    AudioTool.Get().PlaySFX("card_attack_equip", ecard.CardData.attack_audio);
-                }
-            }
-        }
 
         private void DamageFX(Transform target, int value, float delay = 0.5f)
         {
@@ -290,21 +265,7 @@ namespace TcgEngine.FX
             }
         }
 
-        private void ChargeIntoPlayer(BoardSlotPlayer target)
-        {
-            if (target != null)
-            {
-                ChargeInto(target.gameObject);
 
-                TimeTool.WaitFor(0.25f, () =>
-                {
-                    //Damage fx and audio
-                    FXTool.DoFX(AssetData.Get().player_damage_fx, target.transform.position);
-                    AudioClip audio = AssetData.Get().player_damage_audio;
-                    AudioTool.Get().PlaySFX("card_hit", audio);
-                });
-            }
-        }
 
         private void ChargeInto(GameObject target)
         {
@@ -358,7 +319,7 @@ namespace TcgEngine.FX
                 if (target.uid == bcard.GetCardUID())
                 {
                     FXTool.DoSnapFX(iability.target_fx, bcard.transform);
-                    FXTool.DoProjectileFX(iability.projectile_fx, GetFXSource(caster), bcard.transform, iability.GetDamage());
+                    //FXTool.DoProjectileFX(iability.projectile_fx, GetFXSource(caster), bcard.transform, iability.GetDamage());
                     AudioTool.Get().PlaySFX("ability_effect", iability.target_audio);
                 }
 
@@ -380,12 +341,6 @@ namespace TcgEngine.FX
                 BoardCard bcard = BoardCard.Get(caster.uid);
                 if (bcard != null)
                     return bcard.transform;
-            }
-            else
-            {
-                BoardSlotPlayer slot = BoardSlotPlayer.Get(caster.player_id);
-                if (slot != null)
-                    return slot.transform;
             }
             return null;
         }

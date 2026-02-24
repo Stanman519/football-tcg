@@ -29,8 +29,8 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 20, y: 20, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_LocalScale: {x: 5, y: 5, z: 0.25}
+  m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -64,17 +64,24 @@ MonoBehaviour:
   m_GameObject: {fileID: 7426997187891162978}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d054438193103c8408c5eedfc485482d, type: 3}
+  m_Script: {fileID: 11500000, guid: f24fd6723cd31954591a68e4398ebe8a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  slot_id: 0
+  player_id: 0
+  assignedSlot:
+    p: 0
+    max_cards: 0
+    posGroupType: 0
   player_position_type: 0
   isStarSlot: 0
-  type: 0
-  x: 0
-  y: 0
-  spriteRenderer: {fileID: -1294129594096635013}
-  defaultSprite: {fileID: 21300000, guid: 792520428c9abf242a940a1ee0229d04, type: 3}
+  spriteRenderer: {fileID: 0}
+  defaultSprite: {fileID: 0}
   activePlayerSprite: {fileID: 0}
+  defaultSpriteOffense: {fileID: 21300000, guid: dd6a24eeb1121b749a92e5cc997a91bc,
+    type: 3}
+  defaultSpriteDefense: {fileID: 21300000, guid: 9e5964a13b17ccd4da6ba2a5d12e76df,
+    type: 3}
   replacementMarker: {fileID: 0}
 --- !u!212 &-1294129594096635013
 SpriteRenderer:
@@ -96,6 +103,8 @@ SpriteRenderer:
   m_RayTracingAccelStructBuildFlagsOverride: 0
   m_RayTracingAccelStructBuildFlags: 1
   m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -117,6 +126,7 @@ SpriteRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0

@@ -150,11 +150,17 @@ namespace TcgEngine.UI
                 || game.phase == GamePhase.ChoosePlay
                 || game.phase == GamePhase.LiveBall)
             {
-                GameClient.Get().SendAction(GameAction.PlayerReadyPhase);
+                Player player = GameClient.Get().GetPlayer();
+                if (player != null)
+                {
+                    player.SetReadyForPhase(game.phase, true);
+                    GameClient.Get().SendAction(GameAction.PlayerReadyPhase);
+                    Debug.Log($"Player {player.player_id} confirmed ready for {game.phase}");
+                }
             }
             else
             {
-                // Old behavior
+                // Old behavior for other phases
                 if (!Tutorial.Get().CanDo(TutoEndTrigger.EndTurn))
                     return;
 

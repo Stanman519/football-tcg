@@ -44,7 +44,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         DB = 12,
 
         K = 20,
-        P = 2
+        P = 21
     }
 
 

@@ -21,12 +21,6 @@ namespace TcgEngine
             return IsTargetConditionMet(data, ability, caster, target.slot);
         }
 
-        public override bool IsTargetConditionMet(Game data, AbilityData ability, Card caster, CardPositionSlot target)
-        {
-            CardPositionSlot cslot = caster.slot;
-            if (diagonals)
-                return cslot.IsInDistance(target, distance);
-            return cslot.IsInDistanceStraight(target, distance);
-        }
+
     }
 }

@@ -10,6 +10,7 @@ public class SlotMachineTest : MonoBehaviour
     {
         public string IconID;    // e.g. "Star", "Helmet"
         public float Weight = 1; // how likely it is
+        [NonSerialized]
         public Sprite IconSprite;
     }
 

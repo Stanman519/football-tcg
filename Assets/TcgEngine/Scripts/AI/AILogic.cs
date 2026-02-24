@@ -1,5 +1,4 @@
-﻿
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
 using UnityEngine.Profiling;
@@ -139,7 +138,7 @@ namespace TcgEngine.AI
                         //Play Player card
                         for (int c = 0; c < playersInHand.Count; c++)
                         {
-                            Card card = player.cards_hand[c];
+                            Card card = playersInHand[c];
                             AddActions(action_list, data, node, GameAction.PlayCard, card);
                         }
                     }
@@ -173,10 +172,20 @@ namespace TcgEngine.AI
 
             //End Turn (dont add action if ai can still attack player, or ai hasnt spent any mana)
             bool can_attack_player = HasAction(action_list, GameAction.AttackPlayer);
-            bool can_end = !can_attack_player &&  data.selector == SelectorType.None;
-            if (action_list.Count == 0 || can_end)
+
+            // In phase-locked modes, use PlayerReadyPhase to confirm rather than EndTurn
+            bool is_phase_locked = original_data.phase == GamePhase.ChoosePlayers 
+                                || original_data.phase == GamePhase.ChoosePlay 
+                                || original_data.phase == GamePhase.LiveBall;
+
+            // In ChoosePlay phase, don't add PlayerReadyPhase - SelectPlay is the only action
+            bool skip_ready_action = original_data.phase == GamePhase.ChoosePlay;
+
+            bool can_end = !can_attack_player && data.selector == SelectorType.None;
+            if ((action_list.Count == 0 || can_end) && !skip_ready_action)
             {
-                AIAction actiont = CreateAction(GameAction.EndTurn);
+                ushort action_type = is_phase_locked ? GameAction.PlayerReadyPhase : GameAction.EndTurn;
+                AIAction actiont = CreateAction(action_type);
                 action_list.Add(actiont);
             }
 
@@ -258,10 +267,11 @@ namespace TcgEngine.AI
 
             //Update depth
             bool new_turn = action.type == GameAction.EndTurn;
+            bool phase_transition = action.type == GameAction.PlayerReadyPhase;
             int next_tdepth = parent.tdepth;
             int next_taction = parent.taction + 1;
 
-            if (new_turn)
+            if (new_turn || phase_transition)
             {
                 next_tdepth = parent.tdepth + 1;
                 next_taction = 0;
@@ -274,7 +284,7 @@ namespace TcgEngine.AI
             Profiler.EndSample();
 
             //Set minimum sort for next AIActions, if new turn, reset to 0
-            child_node.sort_min = new_turn ? 0 : Mathf.Max(action.sort, child_node.sort_min);
+            child_node.sort_min = (new_turn || phase_transition) ? 0 : Mathf.Max(action.sort, child_node.sort_min);
 
             //If win or reached max depth, stop searching deeper
             if (!ndata.HasEnded() && child_node.tdepth < ai_depth)
@@ -343,7 +353,7 @@ namespace TcgEngine.AI
             if (data.selector != SelectorType.None)
                 return;
 
-            if (card.HasStatus(StatusType.Paralysed))
+            if (card != null && card.HasStatus(StatusType.Paralysed))
                 return;
 
             if (type == GameAction.PlayCard)
@@ -421,10 +431,12 @@ namespace TcgEngine.AI
                     //random number between 0 and 2;
                     var playCall = validPlays[random_gen.Next(validPlays.Length)];
                     AIAction action = CreateAction(type, playCall);
+                    actions.Add(action);
                 }
                 else
                 {
                     AIAction action = CreateAction(type, card);
+                    actions.Add(action);
                 }
 
             }
@@ -680,6 +692,19 @@ namespace TcgEngine.AI
                 game_logic.CancelSelection();
             }
 
+            if (action.type == GameAction.PlayerReadyPhase)
+            {
+                player.SetReadyForPhase(data.phase, true);
+                Debug.Log($"AI Player {player_id} marked ready for phase {data.phase}");
+            }
+
+            if (action.type == GameAction.SelectPlay)
+            {
+                player.SelectedPlay = action.selectedPlay;
+                player.PlayEnhancer = action.card_uid != null ? player.GetHandCard(action.card_uid) : null;
+                Debug.Log($"AI Player {player_id} selected play: {action.selectedPlay}");
+            }
+
             if (action.type == GameAction.EndTurn)
             {
                 game_logic.EndTurn();
@@ -839,7 +864,7 @@ namespace TcgEngine.AI
             if (target != null)
                 txt += " target " + target.card_id;
             if (slot != CardPositionSlot.None)
-                txt += " slot " + slot.x + "-" + slot.p;
+                txt += " slot " + slot.posGroupType + "-" + slot.p;
             if (ability_id != null)
                 txt += " ability " + ability_id;
             if (value > 0)

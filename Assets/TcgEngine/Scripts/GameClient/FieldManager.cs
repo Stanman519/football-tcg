@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using TcgEngine;
 using TcgEngine.Client;
 using UnityEngine;
 using UnityEngine.UI;
@@ -49,38 +50,39 @@ public class FieldManager : MonoBehaviour
         fieldPanel.anchoredPosition = new Vector2(fieldPanel.anchoredPosition.x, centerPixelOffset);
     }
 
-    public void UpdateSlotsForFormation(Formation formation, bool isOffense)
-    {
-        ClearSlots(); // Remove old slots before placing new ones
+    //public void UpdateSlotsForFormation(Formation formation, bool isOffense)
+    //{
+    //    ClearSlots(); // Remove old slots before placing new ones
 
-        foreach (FormationSlotData slotData in formation.slots)
-        {
-            if ((isOffense && slotData.isOffense) || (!isOffense && !slotData.isOffense))
-            {
-                CreateSlot(slotData);
-            }
-        }
-    }
+    //    foreach (FormationSlotData slotData in formation.slots)
+    //    {
+    //        if ((isOffense && slotData.isOffense) || (!isOffense && !slotData.isOffense))
+    //        {
+    //            CreateSlot(slotData);
+    //        }
+    //    }
+    //}
     public float CalculateYardToPixelRatio()
     {
         float scaleY = fieldBackground.lossyScale.y;
         return (fieldBackground.rect.height * scaleY) / 100f;
     }
-    private void CreateSlot(FormationSlotData slotData)
-    {
-        GameObject newSlotObj = Instantiate(slotPrefab, slotParent);
-        RectTransform slotTransform = newSlotObj.GetComponent<RectTransform>();
+    //private void CreateSlot(FormationSlotData slotData)
+    //{
+    //    GameObject newSlotObj = Instantiate(slotPrefab, slotParent);
+    //    RectTransform slotTransform = newSlotObj.GetComponent<RectTransform>();
 
-        float xPosition = slotData.xOffset * yardToPixelRatio;
-        float yPosition = (currentBallYardLine - slotData.yardLine) * yardToPixelRatio;
+    //    float xPosition = slotData.xOffset * yardToPixelRatio;
+    //    float yPosition = (currentBallYardLine - slotData.yardLine) * yardToPixelRatio;
 
-        slotTransform.anchoredPosition = new Vector2(xPosition, yPosition);
+    //    slotTransform.anchoredPosition = new Vector2(xPosition, yPosition);
 
-        BoardSlot boardSlot = newSlotObj.GetComponent<BoardSlot>();
-        boardSlot.Initialize(slotData.positionGroup);
+    //    BoardSlot boardSlot = newSlotObj.GetComponent<BoardSlot>();
+        
+    //    boardSlot.Initialize(slotData.positionGroup, slotData.isOffense ? GameClient.Get().GetGameData().current_offensive_player.player_id : GameClient.Get().GetGameData().GetCurrentDefensivePlayer().player_id);
 
-        activeSlots.Add(boardSlot);
-    }
+    //    activeSlots.Add(boardSlot);
+    //}
 
     private void ClearSlots()
     {

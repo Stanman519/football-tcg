@@ -1,4 +1,4 @@
-﻿using Assets.TcgEngine.Scripts.Gameplay;
+﻿using Assets.TcgEngine.Scripts.Effects;
 using Assets.TcgEngine.Scripts.Gameplay;
 using System;
 using System.Collections.Generic;
@@ -164,7 +164,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             }
             //Choose first player
             game_data.state = GameState.Play;
-            game_data.current_offensive_player = random.NextDouble() < 0.5 ? game_data.players[0] : game_data.players[1];
+            game_data.current_offensive_player = game_data.players[0];//random.NextDouble() < 0.5 ? game_data.players[0] : game_data.players[1];
 
             game_data.turn_count = 1;
 
@@ -230,6 +230,9 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 player.ResetReadyState();
             }
 
+            // ALSO reset the shared readiness dictionary used by the server
+            game_data.ResetPhaseReady();
+
             foreach (Player player in game_data.players)
             {
 
@@ -268,13 +271,11 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
         private void StartChoosePlayersPhase()
         {
-
             game_data.phase = GamePhase.ChoosePlayers;
             RefreshData();
-            // Wait for both players to choose their player cards
-            resolve_queue.AddCallback(WaitForPlayerSelection);
-            resolve_queue.ResolveAll();
-            //TransitionToPlaycall(); this might be being done already above.
+
+            // Don't use resolve_queue for phase-locked modes - players need to play cards freely
+            // The game will advance when all players signal ready via PlayerReadyPhase
         }
 
         private void TransitionToPlaycall()
@@ -331,17 +332,46 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
             onChoosePlay?.Invoke();
 
-            resolve_queue.AddCallback(WaitForPlayCallSelection);
-            resolve_queue.ResolveAll();
+            // Don't use resolve_queue for phase-locked modes - players need to play cards freely
+            // The game will advance when all players signal ready via PlayerReadyPhase
         }
+
+
 
         private void WaitForPlayCallSelection()
         {
-            if (AllPlayersReadyForPhase(GamePhase.ChoosePlay))
+            if (game_data.AreAllPlayersPhaseReady())
             {
+                Debug.Log("All players ready for ChoosePlay, transitioning to RevealPlayCalls");
                 RevealPlayCalls();
                 resolve_queue.AddCallback(StartSlotSpinPhase);
                 resolve_queue.ResolveAll();
+            }
+            else
+            {
+                // Check if both players have selected a play (not Huddle)
+                bool bothSelectedPlay = false;
+                if (game_data.players != null && game_data.players.Length >= 2)
+                {
+                    bool p0Selected = game_data.players[0]?.SelectedPlay != PlayType.Huddle;
+                    bool p1Selected = game_data.players[1]?.SelectedPlay != PlayType.Huddle;
+                    bothSelectedPlay = p0Selected && p1Selected;
+                }
+                
+                if (bothSelectedPlay)
+                {
+                    Debug.Log("Both players selected plays, progressing from ChoosePlay");
+                    RevealPlayCalls();
+                    resolve_queue.AddCallback(StartSlotSpinPhase);
+                    resolve_queue.ResolveAll();
+                }
+                else
+                {
+                    // Not all players ready yet, check again next frame
+                    Debug.Log("Waiting for play selections. P0: " + game_data.players[0]?.SelectedPlay + ", P1: " + game_data.players[1]?.SelectedPlay);
+                    resolve_queue.AddCallback(WaitForPlayCallSelection);
+                    resolve_queue.ResolveAll(0.5f); // Check every 0.5 seconds
+                }
             }
         }
         public virtual void RevealPlayCalls()
@@ -359,11 +389,49 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             onSlotSpinStart?.Invoke();
             RefreshData();
 
-            PlayTriggeredSlotSpin();
-
+            // Apply slot modifiers and spin
+            game_data.current_slot_data = SpinSlotsWithModifiers();
 
             resolve_queue.AddCallback(ResolvePlayOutcome);
             resolve_queue.ResolveAll(1.5f);
+        }
+        
+        /// <summary>
+        /// Spin the slot machine with any active modifiers from abilities
+        /// </summary>
+        private SlotMachineResultDTO SpinSlotsWithModifiers()
+        {
+            // Get any pending modifiers (from Risk-Taker, etc.)
+            List<SlotModifier> modifiers = game_data.temp_slot_modifiers;
+            
+            // Calculate results with modifiers
+            var results = slotMachineManager.CalculateSpinResults(modifiers);
+            
+            // Store in game state
+            game_data.current_slot_data = results;
+            
+            // Also store in history
+            if (game_data.slot_history == null)
+                game_data.slot_history = new List<SlotHistory>();
+            game_data.slot_history.Add(new SlotHistory { slots = new List<SlotMachineResultDTO> { results } });
+            
+            // Decrement modifier durations and remove expired ones
+            if (modifiers != null && modifiers.Count > 0)
+            {
+                for (int i = modifiers.Count - 1; i >= 0; i--)
+                {
+                    if (!modifiers[i].isPermanent && modifiers[i].duration > 0)
+                    {
+                        modifiers[i].duration--;
+                        if (modifiers[i].duration <= 0)
+                        {
+                            modifiers.RemoveAt(i);
+                        }
+                    }
+                }
+            }
+            
+            return results;
         }
         public virtual void StartLiveBallPhase()
         {
@@ -373,9 +441,8 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             game_data.phase = GamePhase.LiveBall;
             RefreshData();
 
-            // Wait for both players to play Live Ball cards
-            resolve_queue.AddCallback(WaitForLiveBallSelection);
-            resolve_queue.ResolveAll();
+            // Don't use resolve_queue for phase-locked modes - players need to play cards freely
+            // The game will advance when all players signal ready via PlayerReadyPhase
         }
         public virtual void EndPlayPhase()
         {
@@ -398,7 +465,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
         private void WaitForLiveBallSelection()
         {
-            if (AllPlayersReadyForPhase(GamePhase.LiveBall))
+            if (game_data.AreAllPlayersPhaseReady())
             {
                 ResolveLiveBallEffects();
                 resolve_queue.AddCallback(EndPlayPhase);
@@ -416,12 +483,8 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         }*/
         private bool AllPlayersReadyForPhase(GamePhase phase)
         {
-            foreach (Player player in game_data.players)
-            {
-                if (!player.IsReadyForPhase(phase))
-                    return false;  // At least one player is not ready
-            }
-            return true;  // All players have confirmed
+            // Use the Game-level readiness map which is updated by the server when clients confirm
+            return game_data.AreAllPlayersPhaseReady();
         }
         public virtual void EndTurn()
         {
@@ -474,32 +537,77 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             if (game_data.state == GameState.GameEnded)
                 return;
 
+            // If in mulligan, start next turn
             if (game_data.phase == GamePhase.Mulligan)
             {
                 StartTurn();
                 return;
             }
 
+            // Cancel any active selector
             CancelSelection();
 
-            //Add to resolve queue in case its still resolving
-            resolve_queue.AddCallback(EndTurn);
-            resolve_queue.ResolveAll();
+            // Force progression depending on the current phase. This is used when the timer expires or when all players confirm.
+            switch (game_data.phase)
+            {
+                case GamePhase.ChoosePlayers:
+                    // Reveal players that were placed (if any) and proceed to play call phase
+                    RevealNewPlayers();
+                    // Ensure next callback starts play call phase
+                    resolve_queue.AddCallback(StartPlayCallPhase);
+                    resolve_queue.ResolveAll();
+                    break;
+
+                case GamePhase.ChoosePlay:
+                    // If players didn't choose a play, pick a safe default (Run)
+                    foreach (Player p in game_data.players)
+                    {
+                        if (p.SelectedPlay == PlayType.Huddle)
+                            p.SelectedPlay = PlayType.Run;
+                    }
+
+                    // Reveal play calls and advance to slot spin
+                    RevealPlayCalls();
+                    resolve_queue.AddCallback(StartSlotSpinPhase);
+                    resolve_queue.ResolveAll();
+                    break;
+
+                case GamePhase.LiveBall:
+                    // End the live ball phase (force resolution / end of play)
+                    EndTurn();
+                    break;
+
+                case GamePhase.SlotSpin:
+                    // If slot spin timed out or was skipped, proceed to resolution
+                    resolve_queue.AddCallback(ResolvePlayOutcome);
+                    resolve_queue.ResolveAll();
+                    break;
+
+                default:
+                    // Fallback: call EndTurn to advance the flow
+                    resolve_queue.AddCallback(EndTurn);
+                    resolve_queue.ResolveAll();
+                    break;
+            }
         }
 
         //Check if a player is winning the game, if so end the game
         //Change or edit this function for a new win condition
         protected virtual void CheckForWinner()
         {
-            int count_alive = 0;
-            Player alive = null;
-            foreach (Player player in game_data.players)
+            //int count_alive = 0;
+            //Player alive = null;
+            //foreach (Player player in game_data.players)
+            //{
+            //    if (!player.IsDead())
+            //    {
+            //        alive = player;
+            //        count_alive++;
+            //    }
+            //}
+            if (game_data.plays_left_in_half <= 0 && game_data.current_half == 2)
             {
-                if (!player.IsDead())
-                {
-                    alive = player;
-                    count_alive++;
-                }
+                EndGame(game_data.current_offensive_player.player_id); // fix later
             }
 
 /*            if (count_alive == 0)
@@ -557,19 +665,6 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
             DeckPuzzleData puzzle = deck as DeckPuzzleData;
 
-            //Board cards
-
-            //TURNED OFF BECAUSE I DONT CARE ABOUT PUZZLE ATM
-
-/*            if (puzzle != null)
-            {
-                foreach (DeckCardSlot card in puzzle.board_cards)
-                {
-                    Card acard = Card.Create(card.card, variant, player);
-                    acard.slot = new CardPositionSlot(card.slot, CardPositionSlot.GetP(player.player_id));
-                    player.cards_board.Add(acard);
-                }
-            }*/
 
             //Shuffle deck
             if (puzzle == null || !puzzle.dont_shuffle_deck)
@@ -578,11 +673,40 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
         private void WaitForPlayerSelection()
         {
-            if (AllPlayersReadyForPhase(GamePhase.ChoosePlay))
+            if (game_data.AreAllPlayersPhaseReady())
             {
+                Debug.Log("All players ready for ChoosePlayers, transitioning to RevealPlayers");
                 RevealNewPlayers();
                 resolve_queue.AddCallback(StartPlayCallPhase);
                 resolve_queue.ResolveAll();
+            }
+            else
+            {
+                // Check if both players have placed their player cards OR if enough time has passed
+                bool bothPlacedCards = false;
+                if (game_data.players != null && game_data.players.Length >= 2)
+                {
+                    int p0Cards = game_data.players[0]?.cards_board?.Count ?? 0;
+                    int p1Cards = game_data.players[1]?.cards_board?.Count ?? 0;
+                    // Consider ready if either player has placed at least one card, or after some time
+                    // For now, auto-progress if either player has placed cards
+                    bothPlacedCards = (p0Cards > 0 || p1Cards > 0);
+                }
+
+                if (bothPlacedCards)
+                {
+                    Debug.Log("Players have placed cards, progressing from ChoosePlayers");
+                    RevealNewPlayers();
+                    resolve_queue.AddCallback(StartPlayCallPhase);
+                    resolve_queue.ResolveAll();
+                }
+                else
+                {
+                    // Not all players ready yet, check again next frame
+                    // Removed spam logging - just reschedule the check
+                    resolve_queue.AddCallback(WaitForPlayerSelection);
+                    resolve_queue.ResolveAll(0.5f); // Check every 0.5 seconds
+                }
             }
         }
         //Set deck using custom deck in save file or database
@@ -629,6 +753,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
         public virtual void PlayCard(Card card, CardPositionSlot slot, bool skip_cost = false)
         {
+
             if (game_data.CanPlayCard(card, slot, skip_cost))
             {
                 Player player = game_data.GetPlayer(card.player_id);
@@ -1002,6 +1127,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             return acard;
         }
 
+
         //Transform card into another one
         public virtual Card TransformCard(Card card, CardData transform_to)
         {
@@ -1060,15 +1186,15 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         public virtual void DamagePlayer(Card attacker, Player target, int value)
         {
             //Damage player
-            target.hp -= value;
-            target.hp = Mathf.Clamp(target.hp, 0, target.hp_max);
+            //target.hp -= value;
+            //target.hp = Mathf.Clamp(target.hp, 0, target.hp_max);
 
-            //Lifesteal
-            Player aplayer = game_data.GetPlayer(attacker.player_id);
-            if (attacker.HasStatus(StatusType.LifeSteal))
-                aplayer.hp += value;
+            ////Lifesteal
+            //Player aplayer = game_data.GetPlayer(attacker.player_id);
+            //if (attacker.HasStatus(StatusType.LifeSteal))
+            //    aplayer.hp += value;
 
-            onPlayerDamaged?.Invoke(target, value);
+            //onPlayerDamaged?.Invoke(target, value);
         }
 
         //Heal a card
@@ -1088,13 +1214,13 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
         public virtual void HealPlayer(Player target, int value)
         {
-            if (target == null)
-                return;
+            //if (target == null)
+            //    return;
 
-            target.hp += value;
-            target.hp = Mathf.Clamp(target.hp, 0, target.hp_max);
+            //target.hp += value;
+            //target.hp = Mathf.Clamp(target.hp, 0, target.hp_max);
 
-            onPlayerHealed?.Invoke(target, value);
+            //onPlayerHealed?.Invoke(target, value);
         }
 
         //Generic damage that doesnt come from another card
@@ -1146,15 +1272,6 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             int extra = value - target.GetHP();
             target.damage += value;
 
-            //Trample
-            Player tplayer = game_data.GetPlayer(target.player_id);
-            if (!spell_damage && extra > 0 && attacker.player_id == game_data.current_offensive_player.player_id && attacker.HasStatus(StatusType.Trample))
-                tplayer.hp -= extra;
-
-            //Lifesteal
-            Player player = game_data.GetPlayer(attacker.player_id);
-            if (!spell_damage && attacker.HasStatus(StatusType.LifeSteal))
-                player.hp += damage_max;
 
             //Remove sleep on damage
             target.RemoveStatus(StatusType.Sleep);
@@ -1183,9 +1300,6 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             if (target.HasStatus(StatusType.Invincibility))
                 return; //Cant be killed
 
-            Player pattacker = game_data.GetPlayer(attacker.player_id);
-            if (attacker.player_id != target.player_id)
-                pattacker.kill_count++;
 
             DiscardCard(target);
 
@@ -1382,13 +1496,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             {
                 CardPositionSlot slot = caster.slot;
                 List<Card> slot_cards = game_data.GetSlotCards(slot);
-                if (slot.IsPlayerSlot())
-                {
-                    Player tplayer = game_data.GetPlayer(slot.p);
-                    if (iability.CanTarget(game_data, caster, tplayer))
-                        ResolveEffectTarget(iability, caster, tplayer);
-                }
-                else if (slot_cards.Count > 0)
+                if (slot_cards.Count > 0)
                 {
                     if (iability.CanTarget(game_data, caster, slot_cards[0])) // TODO: fix this, just working on multi card slots.
                     {
@@ -1657,7 +1765,114 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         private void HandleTurnoverOrScore()
         {
             Debug.Log("Handling turnover or score...");
-            // TODO: Implement logic for turnovers or scoring (e.g., changing possession, updating score)
+            
+            // Check for touchdown (ball reaches or exceeds end zone)
+            if (game_data.raw_ball_on >= 100)
+            {
+                HandleTouchdown();
+                return;
+            }
+            
+            // Turnover on downs - offense failed to convert on 4th down
+            if (game_data.current_down > 4)
+            {
+                HandleTurnoverOnDowns();
+                return;
+            }
+            
+            // Fallback: just switch possession if something unexpected
+            Debug.LogWarning("HandleTurnoverOrScore: Unexpected state - defaulting to turnover");
+            SwitchPossession();
+        }
+
+        private void HandleTouchdown()
+        {
+            Debug.Log("TOUCHDOWN! Scoring 7 points...");
+            
+            // Award 7 points to offensive player
+            game_data.current_offensive_player.points += 7;
+            Debug.Log($"Player {game_data.current_offensive_player.player_id} scores! Total: {game_data.current_offensive_player.points}");
+            
+            // Touchdown resets ball to 25 for the team that just scored (they now kick off)
+            // For now, switch possession and reset
+            SwitchPossession();
+            
+            // Check if game is over (after 2 halves = 22 plays total)
+            CheckGameOver();
+        }
+
+        private void HandleTurnoverOnDowns()
+        {
+            Debug.Log("Turnover on downs! Defense holds...");
+            
+            // Switch possession - defense now becomes offense
+            SwitchPossession();
+            
+            // Reset for new drive at 25 yard line
+            ResetDrive();
+        }
+
+        private void SwitchPossession()
+        {
+            // Get the other player (switch from offense to defense)
+            Player new_offense = game_data.GetOpponentPlayer(game_data.current_offensive_player.player_id);
+            
+            Debug.Log($"Switching possession: Player {game_data.current_offensive_player.player_id} -> Player {new_offense.player_id}");
+            
+            game_data.current_offensive_player = new_offense;
+            
+            // Reset down and yardage for new drive
+            ResetDrive();
+        }
+
+        private void ResetDrive()
+        {
+            game_data.current_down = 1;
+            game_data.raw_ball_on = 25;  // Start at own 25
+            game_data.yardage_this_play = 0;
+            game_data.yardage_to_go = 75;  // Need 75 yards for TD
+            
+            Debug.Log($"Drive reset - Down: {game_data.current_down}, Ball on: {game_data.raw_ball_on}");
+            
+            // Start new turn with new offense
+            StartTurn();
+        }
+
+        private void CheckGameOver()
+        {
+            // Decrement plays remaining
+            game_data.plays_left_in_half--;
+            
+            if (game_data.plays_left_in_half <= 0)
+            {
+                // End of half - check score
+                if (game_data.current_half >= 2)
+                {
+                    // Game over - declare winner
+                    Player p0 = game_data.players[0];
+                    Player p1 = game_data.players[1];
+                    
+                    if (p0.points > p1.points)
+                        EndGame(0);
+                    else if (p1.points > p0.points)
+                        EndGame(1);
+                    else
+                        EndGame(-1);  // Tie
+                }
+                else
+                {
+                    // Start second half
+                    game_data.current_half = 2;
+                    game_data.plays_left_in_half = 11;
+                    game_data.current_offensive_player = game_data.players[0];  // Or flip
+                    ResetDrive();
+                }
+            }
+            else
+            {
+                // Continue with new drive
+                ResetDrive();
+            }
         }
 
         private void ResolveLiveBallEffects()
@@ -2156,7 +2371,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             {
                 BallIsLive = true,
                 Turnover = false,
-                YardageGained = baseYardage + statusYardage + otherOffPlayerYardage + coachYardage,
+                YardageGained = baseYardage + statusYardage + otherOffPlayerYardage + coachYardage - otherDefPlayerYardage,
                 ContributingAbilities = new List<AbilityQueueElement>()
             };
 
@@ -2452,7 +2667,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             }
             if (game_data.current_down == 4)
             {
-                game_data.current_offensive_player = GameData.GetCurrentDefensivePlayer();
+                game_data.current_offensive_player = game_data.GetCurrentDefensivePlayer();
                 game_data.current_down = 1;
                 //start turn?
             }
@@ -2496,7 +2711,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 BallIsLive = true,
                 ContributingAbilities = new List<AbilityQueueElement>(),
                 Turnover = false,
-                YardageGained = (baseYardage + playerAddedBonuses) - (defPlayerCoverageBase + defAddedBonuses),
+                YardageGained = (baseYardage + playerRunBase + playerAddedBonuses) - (defPlayerCoverageBase + defAddedBonuses),
             };
             
                
@@ -2553,7 +2768,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
 
 
-        //-------------
+    //-------------
 
         public virtual void RefreshData()
         {

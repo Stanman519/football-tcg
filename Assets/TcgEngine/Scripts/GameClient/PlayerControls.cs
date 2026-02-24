@@ -80,7 +80,7 @@ namespace TcgEngine.Client
             {
                 Card card = selected_card.GetCard();
                 Vector3 wpos = GameBoard.Get().RaycastMouseBoard();
-                BSlot tslot = BSlot.GetNearest(wpos);
+                BoardSlot tslot = BoardSlot.GetNearest(wpos);
                 List<Card> targets = tslot?.GetSlotCards(wpos);
                 AbilityButton ability = AbilityButton.GetFocus(wpos, 1f);
 
@@ -90,16 +90,6 @@ namespace TcgEngine.Client
                         return;
 
                     GameClient.Get().CastAbility(card, ability.GetAbility());
-                }
-                else if (tslot is BoardSlotPlayer)
-                {
-                    if (!Tutorial.Get().CanDo(TutoEndTrigger.AttackPlayer, card))
-                        return;
-
-                    if (card.exhausted)
-                        WarningText.ShowExhausted();
-                    else
-                        GameClient.Get().AttackPlayer(card, tslot.GetPlayer());
                 }
                 else if (targets.Count > 0 && targets.Any(target => target.uid != card.uid) && targets.Any(target => target.player_id != card.player_id))
                 {

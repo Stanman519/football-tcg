@@ -42,7 +42,7 @@ namespace TcgEngine
             return null;
         }
 
-        public static GameObject DoProjectileFX(GameObject fx_prefab, Transform source, Transform target, int damage)
+/*        public static GameObject DoProjectileFX(GameObject fx_prefab, Transform source, Transform target, int damage)
         {
             if (fx_prefab != null && source != null && target != null)
             {
@@ -60,7 +60,7 @@ namespace TcgEngine
                 return fx;
             }
             return null;
-        }
+        }*/
 
         private static Quaternion GetFXRotation()
         {
