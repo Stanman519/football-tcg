@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using TcgEngine;
 
 namespace Assets.TcgEngine.Scripts.Gameplay
 {
@@ -22,6 +23,10 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         public Dictionary<PlayType, int> baseDefenseYardage;
         // Slot completion requirements for play types
         public Dictionary<PlayType, List<CompletionRequirement>> completionRequirements;
+
+        // Formation assets per play type (null entries fall back to hardcoded data in FieldSlotManager)
+        public Dictionary<PlayType, FormationData> offenseFormations = new Dictionary<PlayType, FormationData>();
+        public Dictionary<PlayType, FormationData> defenseFormations = new Dictionary<PlayType, FormationData>();
 
         public HeadCoachCard()
         {

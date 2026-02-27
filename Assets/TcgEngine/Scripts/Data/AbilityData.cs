@@ -58,6 +58,11 @@ namespace TcgEngine
         public AudioClip target_audio;
         public bool charge_target;
 
+        [Header("Animation")]
+        public RouteData animationData;           // null = no animation
+        public AnimTargetType animTarget;         // which slot(s) to animate
+        public int animTargetSlotIndex;           // used when animTarget == SlotIndex
+
         [Header("Text")]
         public string title;
         [TextArea(5, 7)]

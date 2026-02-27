@@ -100,7 +100,7 @@ namespace TcgEngine.Client
             if (!destroyed)
             {
                 card_ui.SetCard(card);
-                card_ui.SetHP(prev_hp);
+                card_ui.SetGrit(prev_hp);
             }
 
             //Save Previous HP
@@ -124,7 +124,7 @@ namespace TcgEngine.Client
             card_glow.color = new Color(ccolor.r, ccolor.g, ccolor.b, calpha);
             card_shadow.enabled = !destroyed && timer > 0.4f;
             card_sprite.color = card.HasStatus(StatusType.Stealth) ? Color.gray : Color.white;
-            card_ui.hp.color = (destroyed || card.damage > 0) ? Color.yellow : Color.white;
+            card_ui.grit.color = (destroyed || card.damage > 0) ? Color.yellow : Color.white;
 
             //armor
             int armor_val = card.GetStatusValue(StatusType.Armor);

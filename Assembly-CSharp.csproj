@@ -86,6 +86,7 @@
     <Compile Include="Assets\TcgEngine\Scripts\GameClient\PlayerAttackZone.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\UI\HeroUI.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\UI\CardGrid.cs" />
+    <Compile Include="Assets\TcgEngine\Scripts\GameClient\FieldAnimationController.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Conditions\ConditionSelectedValue.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\GameServer\ServerMatchmaker.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\UI\ToggleText.cs" />
@@ -104,6 +105,7 @@
     <Compile Include="Assets\TcgEngine\Scripts\GameClient\BoardCard.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Conditions\ConditionCardData.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Conditions\ConditionEquipped.cs" />
+    <Compile Include="Assets\TcgEngine\Scripts\GameClient\FieldScroller.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Menu\RecoveryPanel.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\GameClient\RewardManager.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Conditions\ConditionStat.cs" />
@@ -127,6 +129,7 @@
     <Compile Include="Assets\TcgEngine\Scripts\UI\TabButton.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\UI\PlayerUI.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Tools\CameraResize.cs" />
+    <Compile Include="Assets\TcgEngine\Scripts\Data\FormationData.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\UI\ProgressBar.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Data\CardbackData.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Conditions\MyConditions\ConditionGameDown.cs" />
@@ -262,6 +265,7 @@
     <Compile Include="Assets\TcgEngine\Scripts\Effects\Template\EffectAddStatTCGTEMPLATE.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Effects\Template\EffectRemoveTrait.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Network\TcgNetwork.cs" />
+    <Compile Include="Assets\TcgEngine\Scripts\Data\RouteData.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Conditions\ConditionGritCompareBase.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Conditions\ConditionPlayerStat.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Conditions\ConditionCoverageGuess.cs" />
@@ -296,6 +300,7 @@
     <Compile Include="Assets\TcgEngine\Scripts\UI\ChatBubble.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Conditions\ConditionCoverageType.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Effects\Template\EffectAddStatRoll.cs" />
+    <Compile Include="Assets\TcgEngine\Scripts\UI\DebugHUD.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Conditions\ConditionStatus.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Data\AvatarData.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Effects\Template\EffectDiscard.cs" />

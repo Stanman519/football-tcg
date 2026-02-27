@@ -212,7 +212,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             if (false) //should_mulligan)
                 GoToMulligan();
             else
-                StartTurn();
+                StartPreGameSpin();
         }
 
         public virtual void StartTurn()
@@ -224,10 +224,12 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             game_data.phase = GamePhase.StartTurn;
             onTurnStart?.Invoke();
 
-            // Reset readiness at the start of each play
+            // Reset readiness and play selection at the start of each play
             foreach (Player player in game_data.players)
             {
                 player.ResetReadyState();
+                player.SelectedPlay = PlayType.Huddle;
+                player.PlayEnhancer = null;
             }
 
             // ALSO reset the shared readiness dictionary used by the server
@@ -291,11 +293,9 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             if (game_data.state == GameState.GameEnded)
                 return;
 
-            if (game_data.current_offensive_player == game_data.current_offensive_player)
-                game_data.turn_count++;
-
+            game_data.turn_count++;
             CheckForWinner();
-            StartTurn();
+            EndPlayPhase();
         }
 
         public virtual void SummonNewPlayers()
@@ -389,13 +389,38 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             onSlotSpinStart?.Invoke();
             RefreshData();
 
-            // Apply slot modifiers and spin
+            // Apply slot modifiers and spin, then drive the visual.
+            // slotMachineManager.slot_data is passed directly so no Sprite references
+            // end up in game_data (Sprites can't be network-serialized).
             game_data.current_slot_data = SpinSlotsWithModifiers();
+            slotMachineUI.FireReelUI(game_data.current_slot_data.Results, slotMachineManager.slot_data);
 
             resolve_queue.AddCallback(ResolvePlayOutcome);
             resolve_queue.ResolveAll(1.5f);
         }
         
+        /// <summary>
+        /// Runs a decorative slot spin before the very first turn so reels are
+        /// populated and the mini slot display shows real icons from game start.
+        /// Does NOT affect any play outcome — transitions straight to StartTurn when done.
+        /// </summary>
+        public virtual void StartPreGameSpin()
+        {
+            if (game_data.state == GameState.GameEnded)
+                return;
+
+            game_data.phase = GamePhase.SlotSpin;
+            onSlotSpinStart?.Invoke();
+            RefreshData();
+
+            game_data.current_slot_data = SpinSlotsWithModifiers();
+            slotMachineUI.FireReelUI(game_data.current_slot_data.Results, slotMachineManager.slot_data);
+
+            // After the reels finish animating, go to the real first turn (not ResolvePlayOutcome)
+            resolve_queue.AddCallback(StartTurn);
+            resolve_queue.ResolveAll(1.5f);
+        }
+
         /// <summary>
         /// Spin the slot machine with any active modifiers from abilities
         /// </summary>
@@ -448,6 +473,8 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         {
             if (game_data.state == GameState.GameEnded)
                 return;
+
+            game_data.plays_left_in_half--;
 
             // Check yardage, downs, turnovers
             game_data.current_down++;
@@ -784,6 +811,8 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 {
                     player.cards_discard.Add(card);
                     card.slot = slot; //Save slot in case spell has PlayTarget
+                    if (icard.IsPlayEnhancer())
+                        player.PlayEnhancer = card;
                 }
 
                 //History
@@ -1740,22 +1769,20 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             else
                 playResolution = ResolvePassOutcome();
 
+            // Store yardage in game state so EndPlayPhase can apply it to ball position
+            game_data.yardage_this_play = playResolution.YardageGained;
+            game_data.last_play_yardage = playResolution.YardageGained;
+            game_data.last_play_type = game_data.current_offensive_player.SelectedPlay;
 
-            // check if play is over..
+            // If yardage takes ball to end zone or safety, end play immediately
+            if (game_data.raw_ball_on + playResolution.YardageGained >= 100 || game_data.raw_ball_on + playResolution.YardageGained <= 0)
+                playResolution.BallIsLive = false;
 
             if (!playResolution.BallIsLive)
             {
-                // go to end play 
-                ResolvePlay(playResolution);
+                EndPlayPhase();
+                return;
             }
-
-            // if yardage gained at this point gives you a safety or a touchdown, play is also over
-            if (game_data.raw_ball_on + playResolution.YardageGained >= 100 || game_data.raw_ball_on + playResolution.YardageGained <= 0)
-            {
-                playResolution.BallIsLive = false;
-                ResolvePlay(playResolution);
-            }
-
 
             // Step 8: Move to Live Ball Phase
             StartLiveBallPhase();
@@ -1840,9 +1867,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
         private void CheckGameOver()
         {
-            // Decrement plays remaining
-            game_data.plays_left_in_half--;
-            
+            // plays_left_in_half is decremented in EndPlayPhase; just check here
             if (game_data.plays_left_in_half <= 0)
             {
                 // End of half - check score
@@ -1893,6 +1918,9 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                     if (i < player.cards_board.Count)
                     {
                         Card card = player.cards_board[i];
+                        // Player cards (football players) don't die from HP — they stay on the field
+                        if (card.CardData.IsPlayer())
+                            continue;
                         if (card.GetHP() <= 0)
                             DiscardCard(card);
                     }
@@ -2338,17 +2366,20 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             ReceiverRankingSystem rankingSystem = new ReceiverRankingSystem(availableReceivers, game_data.current_offensive_player.SelectedPlay == PlayType.LongPass);
 
             var targetReceiver = rankingSystem.ApplyCoverage(game_data, rankingSystem);
-            if (targetReceiver == null)
-            {
-                // not sure what we do, is it incomplete? or does it just not get any player bonuses?
-            }
             var currPlayType = game_data.current_offensive_player.SelectedPlay;
             var currentPlayStatus = currPlayType == PlayType.LongPass ? StatusType.AddedDeepPassBonus : StatusType.AddedShortPassBonus;
 
-            var statusYardage = targetReceiver.status
-                .FirstOrDefault(_ => _.type == currentPlayStatus)?.value ?? 0;
-
-            var baseYardage = currentPlayStatus == StatusType.AddedDeepPassBonus ? targetReceiver.Data.deep_pass_bonus : targetReceiver.Data.short_pass_bonus;
+            // If no eligible receiver, pass still gains coach/OL/QB yardage but zero receiver bonus
+            int statusYardage = 0;
+            int baseYardage = 0;
+            if (targetReceiver != null)
+            {
+                statusYardage = targetReceiver.status
+                    .FirstOrDefault(_ => _.type == currentPlayStatus)?.value ?? 0;
+                baseYardage = currentPlayStatus == StatusType.AddedDeepPassBonus
+                    ? targetReceiver.Data.deep_pass_bonus
+                    : targetReceiver.Data.short_pass_bonus;
+            }
 
             var coachYardage = game_data.current_offensive_player.head_coach.baseOffenseYardage[game_data.current_offensive_player.SelectedPlay];
             var otherPositionGroupsToCount = new PlayerPositionGrp[2]
@@ -2367,11 +2398,14 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 .Sum(c => (currPlayType == PlayType.LongPass ? c.Data.deep_pass_coverage_bonus : c.Data.short_pass_coverage_bonus) +
                     c.GetStatusValue(currentPlayStatus));
 
+            int passTotal = baseYardage + statusYardage + otherOffPlayerYardage + coachYardage - otherDefPlayerYardage;
+            Debug.Log($"[PassResolution] ReceiverBase={baseYardage} ReceiverStatus={statusYardage} OtherOff={otherOffPlayerYardage} Coach={coachYardage} DefCoverage={otherDefPlayerYardage} => Total={passTotal} (Receiver={targetReceiver?.card_id ?? "none"})");
+
             return new PlayResolution
             {
                 BallIsLive = true,
                 Turnover = false,
-                YardageGained = baseYardage + statusYardage + otherOffPlayerYardage + coachYardage - otherDefPlayerYardage,
+                YardageGained = passTotal,
                 ContributingAbilities = new List<AbilityQueueElement>()
             };
 
@@ -2406,12 +2440,9 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         { 
             if (!passCompleteViaSlotMachine)
             {
-                var basicIncompletePass = new AbilityData
-                {
-                    trigger = AbilityTrigger.OnPassResolution,
-                    failEventType = FailPlayEventType.IncompletePass
-                };
-                
+                var basicIncompletePass = ScriptableObject.CreateInstance<AbilityData>();
+                basicIncompletePass.trigger = AbilityTrigger.OnPassResolution;
+                basicIncompletePass.failEventType = FailPlayEventType.IncompletePass;
                 resolve_queue.AddAbility(basicIncompletePass, null, null, null);
             }
 
@@ -2706,12 +2737,15 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 .Sum(c => c.GetStatusValue(StatusType.AddedRunCoverageBonus));
 
 
+            int totalYardage = (baseYardage + playerRunBase + playerAddedBonuses) - (defPlayerCoverageBase + defAddedBonuses);
+            Debug.Log($"[RunResolution] CoachBase={baseYardage} PlayerRunBase={playerRunBase} StatusBonus={playerAddedBonuses} DefCoverage={defPlayerCoverageBase} DefStatus={defAddedBonuses} => Total={totalYardage}");
+
             return new PlayResolution
             {
                 BallIsLive = true,
                 ContributingAbilities = new List<AbilityQueueElement>(),
                 Turnover = false,
-                YardageGained = (baseYardage + playerRunBase + playerAddedBonuses) - (defPlayerCoverageBase + defAddedBonuses),
+                YardageGained = totalYardage,
             };
             
                

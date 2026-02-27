@@ -116,7 +116,8 @@ public class SlotMachineManager
         return new SlotMachineResultDTO
         {
             Results = results,
-            //SlotDataCopy = slot_data
+            // SlotDataCopy intentionally not set here — Sprites in SlotIconData are not
+            // network-serializable. Callers that need timing data use slotMachineManager.slot_data directly.
         };
     }
 

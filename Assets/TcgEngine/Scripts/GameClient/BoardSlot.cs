@@ -8,6 +8,7 @@ namespace TcgEngine.Client
     public class BoardSlot : MonoBehaviour, IDropHandler
     {
         public int slot_id; // WR1 vs WR2, OL1 vs OL2, etc.
+        public int slotIndex = 0;           // Index within position group (0 = first slot, 1 = second, ...)
         protected Collider collide;
         protected Bounds bounds;
         public int player_id;
@@ -18,6 +19,9 @@ namespace TcgEngine.Client
         private Card assignedCard;
         public PlayerPositionGrp player_position_type;
         public bool isStarSlot = false; // Determines if a Star/Superstar can go here
+
+        private Vector3 targetLocalPos;
+        public float moveSpeed = 3f;
 
         private static List<BoardSlot> slot_list = new List<BoardSlot>();
         public SpriteRenderer spriteRenderer; // Controls the slot appearance
@@ -32,8 +36,8 @@ namespace TcgEngine.Client
             spriteRenderer = GetComponent<SpriteRenderer>();
             collide = GetComponent<Collider>();
             start_alpha = spriteRenderer.color.a;
-            //spriteRenderer.color = new Color(spriteRenderer.color.r, spriteRenderer.color.g, render.color.b, 0f);
             bounds = collide.bounds;
+            targetLocalPos = transform.localPosition;
         }
 
         protected virtual void OnDestroy()
@@ -44,19 +48,35 @@ namespace TcgEngine.Client
         protected virtual void Update()
         {
             current_alpha = Mathf.MoveTowards(current_alpha, target_alpha * start_alpha, 2f * Time.deltaTime);
-            //render.color = new Color(render.color.r, render.color.g, render.color.b, current_alpha);
             if (!GameClient.Get()?.IsReady() ?? false) return;
+
+            // Keep assigned card in sync with actual game state so the X/O hides/shows correctly
+            // even if AssignCard() was never called externally.
+            Game gdata = GameClient.Get().GetGameData();
+            if (gdata != null)
+            {
+                var slotCards = gdata.GetSlotCards(assignedSlot);
+                Card occupying = (slotCards != null && slotCards.Count > 0) ? slotCards[0] : null;
+                if (occupying != assignedCard)
+                {
+                    assignedCard = occupying;
+                    UpdateSlotVisual();
+                }
+            }
 
             bool valid = IsValidDragTarget();
 
-            // Visual Feedback (Optional: alpha or tint)
-            if (spriteRenderer != null)
+            // Visual Feedback: dim when not a valid drop target
+            if (spriteRenderer != null && spriteRenderer.enabled)
             {
-                Color col = valid ? Color.white : new Color(1f, 1f, 1f, 0.2f);  // Dim when not valid
+                Color col = valid ? Color.white : new Color(1f, 1f, 1f, 0.2f);
                 spriteRenderer.color = col;
             }
 
             target_alpha = valid ? 1f : 0f;
+
+            // Smooth lerp to formation target position
+            transform.localPosition = Vector3.Lerp(transform.localPosition, targetLocalPos, moveSpeed * Time.deltaTime);
         }
         public bool IsValidDragTarget()
         {
@@ -82,6 +102,10 @@ namespace TcgEngine.Client
 
             // Also check position match
             if (dragCard.Data.playerPosition != player_position_type)
+                return false;
+
+            // This specific slot must be empty
+            if (!IsEmpty())
                 return false;
 
             Player player = game.GetPlayer(GameClient.Get().GetPlayerID());
@@ -129,14 +153,24 @@ namespace TcgEngine.Client
         {
             return slot_list;
         }
-        public void Initialize(PlayerPositionGrp positionGroup, int playerId, bool isOffense)
+        // slotIdx: 0 = first slot for this position group, 1 = second, etc.
+        // max_cards is repurposed as the per-slot identifier (slotIdx + 1) so each slot
+        // has a unique CardPositionSlot that matches card.slot set by the server.
+        public void Initialize(PlayerPositionGrp positionGroup, int playerId, bool isOffense, int slotIdx = 0)
         {
             this.player_position_type = positionGroup;
-            this.assignedSlot = new CardPositionSlot(playerId, 1, positionGroup);
+            this.slotIndex = slotIdx;
+            this.assignedSlot = new CardPositionSlot(playerId, slotIdx + 1, positionGroup);
 
             defaultSprite = isOffense ? defaultSpriteOffense : defaultSpriteDefense;
 
             UpdateSlotVisual();
+        }
+
+        public void SetTargetPosition(Vector3 localPos)
+        {
+            localPos.z = -1f;
+            targetLocalPos = localPos;
         }
 
         public virtual Vector3 GetPosition(CardPositionSlot slot)
@@ -162,10 +196,7 @@ namespace TcgEngine.Client
         {
             assignedCard = card;
             Debug.Log($"BoardSlot.AssignCard: slot {assignedSlot.posGroupType}-{assignedSlot.p}, assigned card {card?.uid}");
-            if (spriteRenderer != null && card != null && card.Data != null && card.Data.art_board != null)
-                spriteRenderer.sprite = card.Data.art_board; // Show card art
-            else
-                UpdateSlotVisual();
+            UpdateSlotVisual(); // BoardCard handles the visual; we just hide the X/O marker
         }
         public bool IsEmpty()
         {

@@ -85,6 +85,9 @@ namespace TcgEngine
         public AudioClip attack_audio;
         public AudioClip damage_audio;
 
+        [Header("Formation Override")]
+        public FormationData formationOverride;   // null = use coach base formation
+
         [Header("Availability")]
         public bool deckbuilding = false;
         public int cost = 100;

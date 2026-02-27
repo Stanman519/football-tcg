@@ -121,6 +121,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             variant_id = cvariant.id;
             attack = icard.attack;
             current_stamina = icard.stamina;
+            hp = icard.grit > 0 ? icard.grit : icard.stamina; // grit = toughness; fall back to stamina if unset
             mana = icard.mana;
             SetTraits(icard);
             SetAbilities(icard);

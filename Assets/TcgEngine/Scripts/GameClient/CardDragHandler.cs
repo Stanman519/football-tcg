@@ -8,7 +8,6 @@ using Assets.TcgEngine.Scripts.Gameplay;
 public class CardDragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
     private GameObject draggingCard;
-    private Vector3 originalPosition;
     private BoardSlot validSlot;
     private HandCard draggingHandCard; // Track HandCard for drag state sync
 
@@ -16,7 +15,6 @@ public class CardDragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, I
     {
         Debug.Log($"OnBeginDrag: {gameObject.name}");
         draggingCard = gameObject;
-        originalPosition = draggingCard.transform.position;
         
         // NEW: Check if this card can even be dragged (offensive card on offense, defensive on defense)
         Card cardComp = draggingCard.GetComponent<Card>();
@@ -57,58 +55,38 @@ public class CardDragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, I
     public void OnDrag(PointerEventData eventData)
     {
         if (draggingCard == null)
-        {
-            Debug.Log("OnDrag called but draggingCard is null");
             return;
-        }
 
-        Debug.Log($"OnDrag: {draggingCard?.name}, Position: {eventData.position}");
-        draggingCard.transform.position = Camera.main.ScreenToWorldPoint(new Vector3(eventData.position.x, eventData.position.y, 10));
-
-        // Update validSlot by raycasting to nearest BoardSlot under cursor
+        // HandCard.Update handles the visual follow via anchoredPosition — don't touch transform.position here.
+        // Just track which BoardSlot (if any) is under the cursor.
         Vector3 worldPos = Camera.main.ScreenToWorldPoint(new Vector3(eventData.position.x, eventData.position.y, 10));
         BoardSlot nearest = BoardSlot.GetNearest(worldPos);
         if (nearest != null && nearest.IsValidDragTarget())
         {
             if (validSlot != nearest)
-            {
-                Debug.Log($"Valid slot under cursor: {nearest.name}");
                 validSlot = nearest;
-            }
         }
         else
         {
-            if (validSlot != null)
-            {
-                Debug.Log("No longer over a valid slot");
-                validSlot = null;
-            }
+            validSlot = null;
         }
     }
 
     public void OnEndDrag(PointerEventData eventData)
     {
-        Debug.Log($"OnEndDrag: {draggingCard?.name}, validSlot: {(validSlot != null ? validSlot.name : "null")}");
         if (validSlot != null)
-        {
             SnapToSlot(validSlot, eventData);
-        }
-        else
-        {
-            Debug.Log("No valid slot found, returning card to original position.");
-            if (draggingCard != null)
-                draggingCard.transform.position = originalPosition;
-        }
+        // If no valid slot, HandCard.Update will animate the card back to deck_position automatically
 
         ResetSlotHighlights();
-        
-        // ALWAYS clear HandCard drag state, even on failed drop
+
+        // Always clear HandCard drag state
         if (draggingHandCard != null)
         {
             draggingHandCard.EndDrag();
             draggingHandCard = null;
         }
-        
+
         validSlot = null;
         draggingCard = null;
     }

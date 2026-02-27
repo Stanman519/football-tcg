@@ -53,6 +53,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\Editor\CardImporter.cs" />
+    <Compile Include="Assets\TcgEngine\Editor\FormationDesignerWindow.cs" />
     <Compile Include="Assets\Editor\ApplyTestCardArt.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Editor\ImportPackage.cs" />
   </ItemGroup>

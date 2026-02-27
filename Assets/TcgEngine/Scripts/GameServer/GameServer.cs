@@ -73,6 +73,7 @@ namespace TcgEngine.Server
             RegisterAction(GameAction.Resign, ReceiveResign);
             RegisterAction(GameAction.ChatMessage, ReceiveChat);
             RegisterAction(GameAction.PlayerReadyPhase, ReceivePlayerReadyPhase);
+            RegisterAction(GameAction.SelectPlay, ReceiveSelectPlay);
             //Events
             gameplay.onGameStart += OnGameStart;
             gameplay.onGameEnd += OnGameEnd;
@@ -337,6 +338,28 @@ namespace TcgEngine.Server
                     gameplay.NextStep();
                 }
             }
+        }
+
+        public void ReceiveSelectPlay(ClientData iclient, SerializedData sdata)
+        {
+            MsgPlaySelection msg = sdata.Get<MsgPlaySelection>();
+            Player player = GetPlayer(iclient);
+            if (player == null || msg == null)
+                return;
+
+            if (game_data.phase != GamePhase.ChoosePlay)
+                return;
+
+            player.SelectedPlay = msg.selectedPlay;
+            if (!string.IsNullOrEmpty(msg.enhancerUid))
+                player.PlayEnhancer = game_data.GetCard(msg.enhancerUid);
+
+            RefreshAll();
+
+            bool bothSelected = game_data.players[0].SelectedPlay != PlayType.Huddle
+                             && game_data.players[1].SelectedPlay != PlayType.Huddle;
+            if (bothSelected)
+                gameplay.NextStep();
         }
 
         public void ReceivePlayCard(ClientData iclient, SerializedData sdata)

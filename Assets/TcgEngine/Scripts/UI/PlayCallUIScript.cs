@@ -82,7 +82,13 @@ public class PlayCallUIScript : MonoBehaviour
 
     private void OnGameDataRefreshed()
     {
-        Debug.Log("[PlayCallUIScript] OnGameDataRefreshed called");
+        Game gameData = GameClient.Get()?.GetGameData();
+        if (gameData != null && gameData.phase == GamePhase.ChoosePlay)
+        {
+            isPlayLocked = false;
+            selectedPlay = PlayType.Huddle;
+            selectedEnhancer = null;
+        }
     }
 
     public void ShowPlayCallUI()

@@ -42,6 +42,8 @@ namespace TcgEngine.Client
         private bool focus = false;
         private bool drag = false;
         private bool selected = false;
+        private bool pressing = false;
+        private Vector3 press_mouse_pos;
 
         private static List<HandCard> card_list = new List<HandCard>();
 
@@ -104,7 +106,18 @@ namespace TcgEngine.Client
             card_glow.enabled = IsFocus() || IsDrag();
             prev_pos = Vector3.Lerp(prev_pos, card_transform.position, 1f * Time.deltaTime);
 
-            //Unselect
+            // Promote press → drag once mouse moves enough (avoids card sticking on simple click)
+            if (pressing && !drag && (Input.mousePosition - press_mouse_pos).magnitude > 8f)
+                drag = true;
+
+            // Release: clear drag and press state
+            if (Input.GetMouseButtonUp(0))
+            {
+                drag = false;
+                pressing = false;
+            }
+
+            // Unselect on new click elsewhere
             if (!drag && selected && Input.GetMouseButtonDown(0))
                 selected = false;
         }
@@ -198,8 +211,9 @@ namespace TcgEngine.Client
                 return;
 
             UnselectAll();
-            drag = true;
             selected = true;
+            pressing = true;
+            press_mouse_pos = Input.mousePosition;
             PlayerControls.Get().UnselectAll();
             AudioTool.Get().PlaySFX("hand_card", AssetData.Get().hand_card_click_audio);
         }
@@ -241,7 +255,10 @@ namespace TcgEngine.Client
         public static void UnselectAll()
         {
             foreach (HandCard card in card_list)
+            {
                 card.selected = false;
+                card.drag = false;
+            }
         }
 
         public static List<HandCard> GetAll()

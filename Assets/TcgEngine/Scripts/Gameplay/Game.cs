@@ -437,6 +437,20 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             if (player == null)
                 return false;
 
+            // Phase-based card type restrictions
+            CardType cardType = card.CardData.type;
+            if (card.CardData.IsPlayer() && phase != GamePhase.ChoosePlayers)
+                return false;
+            if (card.CardData.IsPlayEnhancer())
+            {
+                if (phase != GamePhase.ChoosePlay)
+                    return false;
+                if (player.PlayEnhancer != null)
+                    return false; // Already played one enhancer this turn
+            }
+            if ((cardType == CardType.OffLiveBall || cardType == CardType.DefLiveBall) && phase != GamePhase.LiveBall)
+                return false;
+
             // Check if player is trying to play a card for the wrong side of the ball
             bool is_player_offensive = (player.player_id == current_offensive_player.player_id);
             bool is_offensive_card = card.CardData.playerPosition != PlayerPositionGrp.NONE && 

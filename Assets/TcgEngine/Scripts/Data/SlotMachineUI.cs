@@ -22,41 +22,54 @@ public class SlotMachineUI : MonoBehaviour
     public List<ReelUI> reelUIs = new List<ReelUI>();
     private GameObject slotMachinePanel; // The panel containing the slot machine
 
+    [Header("Layout — Full (during spin)")]
+    public Vector2 fullAnchorMin = new Vector2(0.15f, 0.2f);
+    public Vector2 fullAnchorMax = new Vector2(0.85f, 0.8f);
+
+    [Header("Layout — Mini (all other phases)")]
+    public Vector2 miniAnchorMin = new Vector2(0.72f, 0.02f);
+    public Vector2 miniAnchorMax = new Vector2(0.98f, 0.38f);
+
     private void Start()
     {
-        // Find the main panel/container for the slot machine
         slotMachinePanel = reelContainer?.parent?.gameObject;
         if (slotMachinePanel != null)
         {
-            slotMachinePanel.SetActive(false);
+            slotMachinePanel.SetActive(true); // Always visible
+            SetLayout(mini: true);            // Start collapsed
         }
 
-        // Listen for game data changes
         GameClient client = GameClient.Get();
         if (client != null)
-        {
             client.onRefreshAll += OnGameDataRefreshed;
-        }
     }
 
     private void OnDestroy()
     {
         GameClient client = GameClient.Get();
         if (client != null)
-        {
             client.onRefreshAll -= OnGameDataRefreshed;
-        }
     }
 
     private void OnGameDataRefreshed()
     {
-        // Show slot machine only during SlotSpin phase
-        Game gameData = GameClient.Get().GetGameData();
-        if (gameData != null && slotMachinePanel != null)
-        {
-            bool shouldShow = (gameData.phase == GamePhase.SlotSpin);
-            slotMachinePanel.SetActive(shouldShow);
-        }
+        Game gameData = GameClient.Get()?.GetGameData();
+        if (gameData == null || slotMachinePanel == null) return;
+
+        bool isSpinning = gameData.phase == GamePhase.SlotSpin;
+        SetLayout(mini: !isSpinning);
+    }
+
+    private void SetLayout(bool mini)
+    {
+        if (slotMachinePanel == null) return;
+        RectTransform rt = slotMachinePanel.GetComponent<RectTransform>();
+        if (rt == null) return;
+
+        rt.anchorMin = mini ? miniAnchorMin : fullAnchorMin;
+        rt.anchorMax = mini ? miniAnchorMax : fullAnchorMax;
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
     }
 
     public void InitializeReels(int numReels)
