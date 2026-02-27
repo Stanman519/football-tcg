@@ -105,7 +105,7 @@
     <Compile Include="Assets\TcgEngine\Scripts\GameClient\BoardCard.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Conditions\ConditionCardData.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Conditions\ConditionEquipped.cs" />
-    <Compile Include="Assets\TcgEngine\Scripts\GameClient\FieldScroller.cs" />
+    <Compile Include="Assets\TcgEngine\Scripts\GameClient\LOSMarker.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Menu\RecoveryPanel.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\GameClient\RewardManager.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Conditions\ConditionStat.cs" />
@@ -138,6 +138,7 @@
     <Compile Include="Assets\TcgEngine\Scripts\Conditions\ConditionOwner.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Gameplay\Game.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Conditions\ConditionDamaged.cs" />
+    <Compile Include="Assets\TcgEngine\Scripts\GameClient\BallManager.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Menu\CardZoomPanel.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\UI\IconValue.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Api\ApiMsg.cs" />

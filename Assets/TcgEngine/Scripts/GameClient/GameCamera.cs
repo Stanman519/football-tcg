@@ -11,6 +11,9 @@ namespace TcgEngine.Client
 
     public class GameCamera : MonoBehaviour
     {
+        [Tooltip("Lerp speed for camera to follow LOSMarker Y position.")]
+        public float cameraFollowSpeed = 2.5f;
+
         private float shake_timer = 0f;
         private float shake_intensity = 1f;
 
@@ -29,6 +32,14 @@ namespace TcgEngine.Client
 
         void Update()
         {
+            // Follow LOSMarker Y so the line of scrimmage stays centered
+            if (LOSMarker.Instance != null)
+            {
+                start_pos.y = Mathf.Lerp(start_pos.y,
+                    LOSMarker.Instance.transform.position.y,
+                    cameraFollowSpeed * Time.deltaTime);
+            }
+
             //Shake FX
             if (shake_timer > 0f)
             {

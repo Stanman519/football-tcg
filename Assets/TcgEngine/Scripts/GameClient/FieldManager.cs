@@ -19,7 +19,8 @@ public class FieldManager : MonoBehaviour
 
     void Start()
     {
-        yardToPixelRatio = CalculateYardToPixelRatio();
+        if (fieldBackground != null)
+            yardToPixelRatio = CalculateYardToPixelRatio();
         // FieldScroller handles continuous scroll based on raw_ball_on — don't set position here
         // CenterFieldOnYardLine(currentBallYardLine);
     }

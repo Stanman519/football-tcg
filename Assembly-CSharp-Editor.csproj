@@ -56,6 +56,8 @@
     <Compile Include="Assets\TcgEngine\Editor\FormationDesignerWindow.cs" />
     <Compile Include="Assets\Editor\ApplyTestCardArt.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Editor\ImportPackage.cs" />
+    <Compile Include="Assets\TcgEngine\Editor\FormationDesignerWindowV2.cs" />
+    <Compile Include="Assets\TcgEngine\Editor\PlayCallPanelBuilder.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="UnityEngine">

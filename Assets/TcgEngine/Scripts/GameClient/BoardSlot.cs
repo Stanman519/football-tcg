@@ -10,7 +10,6 @@ namespace TcgEngine.Client
         public int slot_id; // WR1 vs WR2, OL1 vs OL2, etc.
         public int slotIndex = 0;           // Index within position group (0 = first slot, 1 = second, ...)
         protected Collider collide;
-        protected Bounds bounds;
         public int player_id;
         protected float start_alpha = 0f;
         protected float current_alpha = 0f;
@@ -36,7 +35,6 @@ namespace TcgEngine.Client
             spriteRenderer = GetComponent<SpriteRenderer>();
             collide = GetComponent<Collider>();
             start_alpha = spriteRenderer.color.a;
-            bounds = collide.bounds;
             targetLocalPos = transform.localPosition;
         }
 
@@ -62,6 +60,13 @@ namespace TcgEngine.Client
                     assignedCard = occupying;
                     UpdateSlotVisual();
                 }
+
+                // Hide slots whose position group doesn't match this player's current role.
+                // Offense player shows offensive + special-teams slots; defense player shows defensive slots only.
+                bool playerIsOffense = gdata.current_offensive_player?.player_id == player_id;
+                bool posIsDefensive  = System.Array.Exists(gdata.defensive_pos_grps, p => p == player_position_type);
+                bool shouldShow      = playerIsOffense ? !posIsDefensive : posIsDefensive;
+                gameObject.SetActive(shouldShow);
             }
 
             bool valid = IsValidDragTarget();
@@ -158,6 +163,7 @@ namespace TcgEngine.Client
         // has a unique CardPositionSlot that matches card.slot set by the server.
         public void Initialize(PlayerPositionGrp positionGroup, int playerId, bool isOffense, int slotIdx = 0)
         {
+            this.player_id = playerId;
             this.player_position_type = positionGroup;
             this.slotIndex = slotIdx;
             this.assignedSlot = new CardPositionSlot(playerId, slotIdx + 1, positionGroup);
@@ -243,7 +249,7 @@ namespace TcgEngine.Client
 
         public virtual bool IsInside(Vector3 wpos)
         {
-            return bounds.Contains(wpos);
+            return collide != null && collide.bounds.Contains(wpos);
         }
 
         public static BoardSlot Get(CardPositionSlot slot)

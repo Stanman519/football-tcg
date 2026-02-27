@@ -217,7 +217,9 @@ namespace TcgEngine.UI
 
         public static bool IsUIOpened()
         {
-            return CardSelector.Get().IsVisible() || EndGamePanel.Get().IsVisible();
+            bool cardSelector = CardSelector.Get() != null && CardSelector.Get().IsVisible();
+            bool endGame = EndGamePanel.Get() != null && EndGamePanel.Get().IsVisible();
+            return cardSelector || endGame;
         }
 
         public static bool IsOverUI()

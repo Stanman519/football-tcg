@@ -26,22 +26,27 @@ public enum FieldFormation
 ///   x: fraction of field width from center  (-0.5 = left sideline, 0 = center, 0.5 = right sideline)
 ///   y: yards from line of scrimmage          (negative = offensive backfield, positive = defensive side)
 ///
-/// At runtime these are converted to fieldPanel local pixels:
-///   localX = xFraction * fieldPanel.rect.width
-///   localY = yardsFromLOS * PixelsPerYard
+/// At runtime these are converted to world-space local positions (1 unit = 1 yard):
+///   localX = xFraction * fieldWidth
+///   localY = yardsFromLOS * 1.0f   (1 unit = 1 yard, no extra factor)
 ///
-/// To tune the look: adjust PixelsPerYard on FieldScroller (controls depth),
-/// and the x values below (controls width spread).
+/// To tune the look: adjust fieldWidth on FieldSlotManager (controls width spread).
+/// Depth relationships are automatic since 1 unit = 1 yard.
 /// </summary>
 public class FieldSlotManager : MonoBehaviour
 {
     [Header("References")]
     public GameObject slotPrefab;
     public GameObject boardCardPrefab; // legacy reference, not used here
-    public RectTransform fieldPanel;
+    public Transform slotParent;       // Assign LOSMarker in Inspector
+
+    [Header("Field Dimensions")]
+    public float fieldWidth = 53.3f;   // Full field width in world units (yards)
+    public float slotScale = 0.5f;     // Local scale applied to each spawned slot
 
     [Header("Formation Assets (assign in Inspector; overrides hardcoded data)")]
-    public FormationData formation_Huddle;
+    public FormationData formation_HuddleOffense;
+    public FormationData formation_HuddleDefense;
     public FormationData formation_OffenseRun;
     public FormationData formation_OffenseShortPass;
     public FormationData formation_OffenseLongPass;
@@ -56,6 +61,8 @@ public class FieldSlotManager : MonoBehaviour
         = new Dictionary<int, Dictionary<PlayerPositionGrp, List<BoardSlot>>>();
 
     // Formation data: [formation][posGroup][slotIndex] = (xFraction, yardsFromLOS)
+    // xFraction: fraction of fieldWidth from center  (-0.5 = left, 0 = center, 0.5 = right)
+    // yardsFromLOS: negative = offensive backfield,  positive = defensive side
     private Dictionary<FieldFormation, Dictionary<PlayerPositionGrp, Vector2[]>> formationData;
 
     private GamePhase lastPhase = GamePhase.None;
@@ -88,18 +95,15 @@ public class FieldSlotManager : MonoBehaviour
     // -------------------------------------------------------
     // Coordinate conversion
     //
-    // Football coords → fieldPanel local pixels.
-    // All slots are children of fieldPanel, so local positions are in the same space.
-
-    private float FieldWidth  => fieldPanel != null ? fieldPanel.rect.width  : 800f;
-    private float PixelsPerYard => FieldScroller.Instance != null ? FieldScroller.Instance.pixelsPerYard : 20f;
+    // Football coords → LOSMarker-local world units (1 unit = 1 yard).
+    // All slots are children of slotParent (LOSMarker), so local Y = yards from LOS.
 
     private Vector3 ToLocalPos(Vector2 footballCoord)
     {
         return new Vector3(
-            footballCoord.x * FieldWidth,   // x: fraction of field width
-            footballCoord.y * PixelsPerYard, // y: yards × pixels-per-yard
-            -1f
+            footballCoord.x * fieldWidth,  // xFraction × full field width
+            footballCoord.y,               // yardsFromLOS — 1 unit = 1 yard
+            -0.1f
         );
     }
 
@@ -138,8 +142,8 @@ public class FieldSlotManager : MonoBehaviour
                 Vector3 initialPos = GetFormationLocalPos(FieldFormation.Huddle, posGroup, i);
 
                 GameObject slotObj = Instantiate(slotPrefab, Vector3.zero, Quaternion.identity);
-                slotObj.transform.SetParent(fieldPanel, false);
-                slotObj.transform.localScale = Vector3.one * 55f;
+                slotObj.transform.SetParent(slotParent, false);
+                slotObj.transform.localScale = Vector3.one * slotScale;
                 slotObj.transform.localPosition = initialPos;
 
                 BoardSlot slot = slotObj.GetComponent<BoardSlot>();
@@ -204,7 +208,7 @@ public class FieldSlotManager : MonoBehaviour
         }
 
         // Priority 3: Inspector-assigned FormationData asset
-        FormationData inspectorData = GetInspectorFormation(form);
+        FormationData inspectorData = GetInspectorFormation(form, isOffense);
         if (inspectorData != null)
         {
             MoveSlotsByFormationData(playerId, inspectorData);
@@ -221,11 +225,11 @@ public class FieldSlotManager : MonoBehaviour
         }
     }
 
-    private FormationData GetInspectorFormation(FieldFormation form)
+    private FormationData GetInspectorFormation(FieldFormation form, bool isOffense = true)
     {
         switch (form)
         {
-            case FieldFormation.Huddle:             return formation_Huddle;
+            case FieldFormation.Huddle:             return isOffense ? formation_HuddleOffense : formation_HuddleDefense;
             case FieldFormation.Offense_Run:        return formation_OffenseRun;
             case FieldFormation.Offense_ShortPass:  return formation_OffenseShortPass;
             case FieldFormation.Offense_LongPass:   return formation_OffenseLongPass;

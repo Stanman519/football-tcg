@@ -1,9 +1,8 @@
-using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using TcgEngine.Client;
 using TcgEngine;
-using UnityEngine.Rendering.Universal;
 using Assets.TcgEngine.Scripts.Gameplay;
 
 public class PlayCallUIScript : MonoBehaviour
@@ -15,11 +14,17 @@ public class PlayCallUIScript : MonoBehaviour
     public Button shortPassButton;
     public Button longPassButton;
     public PlayEnhancerSlot enhancerSlot;
+    [Header("Enhancer Display")]
+    public Text enhancerDisplayText; // wired by PlayCallPanelBuilder
+
+    // Flash color shown briefly on the selected button before the panel closes
+    static readonly Color C_SELECTED = new Color(0.91f, 0.39f, 0.10f, 1f); // orange
+    static readonly Color C_NORMAL   = new Color(0.13f, 0.22f, 0.34f, 1f); // steel blue
 
     private PlayType selectedPlay = PlayType.Huddle;
     private Card selectedEnhancer = null;
     private bool isPlayLocked = false;
-    private bool lastShouldShowPanel = false;  // Track state change for logging
+    private bool lastShouldShowPanel = false;
 
     void Start()
     {
@@ -96,36 +101,51 @@ public class PlayCallUIScript : MonoBehaviour
         if (isPlayLocked)
             return;
 
-        Debug.Log("[PlayCallUIScript] ShowPlayCallUI() - Activating panel");
         playCallPanel.SetActive(true);
-        selectedPlay = PlayType.Huddle;
+        selectedPlay     = PlayType.Huddle;
         selectedEnhancer = null;
+        enhancerSlot?.Clear();
 
-        // Reset the PlayCallManager state if it exists
         PlayCallManager manager = playCallPanel.GetComponent<PlayCallManager>();
-        if (manager != null)
-        {
-            manager.ResetState();
-        }
+        if (manager != null) manager.ResetState();
     }
 
     private void SelectPlay(PlayType play)
     {
         if (isPlayLocked) return;
-
         selectedPlay = play;
-        Debug.Log("Selected Play: " + play);
-        
-        // Immediately confirm this selection
+        StartCoroutine(FlashAndConfirm(play));
+    }
+
+    private IEnumerator FlashAndConfirm(PlayType play)
+    {
+        // Highlight the chosen button orange for a brief moment
+        Button chosen = play == PlayType.Run       ? runButton
+                      : play == PlayType.ShortPass ? shortPassButton
+                      :                              longPassButton;
+
+        if (chosen != null)
+        {
+            var img = chosen.GetComponent<Image>();
+            if (img != null) img.color = C_SELECTED;
+        }
+
+        yield return new WaitForSeconds(0.22f);
+
+        // Reset color before hiding (not strictly necessary but clean)
+        if (chosen != null)
+        {
+            var img = chosen.GetComponent<Image>();
+            if (img != null) img.color = C_NORMAL;
+        }
+
         ConfirmPlaySelection();
     }
 
     public void SetEnhancerCard(Card card)
     {
         if (isPlayLocked) return;
-
         selectedEnhancer = card;
-        Debug.Log("Selected Enhancer: " + (card != null ? card.card_id : "null"));
     }
 
     private void ConfirmPlaySelection()
