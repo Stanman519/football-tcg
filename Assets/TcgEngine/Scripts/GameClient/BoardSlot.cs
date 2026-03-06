@@ -60,13 +60,6 @@ namespace TcgEngine.Client
                     assignedCard = occupying;
                     UpdateSlotVisual();
                 }
-
-                // Hide slots whose position group doesn't match this player's current role.
-                // Offense player shows offensive + special-teams slots; defense player shows defensive slots only.
-                bool playerIsOffense = gdata.current_offensive_player?.player_id == player_id;
-                bool posIsDefensive  = System.Array.Exists(gdata.defensive_pos_grps, p => p == player_position_type);
-                bool shouldShow      = playerIsOffense ? !posIsDefensive : posIsDefensive;
-                gameObject.SetActive(shouldShow);
             }
 
             bool valid = IsValidDragTarget();
@@ -92,6 +85,8 @@ namespace TcgEngine.Client
             // CHECK: Player can only drag cards for their current side
             Game game = GameClient.Get().GetGameData();
             Player current_player = game.GetPlayer(GameClient.Get().GetPlayerID());
+            if (this.player_id != current_player.player_id)
+                return false;
             bool is_offensive_player = (current_player.player_id == game.current_offensive_player.player_id);
             
             bool card_is_offensive = System.Array.Exists(game.offensive_pos_grps, pos => pos == dragCard.Data.playerPosition);

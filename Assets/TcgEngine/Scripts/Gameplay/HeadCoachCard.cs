@@ -68,5 +68,35 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 positional_Scheme[pos] = new HCPlayerSchemeData { pos_max = max };
             }
         }
+
+        /// <summary>
+        /// Populate runtime dictionaries from a CoachCardData asset.
+        /// </summary>
+        public void InitFromData(CoachCardData data)
+        {
+            if (data == null) return;
+
+            if (data.offenseYardage != null)
+                foreach (var e in data.offenseYardage)
+                    baseOffenseYardage[e.playType] = e.yards;
+
+            if (data.defenseYardage != null)
+                foreach (var e in data.defenseYardage)
+                    baseDefenseYardage[e.playType] = e.yards;
+
+            if (data.positionalScheme != null)
+                foreach (var e in data.positionalScheme)
+                    positional_Scheme[e.position] = new HCPlayerSchemeData { pos_max = e.maxCards };
+
+            offenseFormations.Clear();
+            if (data.offenseFormations != null)
+                foreach (var e in data.offenseFormations)
+                    offenseFormations[e.playType] = e.formation;
+
+            defenseFormations.Clear();
+            if (data.defenseFormations != null)
+                foreach (var e in data.defenseFormations)
+                    defenseFormations[e.playType] = e.formation;
+        }
     }
 }

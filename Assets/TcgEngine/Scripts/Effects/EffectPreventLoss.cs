@@ -15,14 +15,7 @@ namespace Assets.TcgEngine.Scripts.Effects
 
         public override void DoEffect(GameLogicService logic, AbilityData ability, Card caster)
         {
-            // This would need to be applied during play resolution
-            // Mark that this card prevents loss for this play
-            // The actual prevention happens in ResolveRun/ResolvePass
-            
-            Game game = logic.GetGameData();
-            
-            // Add a status or flag indicating loss prevention is active
-            // This would be checked in the resolution code
+            caster.SetTrait("prevent_loss", negateCompletely ? 999 : value);
         }
 
         public override void DoEffect(GameLogicService logic, AbilityData ability, Card caster, Card target)

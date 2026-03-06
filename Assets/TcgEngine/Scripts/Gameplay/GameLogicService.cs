@@ -90,34 +90,45 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         public GameLogicService(Game game)
         {
 
+            // ── Reel Configuration ───────────────────────────────────────────
+            // All reels are 8 symbols (uniform). Wrench appears on outer reels
+            // only (L and R) so it is never in the center of a clean pass read.
+            // Probabilities (middle row, 512 combos):
+            //   Football ≥1  ≈ 80.5%   Football ≥2  ≈ 37.5%   Football ≥3 ≈  7.0%
+            //   Helmet   ≥1  ≈ 70.7%   Helmet   ≥2  ≈ 25.8%   Helmet   ≥3 ≈  3.5%
+            //   Star     ≥1  ≈ 33.0%   Star     ≥2  ≈  4.3%
+            //   Wrench   ≥1  ≈ 23.4%   Wrench   ≥2  ≈  1.6%  (L+R only, never center)
+            //   Wild     ≥1  ≈ 12.5%                          (center reel only)
+            // Multi-icon AND conditions:
+            //   Football+Helmet ≥1 each ≈ 52.7%   Star+Football ≥1 each ≈ 22.9%
+            //   Star+Helmet     ≥1 each ≈ 19.3%
             default_slot_data = new List<SlotData>
             {
-                new SlotData()
+                new SlotData()  // Reel 0 — Left (8 symbols, has Wrench, no Wild)
                 {
                     id = 0,
                     reelIconInventory = new List<SlotIconData>
                     {
-                        new SlotIconData(SlotMachineIconType.Football, 3),
+                        new SlotIconData(SlotMachineIconType.Football, 4),
                         new SlotIconData(SlotMachineIconType.Helmet, 2),
                         new SlotIconData(SlotMachineIconType.Star, 1),
                         new SlotIconData(SlotMachineIconType.Wrench, 1),
                     },
                     stopDelay = 1.5f
                 },
-                new SlotData()
+                new SlotData()  // Reel 1 — Center (8 symbols, Wild only, no Wrench)
                 {
                     id = 1,
                     reelIconInventory = new List<SlotIconData>
                     {
                         new SlotIconData(SlotMachineIconType.Football, 3),
-                        new SlotIconData(SlotMachineIconType.Helmet, 2),
+                        new SlotIconData(SlotMachineIconType.Helmet, 3),
                         new SlotIconData(SlotMachineIconType.Star, 1),
-                        new SlotIconData(SlotMachineIconType.Wrench, 1),
                         new SlotIconData(SlotMachineIconType.WildCard, 1),
                     },
                     stopDelay = 2.0f
                 },
-                new SlotData()
+                new SlotData()  // Reel 2 — Right (8 symbols, has Wrench, no Wild)
                 {
                     id = 2,
                     reelIconInventory = new List<SlotIconData>
@@ -196,13 +207,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 int dcards = GameplayData.Get().cards_start;
                 DrawCard(player, dcards);
 
-                //Add coin second player
-                bool is_random = true; //level == null || level.first_player == LevelFirst.Random;
-                if (is_random && player != game_data.current_offensive_player)
-                {
-                    Card card = Card.Create(GameplayData.Get().second_bonus, VariantData.GetDefault(), player);
-                    player.cards_hand.Add(card);
-                }
+                // (second_bonus coin card removed — not used in First & Long)
             }
 
             //Start state
@@ -230,6 +235,8 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 player.ResetReadyState();
                 player.SelectedPlay = PlayType.Huddle;
                 player.PlayEnhancer = null;
+                player.LiveBallCard = null;
+                player.suits_played_this_turn.Clear();
             }
 
             // ALSO reset the shared readiness dictionary used by the server
@@ -393,6 +400,15 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             // slotMachineManager.slot_data is passed directly so no Sprite references
             // end up in game_data (Sprites can't be network-serialized).
             game_data.current_slot_data = SpinSlotsWithModifiers();
+
+            // Honor any pending respins (each spin overwrites the previous result)
+            while (game_data.pending_respins > 0)
+            {
+                game_data.pending_respins--;
+                Debug.Log($"[Respin] Using respin. {game_data.pending_respins} remaining.");
+                game_data.current_slot_data = SpinSlotsWithModifiers();
+            }
+
             slotMachineUI.FireReelUI(game_data.current_slot_data.Results, slotMachineManager.slot_data);
 
             resolve_queue.AddCallback(ResolvePlayOutcome);
@@ -476,18 +492,51 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
             game_data.plays_left_in_half--;
 
-            // Check yardage, downs, turnovers
+            // Record this play in history so consecutive-play conditions and stacking effects
+            // can read the correct streak length on the next play.
+            PlayResult playResult = game_data.turnover_pending ? PlayResult.Turnover : PlayResult.None;
+            game_data.RecordPlayResult(playResult, game_data.yardage_this_play);
+
+            // Drain stamina from every player card on the board.
+            // At 0, the card is permanently discarded (not sidelined).
+            foreach (Player aplayer in game_data.players)
+            {
+                for (int i = aplayer.cards_board.Count - 1; i >= 0; i--)
+                {
+                    Card card = aplayer.cards_board[i];
+                    if (!card.CardData.IsPlayer()) continue;
+                    card.current_stamina--;
+                    if (card.current_stamina <= 0)
+                    {
+                        Debug.Log($"[Stamina] {card.card_id} exhausted — permanently discarded.");
+                        DiscardCard(card);
+                    }
+                }
+            }
+
+            // Fail-event turnovers (INT / fumble from SLOTDRAW abilities) set this flag.
+            // Skip normal down/yardage accounting and switch possession instead.
+            if (game_data.turnover_pending)
+            {
+                game_data.turnover_pending = false;
+                Debug.Log("[EndPlayPhase] Turnover flag set — switching possession.");
+                SwitchPossession();
+                if (game_data.plays_left_in_half <= 0)
+                    HandleHalfOrGameEnd();
+                else
+                    ResetDrive();
+                return;
+            }
+
             game_data.current_down++;
-            game_data.raw_ball_on += game_data.yardage_this_play; // Update ball position
+            game_data.raw_ball_on += game_data.yardage_this_play;
 
             if (game_data.current_down > 4 || game_data.raw_ball_on >= 100)
-            {
                 HandleTurnoverOrScore();
-            }
+            else if (game_data.plays_left_in_half <= 0)
+                HandleHalfOrGameEnd();
             else
-            {
                 StartTurn();
-            }
         }
 
         private void WaitForLiveBallSelection()
@@ -600,8 +649,8 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                     break;
 
                 case GamePhase.LiveBall:
-                    // End the live ball phase (force resolution / end of play)
-                    EndTurn();
+                    ResolveLiveBallEffects();
+                    resolve_queue.ResolveAll();
                     break;
 
                 case GamePhase.SlotSpin:
@@ -618,34 +667,8 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             }
         }
 
-        //Check if a player is winning the game, if so end the game
-        //Change or edit this function for a new win condition
-        protected virtual void CheckForWinner()
-        {
-            //int count_alive = 0;
-            //Player alive = null;
-            //foreach (Player player in game_data.players)
-            //{
-            //    if (!player.IsDead())
-            //    {
-            //        alive = player;
-            //        count_alive++;
-            //    }
-            //}
-            if (game_data.plays_left_in_half <= 0 && game_data.current_half == 2)
-            {
-                EndGame(game_data.current_offensive_player.player_id); // fix later
-            }
-
-/*            if (count_alive == 0)
-            {
-                EndGame(-1); //Everyone is dead, Draw
-            }
-            else if (count_alive == 1)
-            {
-                EndGame(alive.player_id); //Player win
-            }*/
-        }
+        // No-op: First & Long has no HP win condition. Real end-of-game logic is in HandleHalfOrGameEnd().
+        protected virtual void CheckForWinner() { }
 
         protected virtual void ClearTurnData()
         {
@@ -686,12 +709,15 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 if (card != null)
                 {
                     Card acard = Card.Create(card, variant, player);
-                    player.cards_deck.Add(acard);
+                    // QBs start on the sideline — always available to deploy, never shuffled into the deck
+                    if (card.playerPosition == PlayerPositionGrp.QB)
+                        player.cards_sideline.Add(acard);
+                    else
+                        player.cards_deck.Add(acard);
                 }
             }
 
             DeckPuzzleData puzzle = deck as DeckPuzzleData;
-
 
             //Shuffle deck
             if (puzzle == null || !puzzle.dont_shuffle_deck)
@@ -709,15 +735,13 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             }
             else
             {
-                // Check if both players have placed their player cards OR if enough time has passed
+                // Require BOTH players to have placed at least one card before auto-progressing
                 bool bothPlacedCards = false;
                 if (game_data.players != null && game_data.players.Length >= 2)
                 {
                     int p0Cards = game_data.players[0]?.cards_board?.Count ?? 0;
                     int p1Cards = game_data.players[1]?.cards_board?.Count ?? 0;
-                    // Consider ready if either player has placed at least one card, or after some time
-                    // For now, auto-progress if either player has placed cards
-                    bothPlacedCards = (p0Cards > 0 || p1Cards > 0);
+                    bothPlacedCards = (p0Cards > 0 && p1Cards > 0);
                 }
 
                 if (bothPlacedCards)
@@ -761,7 +785,10 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                     for (int i = 0; i < card.quantity; i++)
                     {
                         Card acard = Card.Create(icard, variant, player);
-                        player.cards_deck.Add(acard);
+                        if (icard.playerPosition == PlayerPositionGrp.QB)
+                            player.cards_sideline.Add(acard);
+                        else
+                            player.cards_deck.Add(acard);
                     }
                 }
             }
@@ -796,6 +823,10 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                     player.cards_board.Add(card);
                     card.slot = slot;
                     card.exhausted = true; //Cant attack first turn
+
+                    // Track suit usage — enforces one-per-suit-per-turn rule
+                    if (icard.IsPlayer() && icard.suit != CardSuit.None)
+                        player.suits_played_this_turn.Add(icard.suit);
                 }
                 else if (icard.IsEquipment())
                 {
@@ -806,6 +837,12 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 else if (icard.IsSecret())
                 {
                     player.cards_secret.Add(card);
+                }
+                else if (icard.IsLiveBall())
+                {
+                    // Hold in temp zone until both players reveal; discarded after resolution
+                    player.cards_temp.Add(card);
+                    player.LiveBallCard = card;
                 }
                 else
                 {
@@ -1372,6 +1409,12 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
             cards_to_clear.Add(card); //Will be Clear() in the next UpdateOngoing, so that simultaneous damage effects work
             onCardDiscarded?.Invoke(card);
+
+            //Trigger OnDiscard abilities on all board cards for both players
+            TriggerPlayerCardsAbilityType(game_data.current_offensive_player, AbilityTrigger.OnDiscard);
+            Player defPlayer = game_data.GetCurrentDefensivePlayer();
+            if (defPlayer != null)
+                TriggerPlayerCardsAbilityType(defPlayer, AbilityTrigger.OnDiscard);
         }
 
         public int RollRandomValue(int dice)
@@ -1438,6 +1481,58 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
             foreach (Card card in player.cards_board)
                 TriggerCardAbilityType(type, card, card);
+        }
+
+        /// <summary>
+        /// Called at the start of ResolvePlayOutcome. Scans all board cards for
+        /// OnRunResolution / OnPassResolution abilities and fires them if slot
+        /// requirements (if any) are satisfied.
+        ///
+        /// Stat buff abilities (failEventType == None): fired synchronously via
+        ///   ResolveCardAbility so their effects are visible to the yardage calc.
+        /// Fail event abilities (failEventType != None): added to the resolve queue
+        ///   (null callback) so ResolveRunFailEvents / ResolvePassFailEvents pick
+        ///   them up through GetAbilityQueue().
+        /// </summary>
+        private void TriggerBoardSlotAbilities(PlayType playType)
+        {
+            var triggerType = playType == PlayType.Run
+                ? AbilityTrigger.OnRunResolution
+                : AbilityTrigger.OnPassResolution;
+
+            foreach (var player in game_data.players)
+            {
+                foreach (var card in player.cards_board.ToList())
+                {
+                    foreach (var ability in card.GetAbilities())
+                    {
+                        if (ability == null || ability.trigger != triggerType) continue;
+
+                        // Slot gate
+                        if (!ability.AreSlotRequirementsMet(game_data.current_slot_data))
+                        {
+                            Debug.Log($"[SlotDraw] {card.card_id} '{ability.id}' — req not met, skipped.");
+                            continue;
+                        }
+
+                        // Other trigger conditions (e.g. ConditionOwner, ConditionLastPlayType)
+                        if (!ability.AreTriggerConditionsMet(game_data, card)) continue;
+
+                        if (ability.failEventType != FailPlayEventType.None)
+                        {
+                            // Fail event: enqueue for ResolveRunFailEvents / ResolvePassFailEvents
+                            resolve_queue.AddAbility(ability, card, card, null);
+                            Debug.Log($"[SlotDraw] Queued fail event: {ability.failEventType} from {card.card_id}");
+                        }
+                        else
+                        {
+                            // Stat buff: apply synchronously before yardage is calculated
+                            Debug.Log($"[SlotDraw] Firing stat ability '{ability.id}' from {card.card_id}");
+                            ResolveCardAbility(ability, card, card);
+                        }
+                    }
+                }
+            }
         }
 
         public virtual void TriggerCardAbility(AbilityData iability, Card caster)
@@ -1510,6 +1605,25 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             {
                 GoToSelectorCard(iability, caster);
                 return true;
+            }
+            else if (iability.target == AbilityTarget.CardSelectorHand)
+            {
+                // Reuses the same SelectorCard UI and flow; GetCardTargets filters to own hand
+                GoToSelectorCard(iability, caster);
+                return true;
+            }
+            else if (iability.target == AbilityTarget.CardSelectorDiscover)
+            {
+                // Discover: pull random cards from deck to cards_temp, then open selector
+                PopulateDiscoverCards(iability, caster);
+                Player discoverPlayer = game_data.GetPlayer(caster.player_id);
+                if (discoverPlayer != null && discoverPlayer.cards_temp.Count > 0)
+                {
+                    GoToSelectorCard(iability, caster);
+                    return true;
+                }
+                // No matching cards found — skip the selector
+                return false;
             }
             else if (iability.target == AbilityTarget.ChoiceSelector)
             {
@@ -1763,15 +1877,29 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             // look for fumbles
             // move to live ball phase
 
+            // Fire all slot-triggered abilities (stat buffs sync, fail events queued)
+            TriggerBoardSlotAbilities(game_data.current_offensive_player.SelectedPlay);
+
             //STEP 0: check if pass or run then split off
             if (game_data.current_offensive_player.SelectedPlay == PlayType.Run)
                 playResolution = ResolveRunOutcome();
             else
                 playResolution = ResolvePassOutcome();
 
-            // Store yardage in game state so EndPlayPhase can apply it to ball position
+            // Check guaranteed score
+            if (game_data.current_offensive_player.cards_board
+                    .Any(c => c.GetTraitValue("guaranteed_score") > 0))
+            {
+                Debug.Log("[AlwaysScore] Guaranteed score activated — forcing touchdown yardage.");
+                playResolution.YardageGained = 100 - game_data.raw_ball_on;
+                playResolution.BallIsLive = false;
+                playResolution.Turnover = false;
+            }
+
+            // Store yardage and turnover flag so EndPlayPhase can apply them
             game_data.yardage_this_play = playResolution.YardageGained;
             game_data.last_play_yardage = playResolution.YardageGained;
+            game_data.turnover_pending = playResolution.Turnover;
             game_data.last_play_type = game_data.current_offensive_player.SelectedPlay;
 
             // If yardage takes ball to end zone or safety, end play immediately
@@ -1815,95 +1943,158 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         private void HandleTouchdown()
         {
             Debug.Log("TOUCHDOWN! Scoring 7 points...");
-            
-            // Award 7 points to offensive player
+
             game_data.current_offensive_player.points += 7;
             Debug.Log($"Player {game_data.current_offensive_player.player_id} scores! Total: {game_data.current_offensive_player.points}");
-            
-            // Touchdown resets ball to 25 for the team that just scored (they now kick off)
-            // For now, switch possession and reset
-            SwitchPossession();
-            
-            // Check if game is over (after 2 halves = 22 plays total)
-            CheckGameOver();
+
+            SwitchPossession(); // swap who has the ball — does NOT start a new turn
+
+            // plays_left_in_half was already decremented in EndPlayPhase
+            if (game_data.plays_left_in_half <= 0)
+            {
+                HandleHalfOrGameEnd();
+                return;
+            }
+
+            ResetDrive();
         }
 
         private void HandleTurnoverOnDowns()
         {
             Debug.Log("Turnover on downs! Defense holds...");
-            
-            // Switch possession - defense now becomes offense
             SwitchPossession();
-            
-            // Reset for new drive at 25 yard line
             ResetDrive();
+        }
+
+        private void HandleHalfOrGameEnd()
+        {
+            if (game_data.current_half >= 2)
+            {
+                Player p0 = game_data.players[0];
+                Player p1 = game_data.players[1];
+                if (p0.points > p1.points)      EndGame(0);
+                else if (p1.points > p0.points) EndGame(1);
+                else                            EndGame(-1);
+            }
+            else
+            {
+                game_data.current_half = 2;
+                game_data.plays_left_in_half = 11;
+                // Second half: the team that did NOT start the game on offense receives the kickoff.
+                // Player 0 always starts first half, so player 1 starts second half.
+                game_data.current_offensive_player = game_data.players[1];
+                ResetDrive();
+            }
+        }
+
+        /// <summary>
+        /// Called by EffectForceTurnover during live ball resolution.
+        /// Switches possession and starts the new offense at their 25 + return yards.
+        /// </summary>
+        public void HandleLiveBallTurnover(int returnYards)
+        {
+            SwitchPossession();
+            // Advance ball by return yards (new offense runs it back)
+            game_data.raw_ball_on = Mathf.Min(99, game_data.raw_ball_on + returnYards);
+            Debug.Log($"[LiveBall] Ball placed at {game_data.raw_ball_on} after {returnYards}-yard return.");
         }
 
         private void SwitchPossession()
         {
-            // Get the other player (switch from offense to defense)
             Player new_offense = game_data.GetOpponentPlayer(game_data.current_offensive_player.player_id);
-            
-            Debug.Log($"Switching possession: Player {game_data.current_offensive_player.player_id} -> Player {new_offense.player_id}");
-            
+            Debug.Log($"Switching possession: Player {game_data.current_offensive_player.player_id} → Player {new_offense.player_id}");
             game_data.current_offensive_player = new_offense;
-            
-            // Reset down and yardage for new drive
-            ResetDrive();
+            // Callers are responsible for ResetDrive() / StartTurn()
         }
 
         private void ResetDrive()
         {
             game_data.current_down = 1;
-            game_data.raw_ball_on = 25;  // Start at own 25
+            game_data.raw_ball_on = 25;
             game_data.yardage_this_play = 0;
-            game_data.yardage_to_go = 75;  // Need 75 yards for TD
-            
-            Debug.Log($"Drive reset - Down: {game_data.current_down}, Ball on: {game_data.raw_ball_on}");
-            
-            // Start new turn with new offense
+            game_data.yardage_to_go = 75;
+
+            // Move all remaining board player cards to the sideline.
+            // They're still in the roster and can be re-deployed next possession.
+            foreach (Player aplayer in game_data.players)
+            {
+                for (int i = aplayer.cards_board.Count - 1; i >= 0; i--)
+                {
+                    Card card = aplayer.cards_board[i];
+                    aplayer.cards_board.RemoveAt(i);
+                    aplayer.cards_sideline.Add(card);
+                    Debug.Log($"[Sideline] {card.card_id} moved to sideline for player {aplayer.player_id}.");
+                }
+            }
+
+            Debug.Log($"Drive reset — Down: {game_data.current_down}, Ball on: {game_data.raw_ball_on}");
             StartTurn();
         }
 
-        private void CheckGameOver()
-        {
-            // plays_left_in_half is decremented in EndPlayPhase; just check here
-            if (game_data.plays_left_in_half <= 0)
-            {
-                // End of half - check score
-                if (game_data.current_half >= 2)
-                {
-                    // Game over - declare winner
-                    Player p0 = game_data.players[0];
-                    Player p1 = game_data.players[1];
-                    
-                    if (p0.points > p1.points)
-                        EndGame(0);
-                    else if (p1.points > p0.points)
-                        EndGame(1);
-                    else
-                        EndGame(-1);  // Tie
-                }
-                else
-                {
-                    // Start second half
-                    game_data.current_half = 2;
-                    game_data.plays_left_in_half = 11;
-                    game_data.current_offensive_player = game_data.players[0];  // Or flip
-                    ResetDrive();
-                }
-            }
-            else
-            {
-                // Continue with new drive
-                ResetDrive();
-            }
-        }
+        private void CheckGameOver() { HandleHalfOrGameEnd(); }
 
         private void ResolveLiveBallEffects()
         {
-            Debug.Log("Resolving live ball effects...");
-            // TODO: Implement logic for handling loose ball effects (e.g., fumbles, deflections)
+            Card offCard = game_data.current_offensive_player.LiveBallCard;
+            Card defCard = game_data.GetCurrentDefensivePlayer().LiveBallCard;
+
+            Debug.Log($"[LiveBall] Resolving — OFF: {offCard?.card_id ?? "pass"} | DEF: {defCard?.card_id ?? "pass"}");
+
+            // STEP 1: Turnovers — defensive cards with EffectForceTurnover resolve first, uncounterable.
+            // If triggered, possession switches and we return immediately (skipping all other effects).
+            if (defCard != null)
+            {
+                foreach (var ability in defCard.GetAbilities())
+                {
+                    if (ability == null || !ability.HasEffect<EffectForceTurnover>()) continue;
+                    if (!ability.AreTriggerConditionsMet(game_data, defCard)) continue;
+
+                    Debug.Log($"[LiveBall] Turnover triggered by {defCard.card_id}");
+                    ResolveCardAbility(ability, defCard, defCard);
+                    ClearLiveBallCards();
+                    return; // Turnover handler takes over flow — do NOT queue EndTurn
+                }
+            }
+
+            // STEP 2: Defensive yardage modifiers (tackles, deflections) apply first.
+            if (defCard != null)
+            {
+                foreach (var ability in defCard.GetAbilities())
+                {
+                    if (ability == null || ability.HasEffect<EffectForceTurnover>()) continue;
+                    if (!ability.AreTriggerConditionsMet(game_data, defCard)) continue;
+                    ResolveCardAbility(ability, defCard, defCard);
+                }
+            }
+
+            // STEP 3: Offensive yardage modifiers (jukes, spin moves) apply after defensive.
+            if (offCard != null)
+            {
+                foreach (var ability in offCard.GetAbilities())
+                {
+                    if (ability == null) continue;
+                    if (!ability.AreTriggerConditionsMet(game_data, offCard)) continue;
+                    ResolveCardAbility(ability, offCard, offCard);
+                }
+            }
+
+            // STEP 4: Status effects (multi-turn) are applied via the abilities above.
+            // STEP 5: Slot manipulation fires on OnPlay when the card was played — already handled.
+
+            ClearLiveBallCards();
+            resolve_queue.AddCallback(EndTurn);
+        }
+
+        private void ClearLiveBallCards()
+        {
+            foreach (var player in game_data.players)
+            {
+                if (player.LiveBallCard != null)
+                {
+                    DiscardCard(player.LiveBallCard);
+                    player.LiveBallCard = null;
+                }
+            }
         }
 
 
@@ -2351,10 +2542,36 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
         private PlayResolution ResolvePassOutcome()
         {
+            var playType = game_data.current_offensive_player.SelectedPlay;
+            var middleIcons = game_data.current_slot_data.Results
+                .Select(r => r.Middle?.IconId ?? SlotMachineIconType.None)
+                .ToList();
 
-            var passCompleteViaSlotMachine = CheckPassCompletion(game_data.current_offensive_player.SelectedPlay, game_data.current_slot_data.Results.Select(r => r.Middle.IconId).ToList());
+            bool hasQB = game_data.current_offensive_player.cards_board
+                .Any(c => c.CardData.playerPosition == PlayerPositionGrp.QB);
 
-            var failEvent = ResolvePassFailEvents(passCompleteViaSlotMachine);
+            if (!hasQB)
+            {
+                // Replacement-level QB: any wrench fails both pass types;
+                // long passes also fail if no football shows in the middle row.
+                bool hasWrench  = middleIcons.Any(i => i == SlotMachineIconType.Wrench);
+                bool hasFootball = middleIcons.Any(i => i == SlotMachineIconType.Football
+                                                      || i == SlotMachineIconType.WildCard);
+                bool incomplete = hasWrench || (playType == PlayType.LongPass && !hasFootball);
+                if (incomplete)
+                {
+                    var replQBFail = ScriptableObject.CreateInstance<AbilityData>();
+                    replQBFail.trigger = AbilityTrigger.OnPassResolution;
+                    replQBFail.failEventType = FailPlayEventType.IncompletePass;
+                    resolve_queue.AddAbility(replQBFail, null, null, null);
+                    Debug.Log($"[ReplacementQB] Pass incomplete ({(hasWrench ? "wrench" : "no football on long")}).");
+                }
+            }
+            // Named QB's fail conditions (e.g. ConditionSlotIconCount(Wrench,>=1), ConditionBoardPositionCount(WR,<3))
+            // are abilities on the QB card with trigger=OnPassResolution and failEventType=IncompletePass.
+            // They were already queued by TriggerBoardSlotAbilities() before we got here.
+
+            var failEvent = ResolvePassFailEvents();
            
             if (failEvent != null)
             {
@@ -2401,6 +2618,15 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             int passTotal = baseYardage + statusYardage + otherOffPlayerYardage + coachYardage - otherDefPlayerYardage;
             Debug.Log($"[PassResolution] ReceiverBase={baseYardage} ReceiverStatus={statusYardage} OtherOff={otherOffPlayerYardage} Coach={coachYardage} DefCoverage={otherDefPlayerYardage} => Total={passTotal} (Receiver={targetReceiver?.card_id ?? "none"})");
 
+            int preventLoss = game_data.current_offensive_player.cards_board
+                .Select(c => c.GetTraitValue("prevent_loss")).DefaultIfEmpty(0).Max();
+            if (preventLoss > 0 && passTotal < 0)
+            {
+                if (preventLoss >= 999) passTotal = 0;
+                else passTotal = Mathf.Min(0, passTotal + preventLoss);
+                Debug.Log($"[PreventLoss] Pass yardage clamped to {passTotal}");
+            }
+
             return new PlayResolution
             {
                 BallIsLive = true,
@@ -2410,42 +2636,9 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             };
 
         }
-        private bool CheckPassCompletion(PlayType playType, List<SlotMachineIconType> slotResults)
-        {
-
-            var requirements = game_data.current_offensive_player.head_coach.completionRequirements[playType];
-            if (requirements == null) return false;
-
-            // Count how many of each icon type appeared in the slots
-            var slotCounts = new Dictionary<SlotMachineIconType, int>();
-            foreach (var result in slotResults)
-            {
-                if (slotCounts.ContainsKey(result))
-                    slotCounts[result]++;
-                else
-                    slotCounts[result] = 1;
-            }
-            var isComplete = false;
-            // Check if slot counts meet the minimum requirements
-            foreach (var requirement in requirements)
-            {
-                if (slotCounts.ContainsKey(requirement.icon) && slotCounts[requirement.icon] >= requirement.minCount)
-                    isComplete = true;
-            }
-
-            return isComplete;
-        }
         // basically returning a resolution that could have multiple abilities to playback in order
-        private PlayResolution ResolvePassFailEvents(bool passCompleteViaSlotMachine)
-        { 
-            if (!passCompleteViaSlotMachine)
-            {
-                var basicIncompletePass = ScriptableObject.CreateInstance<AbilityData>();
-                basicIncompletePass.trigger = AbilityTrigger.OnPassResolution;
-                basicIncompletePass.failEventType = FailPlayEventType.IncompletePass;
-                resolve_queue.AddAbility(basicIncompletePass, null, null, null);
-            }
-
+        private PlayResolution ResolvePassFailEvents()
+        {
             var failList = resolve_queue.GetAbilityQueue()
                 .Where(a => a.ability.trigger == AbilityTrigger.OnPassResolution &&
                             a.ability.failEventType != FailPlayEventType.None)
@@ -2457,6 +2650,18 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 switch (failEvent.ability.failEventType)
                 {
                     case FailPlayEventType.Sack:
+                        // "Throw It Away" enhancer converts sack to an incomplete pass
+                        if (game_data.current_offensive_player.PlayEnhancer?.card_id == "00307_enh_throw_it_away")
+                        {
+                            Debug.Log("[ThrowItAway] Sack converted to incomplete pass.");
+                            return HandleIncompletePass(failEvent);
+                        }
+                        if (game_data.current_offensive_player.cards_board
+                                .Any(c => c.GetTraitValue("prevent_loss") > 0))
+                        {
+                            Debug.Log("[PreventLoss] Sack converted to incomplete pass.");
+                            return HandleIncompletePass(failEvent);
+                        }
                         return HandleSack(failEvent, failList.ToList());
 
                     case FailPlayEventType.Interception:
@@ -2472,9 +2677,8 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                         return HandleIncompletePass(failEvent);
 
                     case FailPlayEventType.RunnerFumble:
-                        if (passCompleteViaSlotMachine)
-                            return HandleFumble(failEvent);
-                        else break;
+                        // Receiver fumble — only reachable if no IncompletePass fired first (sorted by priority)
+                        return HandleFumble(failEvent);
 
                     default:
                         break;
@@ -2487,7 +2691,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         {
 
             var failList = resolve_queue.GetAbilityQueue()
-                .Where(a => a.ability.trigger == AbilityTrigger.OnPassResolution &&
+                .Where(a => a.ability.trigger == AbilityTrigger.OnRunResolution &&
                             a.ability.failEventType != FailPlayEventType.None)
                 .OrderBy(a => a.ability.failEventType) // Priority-based order
                 .ToList();
@@ -2497,8 +2701,21 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 switch (failEvent.ability.failEventType)
                 {
                     case FailPlayEventType.RunnerFumble:
+                        // "Ball Security" enhancer protects against fumbles
+                        if (game_data.current_offensive_player.PlayEnhancer?.card_id == "00308_enh_ball_security")
+                        {
+                            Debug.Log("[BallSecurity] Fumble prevented by Ball Security.");
+                            break; // Skip fumble, continue to next fail event
+                        }
                         return HandleFumble(failEvent);
                     case FailPlayEventType.TackleForLoss:
+                        if (game_data.current_offensive_player.cards_board
+                                .Any(c => c.GetTraitValue("prevent_loss") > 0))
+                        {
+                            Debug.Log("[PreventLoss] Tackle for loss negated.");
+                            return new PlayResolution { BallIsLive = false, YardageGained = 0,
+                                Turnover = false, ContributingAbilities = new List<AbilityQueueElement>() };
+                        }
                         return HandleTackleForLoss(failEvent);
                     default:
                         break;
@@ -2553,6 +2770,22 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
         private PlayResolution HandleQbFumble(AbilityQueueElement fumble)
         {
+            var recoveryCard = game_data.current_offensive_player.cards_board
+                .FirstOrDefault(c => c.GetTraitValue("fumble_recovery") > 0
+                                  && c.GetTraitValue("fumble_recovery_used") == 0);
+            if (recoveryCard != null)
+            {
+                int chance = recoveryCard.GetTraitValue("fumble_recovery");
+                recoveryCard.SetTrait("fumble_recovery_used", 1);
+                if (UnityEngine.Random.Range(0, 100) < chance)
+                {
+                    Debug.Log("[FumbleRecovery] QB fumble recovered! Offense keeps the ball.");
+                    return new PlayResolution { BallIsLive = false, YardageGained = 0,
+                        Turnover = false, ContributingAbilities = new List<AbilityQueueElement> { fumble } };
+                }
+                Debug.Log("[FumbleRecovery] Recovery attempted but failed.");
+            }
+
             var offGrit = game_data.current_offensive_player.GetCurrentBoardCardGrit();
             var defGrit = game_data.GetCurrentDefensivePlayer().GetCurrentBoardCardGrit();
 
@@ -2633,6 +2866,22 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
         private PlayResolution HandleFumble(AbilityQueueElement failEvent)
         {
+            var recoveryCard = game_data.current_offensive_player.cards_board
+                .FirstOrDefault(c => c.GetTraitValue("fumble_recovery") > 0
+                                  && c.GetTraitValue("fumble_recovery_used") == 0);
+            if (recoveryCard != null)
+            {
+                int chance = recoveryCard.GetTraitValue("fumble_recovery");
+                recoveryCard.SetTrait("fumble_recovery_used", 1);
+                if (UnityEngine.Random.Range(0, 100) < chance)
+                {
+                    Debug.Log("[FumbleRecovery] Fumble recovered! Offense keeps the ball.");
+                    return new PlayResolution { BallIsLive = false, YardageGained = 0,
+                        Turnover = false, ContributingAbilities = new List<AbilityQueueElement> { failEvent } };
+                }
+                Debug.Log("[FumbleRecovery] Recovery attempted but failed.");
+            }
+
             var offGrit = game_data.current_offensive_player.GetCurrentBoardCardGrit();
             var defGrit = game_data.GetCurrentDefensivePlayer().GetCurrentBoardCardGrit();
 
@@ -2660,62 +2909,6 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             };
         }
 
-        private void ResolvePlay(PlayResolution playRes)
-        {
-            
-            //ADD current play to play history
-            // play history ideas (anything that could be used by an ability!)
-            // slot
-            // playcalls
-            // cards in play
-            // hand sizes at end of play?
-            // yardage
-            // ball on at start of play
-            // ball on at end of play
-            //turnover?
-            // player stats (reception, yardage)
-            // plays left
-            //score
-            //pass completion
-            // cards drawn / discarded
-            // abilities used
-
-
-
-            game_data.plays_left_in_half--;
-            // check if there are no plays left in the half.
-
-            if (game_data.plays_left_in_half < 1)
-            {
-                if (game_data.current_half == 1)
-                {
-                    //go to second half
-                }
-                else
-                {
-                    //end game
-                }
-            }
-            if (game_data.current_down == 4)
-            {
-                game_data.current_offensive_player = game_data.GetCurrentDefensivePlayer();
-                game_data.current_down = 1;
-                //start turn?
-            }
-            else
-            {
-                game_data.current_down++;
-                game_data.raw_ball_on =
-                    ((game_data.fieldDirection == FieldDirection.Player0GoesUp && game_data.current_offensive_player.player_id == 0) ||
-                    (game_data.fieldDirection == FieldDirection.Player0GoesDown && game_data.current_offensive_player.player_id == 1)) ?
-                    game_data.raw_ball_on + game_data.yardage_this_play :
-                    game_data.raw_ball_on - game_data.yardage_this_play;   //TODO: this might be incredibly wrong.
-
-            }
-
-            //Clear stuff?
-        }
-
 
         private PlayResolution ResolveRunOutcome()
         {
@@ -2739,6 +2932,15 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
             int totalYardage = (baseYardage + playerRunBase + playerAddedBonuses) - (defPlayerCoverageBase + defAddedBonuses);
             Debug.Log($"[RunResolution] CoachBase={baseYardage} PlayerRunBase={playerRunBase} StatusBonus={playerAddedBonuses} DefCoverage={defPlayerCoverageBase} DefStatus={defAddedBonuses} => Total={totalYardage}");
+
+            int preventLoss = game_data.current_offensive_player.cards_board
+                .Select(c => c.GetTraitValue("prevent_loss")).DefaultIfEmpty(0).Max();
+            if (preventLoss > 0 && totalYardage < 0)
+            {
+                if (preventLoss >= 999) totalYardage = 0;
+                else totalYardage = Mathf.Min(0, totalYardage + preventLoss);
+                Debug.Log($"[PreventLoss] Run yardage clamped to {totalYardage}");
+            }
 
             return new PlayResolution
             {
@@ -2770,6 +2972,57 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             game_data.selector_ability_id = iability.id;
             game_data.selector_caster_uid = caster.uid;
             RefreshData();
+        }
+
+        /// <summary>
+        /// Pulls random cards matching the EffectDiscover filter from the player's deck
+        /// into cards_temp so the CardSelector UI can show them.
+        /// </summary>
+        protected virtual void PopulateDiscoverCards(AbilityData iability, Card caster)
+        {
+            Player player = game_data.GetPlayer(caster.player_id);
+            if (player == null) return;
+
+            // Read filter params from the first EffectDiscover on this ability
+            CardType filterType = CardType.None;
+            int drawCount = 3;
+            foreach (var eff in iability.effects)
+            {
+                if (eff is EffectDiscover discover)
+                {
+                    filterType = discover.filterType;
+                    drawCount = discover.drawCount;
+                    break;
+                }
+            }
+
+            // Clear any previous temp cards
+            player.cards_temp.Clear();
+
+            // Find matching cards in deck
+            List<Card> matches = new List<Card>();
+            foreach (Card c in player.cards_deck)
+            {
+                if (filterType == CardType.None || c.CardData.type == filterType)
+                    matches.Add(c);
+            }
+
+            // Shuffle and pick up to drawCount
+            for (int i = matches.Count - 1; i > 0; i--)
+            {
+                int j = random.Next(i + 1);
+                (matches[i], matches[j]) = (matches[j], matches[i]);
+            }
+
+            int count = Mathf.Min(drawCount, matches.Count);
+            for (int i = 0; i < count; i++)
+            {
+                Card card = matches[i];
+                player.cards_deck.Remove(card);
+                player.cards_temp.Add(card);
+            }
+
+            Debug.Log($"[Discover] Pulled {count} cards (filter={filterType}) to temp for player {caster.player_id}");
         }
 
         protected virtual void GoToSelectorChoice(AbilityData iability, Card caster)

@@ -1,5 +1,6 @@
 using Assets.TcgEngine.Scripts.Gameplay;
 using TcgEngine;
+using UnityEngine;
 
 namespace Assets.TcgEngine.Scripts.Effects
 {
@@ -17,13 +18,8 @@ namespace Assets.TcgEngine.Scripts.Effects
         public override void DoEffect(GameLogicService logic, AbilityData ability, Card caster)
         {
             Game game = logic.GetGameData();
-            
-            // Store respin info - would need game state field
-            // This allows the player to respin the slots
-            // Implementation depends on UI system
-            
-            // For now, just trigger an event that UI can listen to
-            // The actual respin logic would be in the slot machine manager
+            game.pending_respins += count;
+            Debug.Log($"[Respin] {count} respin(s) queued. Total pending: {game.pending_respins}");
         }
 
         public override void DoEffect(GameLogicService logic, AbilityData ability, Card caster, Card target)

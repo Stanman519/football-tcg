@@ -17,7 +17,7 @@ public class CardDragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, I
         draggingCard = gameObject;
         
         // NEW: Check if this card can even be dragged (offensive card on offense, defensive on defense)
-        Card cardComp = draggingCard.GetComponent<Card>();
+        Card cardComp = draggingCard.GetComponent<HandCard>()?.GetCard();
         if (cardComp != null)
         {
             Game game = GameClient.Get().GetGameData();
@@ -94,7 +94,7 @@ public class CardDragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, I
     private void HighlightValidSlots()
     {
         Debug.Log($"HighlightValidSlots for card: {draggingCard?.name}");
-        var cardComp = draggingCard.GetComponent<Card>();
+        var cardComp = draggingCard.GetComponent<HandCard>()?.GetCard();
         if (cardComp == null)
         {
             Debug.Log("HighlightValidSlots: draggingCard has no Card component");
@@ -120,7 +120,9 @@ public class CardDragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, I
         }
 
         Debug.Log($"ResetSlotHighlights for card: {draggingCard?.name}");
-        List<BoardSlot> slots = FindFirstObjectByType<FieldSlotManager>().GetSlotsForPosition(draggingCard.GetComponent<Card>().Data.playerPosition, draggingCard.GetComponent<Card>().player_id);
+        Card resetCard = draggingCard.GetComponent<HandCard>()?.GetCard();
+        if (resetCard == null) return;
+        List<BoardSlot> slots = FindFirstObjectByType<FieldSlotManager>().GetSlotsForPosition(resetCard.Data.playerPosition, resetCard.player_id);
         foreach (BoardSlot slot in slots)
         {
             Debug.Log($"Unhighlighting slot: {slot.name}");

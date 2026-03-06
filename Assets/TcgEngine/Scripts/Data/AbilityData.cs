@@ -2,10 +2,18 @@
 using Assets.TcgEngine.Scripts.Gameplay;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace TcgEngine
 {
+    [System.Serializable]
+    public class SlotRequirement
+    {
+        public SlotMachineIconType icon = SlotMachineIconType.None;
+        public int requiredCount = 1;
+    }
+
     /// <summary>
     /// Defines all ability data
     /// </summary>
@@ -30,8 +38,8 @@ namespace TcgEngine
         public int value;                         //Value passed to the effect (deal X damage)
         public int duration;                      //Duration passed to the effect (usually for status, 0=permanent)
         
-        public SlotMachineIconType slotIcon = SlotMachineIconType.None; // Default to None
-        public int requiredCount = 1;
+        [Header("Slot Requirements")]
+        public SlotRequirement[] slotRequirements;
         public FailPlayEventType failEventType;
 
         public StatusTypePrintedStats affected_stat = StatusTypePrintedStats.None;
@@ -80,6 +88,37 @@ namespace TcgEngine
                 foreach (AbilityData ability in ability_list)
                     ability_dict.Add(ability.id, ability);
             }
+        }
+
+        /// <summary>
+        /// Returns true if the middle row of the spin result satisfies all slot requirements.
+        /// Wild icons fill any deficit optimally across all requirements (AND-semantics).
+        /// An ability with no slotRequirements always fires unconditionally.
+        /// </summary>
+        public bool AreSlotRequirementsMet(SlotMachineResultDTO slotResult)
+        {
+            if (slotRequirements == null || slotRequirements.Length == 0)
+                return true;
+
+            if (slotResult?.Results == null || slotResult.Results.Count == 0)
+                return false;
+
+            // Middle row only — same row used for pass completion
+            var middleIcons = slotResult.Results
+                .Select(r => r.Middle?.IconId ?? SlotMachineIconType.None)
+                .ToList();
+
+            int wilds = middleIcons.Count(i => i == SlotMachineIconType.WildCard);
+
+            int totalDeficit = 0;
+            foreach (var req in slotRequirements)
+            {
+                if (req == null || req.icon == SlotMachineIconType.None) continue;
+                int have = middleIcons.Count(i => i == req.icon);
+                totalDeficit += Mathf.Max(0, req.requiredCount - have);
+            }
+
+            return wilds >= totalDeficit;
         }
 
         public string GetTitle()
@@ -364,6 +403,22 @@ namespace TcgEngine
                 }
             }
 
+            if (target == AbilityTarget.CardSelectorHand)
+            {
+                // Only show the caster's own hand cards — used for player-choice discards
+                Player caster_player = data.GetPlayer(caster.player_id);
+                if (caster_player != null)
+                    AddValidCards(data, caster, caster_player.cards_hand, targets);
+            }
+
+            if (target == AbilityTarget.CardSelectorDiscover)
+            {
+                // Show cards that were moved to cards_temp by EffectDiscover setup
+                Player caster_player = data.GetPlayer(caster.player_id);
+                if (caster_player != null)
+                    targets.AddRange(caster_player.cards_temp);
+            }
+
             if (target == AbilityTarget.LastPlayed)
             {
                 Card target = data.GetCard(data.last_played);
@@ -552,7 +607,7 @@ namespace TcgEngine
                 return false;
             }
 
-            if (target == AbilityTarget.CardSelector)
+            if (target == AbilityTarget.CardSelector || target == AbilityTarget.CardSelectorHand || target == AbilityTarget.CardSelectorDiscover)
             {
                 if (HasValidCardTarget(game_data, caster))
                     return true;
@@ -639,7 +694,7 @@ namespace TcgEngine
 
         public bool IsSelector()
         {
-            return target == AbilityTarget.SelectTarget || target == AbilityTarget.CardSelector || target == AbilityTarget.ChoiceSelector;
+            return target == AbilityTarget.SelectTarget || target == AbilityTarget.CardSelector || target == AbilityTarget.CardSelectorHand || target == AbilityTarget.CardSelectorDiscover || target == AbilityTarget.ChoiceSelector;
         }
 
         public static AbilityData Get(string id)
@@ -680,10 +735,11 @@ namespace TcgEngine
 
         OnDeath = 40, //When dying
         OnDeathOther = 42, //When another dying
+        OnDiscard = 43, //When any card is discarded (fires on all board cards for both players)
 
-
-        OnPassResolution = 50,  // TODO: Called after slots are spun, pass logic begins
-        OnRunResolution = 51,   // TODO: Called after slots are spun, run logic begins
+        OnPassResolution = 50,  // Called after slots are spun, pass logic begins
+        OnRunResolution = 51,   // Called after slots are spun, run logic begins
+        OnLiveBallResolution = 55, // Called during live ball phase resolution (both cards revealed)
 
 
         CoverTopReceiver = 80,
@@ -717,7 +773,9 @@ namespace TcgEngine
         EquippedCard = 27,       //If equipment, the bearer, if character, the item equipped
 
         SelectTarget = 30,        //Select a card, player or slot on board
-        CardSelector = 40,          //Card selector menu
+        CardSelector = 40,          //Card selector menu (all piles)
+        CardSelectorHand = 41,      //Card selector menu restricted to caster's own hand (for discard choices)
+        CardSelectorDiscover = 42,  //Discover: pull random cards from deck to temp, player picks 1, rest return to deck
         ChoiceSelector = 50,        //Choice selector menu
 
         LastPlayed = 70,            //Last card that was played 

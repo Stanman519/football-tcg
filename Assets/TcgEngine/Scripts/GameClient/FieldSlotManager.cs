@@ -17,6 +17,7 @@ public enum FieldFormation
     Defense_vs_Run,
     Defense_vs_Pass,
     LiveBall,
+    Sidelines,
 }
 
 /// <summary>
@@ -53,6 +54,7 @@ public class FieldSlotManager : MonoBehaviour
     public FormationData formation_DefenseVsRun;
     public FormationData formation_DefenseVsPass;
     public FormationData formation_LiveBall;
+    public FormationData formation_Sidelines;
 
     public static FieldSlotManager Instance { get; private set; }
 
@@ -67,6 +69,7 @@ public class FieldSlotManager : MonoBehaviour
 
     private GamePhase lastPhase = GamePhase.None;
     private int lastBoardCount = -1;
+    private int lastOffensivePlayerId = -1;
 
     // -------------------------------------------------------
 
@@ -83,11 +86,13 @@ public class FieldSlotManager : MonoBehaviour
         if (g == null) return;
 
         int boardCount = g.players?.Sum(p => p.cards_board.Count) ?? 0;
+        int currentOffId = g.current_offensive_player?.player_id ?? -1;
 
-        if (g.phase != lastPhase || boardCount != lastBoardCount)
+        if (g.phase != lastPhase || boardCount != lastBoardCount || currentOffId != lastOffensivePlayerId)
         {
             lastPhase = g.phase;
             lastBoardCount = boardCount;
+            lastOffensivePlayerId = currentOffId;
             ApplyFormations(g);
         }
     }
@@ -178,51 +183,56 @@ public class FieldSlotManager : MonoBehaviour
     {
         if (!slotMap.ContainsKey(playerId)) return;
 
-        if (g != null)
-        {
-            // Priority 1: play enhancer card's formation override
-            FormationData overrideData = GetOverrideFormation(g, isOffense);
-            if (overrideData != null)
-            {
-                MoveSlotsByFormationData(playerId, overrideData);
-                return;
-            }
+        // Bench routing: when in an active formation, send off-role groups to Sidelines.
+        // Skip routing for LiveBall (all groups on field) and Sidelines itself.
+        bool useSidelineRouting = form != FieldFormation.Sidelines;
 
-            // Priority 2: coach base formations
-            Player player = g.players?.FirstOrDefault(p => p.player_id == playerId);
-            if (player?.head_coach != null)
-            {
-                PlayType offPlay = g.current_offensive_player?.SelectedPlay ?? PlayType.Huddle;
-                var coachFormations = isOffense
-                    ? player.head_coach.offenseFormations
-                    : player.head_coach.defenseFormations;
-
-                if (coachFormations != null
-                    && coachFormations.TryGetValue(offPlay, out FormationData coachData)
-                    && coachData != null)
-                {
-                    MoveSlotsByFormationData(playerId, coachData);
-                    return;
-                }
-            }
-        }
-
-        // Priority 3: Inspector-assigned FormationData asset
-        FormationData inspectorData = GetInspectorFormation(form, isOffense);
-        if (inspectorData != null)
-        {
-            MoveSlotsByFormationData(playerId, inspectorData);
-            return;
-        }
-
-        // Priority 4: hardcoded fallback (always present)
+        // Step 1: Hardcoded defaults — every slot gets a position (no orphans).
+        //         Bench-role groups are routed to Sidelines; active-role groups use 'form'.
         foreach (var posEntry in slotMap[playerId])
         {
             PlayerPositionGrp posGroup = posEntry.Key;
+            bool groupIsDefensive = IsDefenseGroup(posGroup);
+
+            FieldFormation formForGroup = form;
+            if (useSidelineRouting)
+            {
+                bool groupMatchesRole = isOffense ? !groupIsDefensive : groupIsDefensive;
+                if (!groupMatchesRole)
+                    formForGroup = FieldFormation.Sidelines;
+            }
+
             List<BoardSlot> slots = posEntry.Value;
             for (int i = 0; i < slots.Count; i++)
-                slots[i].SetTargetPosition(GetFormationLocalPos(form, posGroup, i));
+                slots[i].SetTargetPosition(GetFormationLocalPos(formForGroup, posGroup, i));
         }
+
+        if (g == null) return;
+
+        // Step 2: Inspector formation asset — overrides specific slots.
+        FormationData inspectorData = GetInspectorFormation(form, isOffense);
+        if (inspectorData != null)
+            MoveSlotsByFormationData(playerId, inspectorData);
+
+        // Step 3: Coach base formation — overrides inspector for play-specific looks.
+        Player player = g.players?.FirstOrDefault(p => p.player_id == playerId);
+        if (player?.head_coach != null)
+        {
+            PlayType offPlay = g.current_offensive_player?.SelectedPlay ?? PlayType.Run;
+            var coachFormations = isOffense
+                ? player.head_coach.offenseFormations
+                : player.head_coach.defenseFormations;
+
+            if (coachFormations != null
+                && coachFormations.TryGetValue(offPlay, out FormationData coachData)
+                && coachData != null)
+                MoveSlotsByFormationData(playerId, coachData);
+        }
+
+        // Step 4: Play enhancer override — highest priority.
+        FormationData overrideData = GetOverrideFormation(g, isOffense);
+        if (overrideData != null)
+            MoveSlotsByFormationData(playerId, overrideData);
     }
 
     private FormationData GetInspectorFormation(FieldFormation form, bool isOffense = true)
@@ -236,6 +246,7 @@ public class FieldSlotManager : MonoBehaviour
             case FieldFormation.Defense_vs_Run:     return formation_DefenseVsRun;
             case FieldFormation.Defense_vs_Pass:    return formation_DefenseVsPass;
             case FieldFormation.LiveBall:           return formation_LiveBall;
+            case FieldFormation.Sidelines:          return formation_Sidelines;
             default:                                return null;
         }
     }
@@ -277,7 +288,9 @@ public class FieldSlotManager : MonoBehaviour
                     : DefenseFormationForPlay(offPlay);
 
             default:
-                return FieldFormation.Huddle;
+                // StartTurn, ChoosePlayers, RevealPlayers, ChoosePlay, EndTurn — use
+                // a near-LOS formation. MoveSlots() routes bench-role groups to Sidelines.
+                return isOffense ? FieldFormation.Offense_Run : FieldFormation.Defense_vs_Run;
         }
     }
 
@@ -409,6 +422,23 @@ public class FieldSlotManager : MonoBehaviour
                 [PlayerPositionGrp.DL]    = new[] { F(-0.15f,  2.0f), F( 0.15f,  2.0f) },
                 [PlayerPositionGrp.LB]    = new[] { F(-0.22f,  7.0f), F( 0.22f,  7.0f) },
                 [PlayerPositionGrp.DB]    = new[] { F(-0.42f, 10.0f), F( 0.42f, 10.0f), F( 0.00f, 13.0f) },
+            },
+
+            // ── SIDELINES  (bench — just off the edge of the field) ──────────
+            // Offensive groups park left; defensive groups park right.
+            // xFraction ±1.1 puts them beyond the ±0.5 sideline — off-screen.
+            [FieldFormation.Sidelines] = new Dictionary<PlayerPositionGrp, Vector2[]>
+            {
+                // Offensive groups → left sideline
+                [PlayerPositionGrp.QB]    = new[] { F(-1.1f,  0.0f) },
+                [PlayerPositionGrp.WR]    = new[] { F(-1.1f, -1.5f), F(-1.1f,  0.0f), F(-1.1f,  1.5f) },
+                [PlayerPositionGrp.RB_TE] = new[] { F(-1.1f, -1.0f), F(-1.1f,  1.0f) },
+                [PlayerPositionGrp.OL]    = new[] { F(-1.1f, -3.0f), F(-1.1f, -1.5f), F(-1.1f,  0.0f), F(-1.1f,  1.5f), F(-1.1f,  3.0f) },
+                [PlayerPositionGrp.K]     = new[] { F(-1.1f,  2.5f) },
+                // Defensive groups → right sideline
+                [PlayerPositionGrp.DL]    = new[] { F( 1.1f, -1.0f), F( 1.1f,  1.0f) },
+                [PlayerPositionGrp.LB]    = new[] { F( 1.1f, -1.0f), F( 1.1f,  1.0f) },
+                [PlayerPositionGrp.DB]    = new[] { F( 1.1f, -1.5f), F( 1.1f,  0.0f), F( 1.1f,  1.5f) },
             },
         };
     }

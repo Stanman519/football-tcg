@@ -78,12 +78,12 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
         public static bool operator ==(CardPositionSlot slot1, CardPositionSlot slot2)
         {
-            return slot1.p == slot2.p && slot1.posGroupType == slot2.posGroupType;
+            return slot1.p == slot2.p && slot1.posGroupType == slot2.posGroupType && slot1.max_cards == slot2.max_cards;
         }
 
         public static bool operator !=(CardPositionSlot slot1, CardPositionSlot slot2)
         {
-            return slot1.p != slot2.p || slot1.posGroupType != slot2.posGroupType;
+            return slot1.p != slot2.p || slot1.posGroupType != slot2.posGroupType || slot1.max_cards != slot2.max_cards;
         }
 
         public override bool Equals(object o)

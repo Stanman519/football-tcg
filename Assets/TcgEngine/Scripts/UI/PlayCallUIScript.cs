@@ -16,6 +16,9 @@ public class PlayCallUIScript : MonoBehaviour
     public PlayEnhancerSlot enhancerSlot;
     [Header("Enhancer Display")]
     public Text enhancerDisplayText; // wired by PlayCallPanelBuilder
+    [Header("Coach Cards")]
+    public CoachCardUI myCoachPanel;
+    public CoachCardUI opponentCoachPanel;
 
     // Flash color shown briefly on the selected button before the panel closes
     static readonly Color C_SELECTED = new Color(0.91f, 0.39f, 0.10f, 1f); // orange
@@ -105,9 +108,19 @@ public class PlayCallUIScript : MonoBehaviour
         selectedPlay     = PlayType.Huddle;
         selectedEnhancer = null;
         enhancerSlot?.Clear();
+        RefreshCoachPanels();
+    }
 
-        PlayCallManager manager = playCallPanel.GetComponent<PlayCallManager>();
-        if (manager != null) manager.ResetState();
+    private void RefreshCoachPanels()
+    {
+        Game g = GameClient.Get()?.GetGameData();
+        if (g == null) return;
+        Player me  = GameClient.Get().GetPlayer();
+        Player opp = GameClient.Get().GetOpponentPlayer();
+        if (me == null || opp == null) return;
+        bool amIOffense = (g.current_offensive_player != null && g.current_offensive_player.player_id == me.player_id);
+        myCoachPanel?.SetCoachFromPlayer(me,  amIOffense);
+        opponentCoachPanel?.SetCoachFromPlayer(opp, !amIOffense);
     }
 
     private void SelectPlay(PlayType play)

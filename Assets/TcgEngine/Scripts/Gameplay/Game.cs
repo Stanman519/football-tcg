@@ -79,9 +79,11 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         public int plays_left_in_half = 11;
         public int yardage_this_play;
         public int yardage_to_go;
-        
+        public bool turnover_pending = false; // Set by ResolvePlayOutcome when a fail-event turnover fires; consumed by EndPlayPhase
+
         // Slot machine modifiers (from abilities)
         public List<SlotModifier> temp_slot_modifiers;
+        public int pending_respins = 0;
 
         // Play history
         public List<PlayHistory> play_history = new List<PlayHistory>();
@@ -273,93 +275,48 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         //REMOVE THIS ONCE WE LEARN HOW TO MAKE HEAD COACHES FOR REAL
         void InitializeTestGame()
         {
-            HeadCoachCard coach1 = new HeadCoachCard
+            InitCoachFromAsset(players[0], "TestCoach_Offense");
+            InitCoachFromAsset(players[1], "TestCoach_Defense");
+
+            // Fallback: if assets not found, keep default constructor values but set completion reqs
+            EnsureCompletionRequirements(players[0].head_coach);
+            EnsureCompletionRequirements(players[1].head_coach);
+        }
+
+        private static void InitCoachFromAsset(Player player, string assetName)
+        {
+            CoachCardData data = Resources.Load<CoachCardData>("Coaches/" + assetName);
+            if (data != null)
             {
-                positional_Scheme = new Dictionary<PlayerPositionGrp, HCPlayerSchemeData>
-                {
-                    { PlayerPositionGrp.QB, new HCPlayerSchemeData { pos_max = 1 } },
-                    { PlayerPositionGrp.WR, new HCPlayerSchemeData { pos_max = 3 } },
-                    { PlayerPositionGrp.RB_TE, new HCPlayerSchemeData { pos_max = 2 } },
-                    { PlayerPositionGrp.OL, new HCPlayerSchemeData { pos_max = 5 } },
-                    { PlayerPositionGrp.DL, new HCPlayerSchemeData { pos_max = 2 } },
-                    { PlayerPositionGrp.LB, new HCPlayerSchemeData { pos_max = 2 } },
-                    { PlayerPositionGrp.DB, new HCPlayerSchemeData { pos_max = 3 } }
-                },
-                baseOffenseYardage = new Dictionary<PlayType, int>
-                {
-                    { PlayType.ShortPass, 5 },
-                    { PlayType.LongPass, 10 },
-                    { PlayType.Run, 3 }
-                },
-                baseDefenseYardage = new Dictionary<PlayType, int>
-                {
-                    { PlayType.ShortPass, 3 },
-                    { PlayType.LongPass, 7 },
-                    { PlayType.Run, 2 }
-                },
-                completionRequirements = new Dictionary<PlayType, List<CompletionRequirement>>
-                {
-                    {
-                        PlayType.ShortPass, new List<CompletionRequirement>
-                        {
-                            new CompletionRequirement { icon = SlotMachineIconType.Football, minCount = 1 },
-                            new CompletionRequirement { icon = SlotMachineIconType.Helmet, minCount = 1 }
-                        }
-                    },
-                    {
-                        PlayType.LongPass, new List<CompletionRequirement>
-                        {
-                            new CompletionRequirement { icon = SlotMachineIconType.Star, minCount = 1 }
-                        }
-                    }
-                }
-
-            };
-
-            HeadCoachCard coach2 = new HeadCoachCard
+                player.coach_card_id = assetName;
+                player.head_coach.InitFromData(data);
+            }
+            else
             {
-                positional_Scheme = new Dictionary<PlayerPositionGrp, HCPlayerSchemeData>
-                {
-                    { PlayerPositionGrp.QB, new HCPlayerSchemeData { pos_max = 1 } },
-                    { PlayerPositionGrp.WR, new HCPlayerSchemeData { pos_max = 3 } },
-                    { PlayerPositionGrp.RB_TE, new HCPlayerSchemeData { pos_max = 2 } },
-                    { PlayerPositionGrp.OL, new HCPlayerSchemeData { pos_max = 5 } },
-                    { PlayerPositionGrp.DL, new HCPlayerSchemeData { pos_max = 2 } },
-                    { PlayerPositionGrp.LB, new HCPlayerSchemeData { pos_max = 2 } },
-                    { PlayerPositionGrp.DB, new HCPlayerSchemeData { pos_max = 3 } }
-                },
-                baseOffenseYardage = new Dictionary<PlayType, int>
-                {
-                    { PlayType.ShortPass, 5 },
-                    { PlayType.LongPass, 10 },
-                    { PlayType.Run, 3 }
-                },
-                baseDefenseYardage = new Dictionary<PlayType, int>
-                {
-                    { PlayType.ShortPass, 3 },
-                    { PlayType.LongPass, 7 },
-                    { PlayType.Run, 2 }
-                },
-                completionRequirements = new Dictionary<PlayType, List<CompletionRequirement>>
-                {
-                    {
-                        PlayType.ShortPass, new List<CompletionRequirement>
-                        {
-                            new CompletionRequirement { icon = SlotMachineIconType.Football, minCount = 1 },
-                            new CompletionRequirement { icon = SlotMachineIconType.Helmet, minCount = 1 }
-                        }
-                    },
-                    {
-                        PlayType.LongPass, new List<CompletionRequirement>
-                        {
-                            new CompletionRequirement { icon = SlotMachineIconType.Star, minCount = 1 }
-                        }
-                    }
-                }
-            };
+                Debug.LogWarning($"[Game] CoachCardData not found: Coaches/{assetName}. Using defaults.");
+                // Hard-coded fallback so yardage still works before assets are created
+                player.head_coach.baseOffenseYardage[PlayType.Run]       = 3;
+                player.head_coach.baseOffenseYardage[PlayType.ShortPass] = 5;
+                player.head_coach.baseOffenseYardage[PlayType.LongPass]  = 10;
+                player.head_coach.baseDefenseYardage[PlayType.Run]       = 2;
+                player.head_coach.baseDefenseYardage[PlayType.ShortPass] = 3;
+                player.head_coach.baseDefenseYardage[PlayType.LongPass]  = 7;
+            }
+        }
 
-            players[0].head_coach = coach1;
-            players[1].head_coach = coach2;
+        private static void EnsureCompletionRequirements(HeadCoachCard coach)
+        {
+            if (!coach.completionRequirements.ContainsKey(PlayType.ShortPass))
+                coach.completionRequirements[PlayType.ShortPass] = new List<CompletionRequirement>
+                {
+                    new CompletionRequirement { icon = SlotMachineIconType.Football, minCount = 1 },
+                    new CompletionRequirement { icon = SlotMachineIconType.Helmet,   minCount = 1 }
+                };
+            if (!coach.completionRequirements.ContainsKey(PlayType.LongPass))
+                coach.completionRequirements[PlayType.LongPass] = new List<CompletionRequirement>
+                {
+                    new CompletionRequirement { icon = SlotMachineIconType.Star, minCount = 1 }
+                };
         }
 
 
@@ -441,6 +398,14 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             CardType cardType = card.CardData.type;
             if (card.CardData.IsPlayer() && phase != GamePhase.ChoosePlayers)
                 return false;
+
+            // Suit restriction: only one player card per suit per turn
+            if (card.CardData.IsPlayer())
+            {
+                CardSuit suit = card.CardData.suit;
+                if (suit != CardSuit.None && player.suits_played_this_turn.Contains(suit))
+                    return false;
+            }
             if (card.CardData.IsPlayEnhancer())
             {
                 if (phase != GamePhase.ChoosePlay)
@@ -450,6 +415,13 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             }
             if ((cardType == CardType.OffLiveBall || cardType == CardType.DefLiveBall) && phase != GamePhase.LiveBall)
                 return false;
+            if (card.CardData.IsLiveBall())
+            {
+                if (player.LiveBallCard != null)
+                    return false; // Already played a live ball card this turn
+                if (!card.CardData.AreSlotRequirementsMet(current_slot_data))
+                    return false; // Slot icons don't meet the play cost
+            }
 
             // Check if player is trying to play a card for the wrong side of the ball
             bool is_player_offensive = (player.player_id == current_offensive_player.player_id);
@@ -480,8 +452,8 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             {
                     return false;
             }
-            if (!player.HasCard(player.cards_hand, card))
-                return false; // Card not in hand
+            if (!player.HasCard(player.cards_hand, card) && !player.HasCard(player.cards_sideline, card))
+                return false; // Card not in hand or on sideline
 
 
 
@@ -699,7 +671,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
         public Player GetCurrentDefensivePlayer()
         {
-            return players[0] == current_offensive_player ? players[0] : players[1];
+            return GetDefensePlayer();
         }
 
 

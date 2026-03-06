@@ -172,19 +172,102 @@ Mulligan → ChoosePlayers → RevealPlayers → ChoosePlay → RevealPlayCalls
 
 ---
 
-## 7. SLOT MACHINE
+## 7. LIVE BALL PHASE
 
-### Default Reels
-| Reel | Symbols |
-|------|---------|
-| Left | 3 Football, 2 Helmet, 1 Star, 1 Wrench |
-| Middle | 3 Football, 2 Helmet, 1 Star, 1 Wrench, 1 Wild |
-| Right | 3 Football, 3 Helmet, 1 Star, 1 Wrench |
+### Overview
+Live ball starts after `ResolvePlayOutcome` returns `BallIsLive = true` (no sack/TFL/INT from fail events, yardage not yet a score or safety). Both players secretly select one live ball card (or pass), reveal simultaneously, resolve by priority.
 
-### Probabilities (approximate)
-- 1 Star ≈ 36%
-- 1+ Football ≈ 80%
-- 1+ Helmet ≈ 75%
+### Play Eligibility ("Public Mana")
+- Slot result is **public** — both players see it before choosing
+- `CardData.slotRequirements[]` = the slot icons required to play the card (same `SlotRequirement` struct as `AbilityData`)
+- `CardData.AreSlotRequirementsMet(current_slot_data)` checked in `CanPlayCard`
+- Max **1 live ball card per player per turn** (enforced via `player.LiveBallCard`)
+
+### Card Storage
+- Played live ball cards go to `player.cards_temp` (not board or discard) and `player.LiveBallCard` tracks the reference
+- After resolution, `ClearLiveBallCards()` discards them and nulls the reference
+- `player.LiveBallCard` reset to null at start of each `StartTurn`
+
+### Resolution Order (5-Step Priority)
+```
+1. TURNOVERS (Step 1)    DefLiveBall cards with EffectForceTurnover
+                         → Detected via HasEffect<EffectForceTurnover>()
+                         → Uncounterable — fires, ClearLiveBallCards(), return (no EndTurn)
+                         → HandleLiveBallTurnover(returnYards) → SwitchPossession → ResetDrive → StartTurn
+
+2. DEFENSIVE YARDAGE     DefLiveBall yardage mods (tackles, deflections)
+   (Step 2)              → EffectYardageModifier with negative value
+                         → Applies first so offense can see and respond via Step 3
+
+3. OFFENSIVE YARDAGE     OffLiveBall yardage mods (juke, spin move, stiff arm)
+   (Step 3)              → EffectYardageModifier with positive value
+                         → Modifies game_data.yardage_this_play
+
+4. STATUS EFFECTS        Multi-turn effects (Big Hit = remove RB bonus next 2 plays)
+   (Step 4)              → Applied via abilities in Steps 2/3 using AddStatus with duration
+
+5. SLOT MANIPULATION     For-next-play reel changes
+   (Step 5)              → Fires on OnPlay trigger when card is played
+                         → EffectAddSlotSymbol writes to game_data.temp_slot_modifiers
+                         → Already handled by existing infrastructure
+```
+
+### New Types
+| Type | Notes |
+|---|---|
+| `CardType.OffLiveBall` | Offensive live ball cards (already existed in enum) |
+| `CardType.DefLiveBall` | Defensive live ball cards (already existed in enum) |
+| `AbilityTrigger.OnLiveBallResolution = 55` | Fires during ResolveLiveBallEffects (Steps 2–4) |
+| `EffectYardageModifier` | +/- yards via `ability.value`; modifies `game_data.yardage_this_play` |
+| `EffectForceTurnover` | Step 1 turnover; calls `HandleLiveBallTurnover(returnYards)` |
+
+### INT Design Notes
+- INTs in live ball are **uncounterable** — once triggered, possession switches
+- Gate them with harsh slot requirements on `CardData.slotRequirements` + conditions on the ability (e.g. `ConditionCoverageGuess(guessCorrect=true)`)
+- Return yardage = 2× grit advantage (same formula as existing interceptions)
+
+---
+
+## 8. SLOT MACHINE
+
+### Default Reels (all 8 symbols each — 512 middle-row combos)
+| Reel | Symbols | Notes |
+|------|---------|-------|
+| Left (R0) | 4 Football, 2 Helmet, 1 Star, 1 Wrench | Has Wrench, no Wild |
+| Center (R1) | 3 Football, 3 Helmet, 1 Star, 1 Wild | Has Wild, **no Wrench** |
+| Right (R2) | 3 Football, 3 Helmet, 1 Star, 1 Wrench | Has Wrench, no Wild |
+
+Wrench only appears on outer reels — the center reel never shows a wrench.
+Wild only appears on the center reel.
+
+### Single-Icon Probabilities (middle row)
+| Condition | Probability |
+|-----------|-------------|
+| Football ≥1 | 80.5% |
+| Helmet ≥1 | 70.7% |
+| Football ≥2 | 37.5% |
+| Star ≥1 | 33.0% |
+| Helmet ≥2 | 25.8% |
+| Wrench ≥1 | 23.4% |
+| Wild ≥1 | 12.5% |
+| Football ≥3 | 7.0% |
+| Star ≥2 | 4.3% |
+| Helmet ≥3 | 3.5% |
+| Wrench ≥2 | 1.6% |
+
+### Multi-Icon AND Probabilities
+| Condition | Probability | Notes |
+|-----------|-------------|-------|
+| Football ≥1 AND Helmet ≥1 | 52.7% | Near coin-flip |
+| Star ≥1 AND Football ≥1 | 22.9% | |
+| Star ≥1 AND Helmet ≥1 | 19.3% | |
+
+### Design Rules
+- **Wrench = bad outcomes only** (incompletions, fumbles, TFL, sacks). No positive ability should require Wrench.
+- **Star = rare big plays** (explosive gains, special triggers)
+- **Football = baseline run/pass success**
+- **Helmet = physical/defensive plays**
+- **Wild = lucky/special plays** (~12.5%, center reel only)
 
 ---
 

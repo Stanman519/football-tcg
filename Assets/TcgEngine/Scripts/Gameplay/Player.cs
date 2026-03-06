@@ -52,8 +52,11 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         {
             readyForPhase[phase] = isReady;
         }
+        public string coach_card_id = "";   // Resource path fragment under "Coaches/"
         public PlayType SelectedPlay;
         public Card PlayEnhancer;
+        public Card LiveBallCard;    // Live ball card played this turn (null = passed)
+        public List<CardSuit> suits_played_this_turn = new List<CardSuit>(); // Suits used this turn; resets each StartTurn
 
         public int GetConsecutivePlayCount(PlayType playType)
         {
@@ -67,7 +70,8 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         public List<Card> cards_deck = new List<Card>();    //Cards in the player's deck
         public List<Card> cards_hand = new List<Card>();    //Cards in the player's hand
         public List<Card> cards_pre_reveal = new List<Card>(); 
-        public List<Card> cards_board = new List<Card>();   //Cards on the board
+        public List<Card> cards_board = new List<Card>();    //Cards on the board (active this play)
+        public List<Card> cards_sideline = new List<Card>(); //Player cards resting between possessions; available for re-deployment
         public List<Card> cards_equip = new List<Card>();   //Cards equipped by characters
         public List<Card> cards_discard = new List<Card>(); //Cards in the player's discard
         public List<Card> cards_secret = new List<Card>();  //Cards in the player's secret area
@@ -108,6 +112,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             cards_deck.Remove(card);
             cards_hand.Remove(card);
             cards_board.Remove(card);
+            cards_sideline.Remove(card);
             cards_equip.Remove(card);
             cards_discard.Remove(card);
             cards_secret.Remove(card);
@@ -639,8 +644,9 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
             Card.CloneNull(source.hero, ref dest.hero);
             Card.CloneDict(source.cards_all, dest.cards_all);
-            Card.CloneListRef(dest.cards_all, source.cards_board, dest.cards_board);  
-            Card.CloneListRef(dest.cards_all, source.cards_equip, dest.cards_equip);  
+            Card.CloneListRef(dest.cards_all, source.cards_board, dest.cards_board);
+            Card.CloneListRef(dest.cards_all, source.cards_sideline, dest.cards_sideline);
+            Card.CloneListRef(dest.cards_all, source.cards_equip, dest.cards_equip);
             Card.CloneListRef(dest.cards_all, source.cards_hand, dest.cards_hand);
             Card.CloneListRef(dest.cards_all, source.cards_deck, dest.cards_deck);
             Card.CloneListRef(dest.cards_all, source.cards_discard, dest.cards_discard);
@@ -649,6 +655,11 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
             CardStatus.CloneList(source.status, dest.status);
             CardStatus.CloneList(source.ongoing_status, dest.ongoing_status);
+
+            dest.coach_card_id = source.coach_card_id;
+
+            dest.suits_played_this_turn.Clear();
+            dest.suits_played_this_turn.AddRange(source.suits_played_this_turn);
         }
 
         //------ Grit & Stamina ------

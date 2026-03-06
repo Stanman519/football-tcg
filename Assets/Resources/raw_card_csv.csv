@@ -1,0 +1,67 @@
+Name,Pos,Superstar,Passive,RunMod,ShortPassMod,DeepPassMod,Stamina,Grit,Target,BonusAmount,AffectedStat,ConditionClass,Parameters,Tags,ability_optimized,Suit
+Randall McBride,OL,0,Cancel the first defensive base yardage on each drive.,3,0,0,12,1,,,,,,,"LOSS_PREV,RUN",Cancel first defensive yardage each drive,Spades
+Marcus Boone,OL,0,Pass Pro: 10% chance to nullify first sack,0,1,1,12,2,,,,,,,"LOSS_PREV,SP,DP,SLOTDRAW",10% chance nullify first sack,Spades
+Darnell Hayes,OL,0,falls on ball: recovers 1st fumble play ends at spot.,1,0,0,12,1,,,,,,,LOSS_PREV,Recover fumble,Spades
+Tony Carter,OL,0,Runs inside the 5 always score,0,0,0,12,2,,,,,,,RUN,Always score inside 5,Spades
+Dominic Lawson,OL,0,Adds 1 stamina to offense on 4th downs,0,2,0,12,1,AllBoardOffense,1,Stamina,ConditionGameDown,required_down=4,,"HEAL,SP,DOWN",Add 1 stamina on 4th down,Hearts
+Ezekiel Monroe,OL,0,Bonuses only occur if O Line star players outnumbers D Line star players,6,0,0,12,2,Self,-6,OL,ConditionCompareTwoBoardPositionCounts,,"caster_type=OL,target_type=DL","OLPOS,DEFPOS",+6 run if OL > DL stars,Spades
+Ray Vaughn,OL,0,"Discard a card before every snap. if you have no cards in hand, return player to hand",2,4,0,12,2,,,,,,,"HANDQTY,DISCARD",Discard before snap,Hearts
+Jaxon Brooks,OL,0,Remove a D line star for 2nd down if you were both on field for previous play,1,1,0,12,1,,,,,,,KNOCKOUT,Remove DL star on 2nd down,Spades
+Maxwell Payne,OL,0,"Charge up: 20 helmets, +20 to next run",1,0,0,12,1,,,,,,,"CHARGE,RUN",Charge up 20 helmets then +20 run,Spades
+Jon Holloway,OL,0,Every time you draw a card +1 to run bonus,-4,1,0,12,2,,,,,,,"DRAWQTY,RUN",+1 run each time you draw,Hearts
+Desmond Wallace,OL,0,run bonus +2 after every consecutive run. resets after first non-run,1,0,0,12,1,,,,,,,"RUN,SEQ",+2 run after consecutive runs,Spades
+Terrence Miden,OL,0,Add a slot on 3rd downs,0,-1,-2,12,1,,,,,,,"SLOTMANIP,DOWN",Add a slot on 3rd down,Diamonds
+Isaiah Foster,OL,0,Does not count toward your coaches O line max,1,2,0,12,1,,,,,,,"SP,STARQTY",Does not count toward OL max,Clubs
+Jamal Blackwood,OL,0,add 2 to other O line short pass bonus,1,-2,0,12,1,,,,,,,"SP,BOOST",+2 to other OL short pass,Hearts
+Quincy Maddox,OL,0,"If 3 or less stamina, +2 on each bonus",1,0,0,7,2,,,,,,,,+2 when stamina is 3 or less,Spades
+Xavier Hudson,OL,0,remove 1 stamina from a star D line each time you run for 5+ yards,2,0,0,10,1,,,,,,,DEFPOS_KNOCKOUT_RUN,Remove 1 stamina from star DL after 5+ run,Spades
+Dallas Garrett,OL,0,At the start of each drive you may discard 1 card to add +3 run on first play,3,0,0,11,1,,,,,,,DISCARD_RUN,Discard 1 to add +3 run first play,Hearts
+Elijah Grady,OL,0,Every time you see at least 2 Stars on slot add +2 short pass this drive,0,2,0,10,1,,,,,,,SLOTDRAW_SP_STARQTY,+2 short pass with 2+ stars,Diamonds
+Andre Cross,OL,1,Charge Up after 10 football icons add +5 run and restore 2 stamina to a star player,5,0,0,10,1,,,,,,,RUN_CHARGE_HEAL_STARQTY,Charge up 10 football then +5 run,Clubs
+Quentin "Bear" Dawson,OL,0,If your short pass is completed for 7 or fewer yards draw 1 card,0,2,0,10,2,,,,,,,SP_DRAW,Draw if short pass is 7 or fewer yards,Hearts
+Mo Faletutulu,OL,0,If your run nets 10 or less yards you may discard 1 card to add +6 more yards,1,1,0,10,1,,,,,,,DISCARD_RUN,Discard to add +6 yards,Hearts
+Duece Watson,OL,0,If the defense has 2 or fewer stars add +3 run,3,0,0,10,1,,,,,,,DEFPOS_RUN,+3 run if defense has 2 or fewer stars,Spades
+Tyson Rivers,OL,0,Charge Up after 5 Star icons next run is +4 and draws a card,2,0,0,10,1,,,,,,,CHARGE_RUN_DRAW,Charge 5 stars then +4 run and draw,Clubs
+Fort Nix,OL,0,After every 2 plays on the field add +1 to run stacking up to 4 times,1,0,0,12,1,,,,,,,RUN_SEQ,+1 run every 2 plays,Spades
+Julius Dixon,OL,0,If you have 6 or more cards in hand short pass gets +2,0,2,0,10,1,,,,,,,SP_HANDQTY,+2 short pass with 6+ cards,Hearts
+Desean Collins,OL,0,Add +1 run for each consecutive run up to +5 then reset if pass is called,1,0,0,11,1,,,,,,,RUN_SEQ,+1 per consecutive run up to +5,Spades
+Dean Matthers,OL,0,If the defense has no DL star in play add +3 run,3,0,0,10,,,,,,,,,+3 run if no DL star,Spades
+Dan Van Pow,OL,0,Each time a pass is incomplete you may draw 1 card and discard 1 card,0,0,1,10,1,,,,,,,DRAW_DISCARD_SP,Draw and discard on incomplete pass,Hearts
+Lucas Kingston,OL,0,If you completed a short pass last play add +2 run this play,2,0,0,10,,,,,,,RUN_SEQ_SP,+2 run after short pass,Spades
+Reggie Carrier,OL,1,Ongoing effect add +1 run for every run call then reset if pass is called,4,1,1,12,1,,,,,,,RUN_SEQ_STARQTY,+1 run per run call,Clubs
+Kendrick Clovis,OL,0,Charge Up after 10 helmet icons your next short pass cannot be sacked,0,2,0,10,3,,,,,,,CHARGE_SP_LOSS_PREV,Charge 10 helmets then can't be sacked,Diamonds
+Jonah Wade,OL,0,Each time you discard a card add +1 to short pass up to 3 times,0,3,0,10,1,,,,,,,DISCARD_SP,+1 short pass per discard,Hearts
+Tre Rostic,OL,0,Charge Up after 8 football icons add +5 run on next running play,2,0,0,10,,,,,,,,CHARGE_RUN,Charge 8 football then +5 run,Clubs
+Cal Tice,OL,0,If your hand is empty this card adds +3 to run else adds +1,3,0,0,10,,,,,,,,RUN_HANDQTY,+3 run if empty hand,Spades
+Damian Jefferson,OL,0,"The first time each drive you fail a short pass, reduce base yardage to 0, but pass is completed.",0,2,0,11,,,,,,,,LOSS_PREV_SP,Reduce first failed short pass to 0,Diamonds
+Jett Benson,OL,0,If the previous play lost yardage add +6 run on this play,3,0,0,10,,,,,,,,RUN,+6 run after lost yardage,Spades
+Max "Rig" Duncan,OL,0, field shuffle 1 random OL from yourWhen placed on the discard into your deck,1,0,0,11,,,,,,,,DISCARD_RUN,Shuffle OL from discard to deck,Clubs
+DeAndre Torrence,OL,0,On 4th down add +2 to run or short pass if you have 2 or more OL in play,2,2,0,10,,,,,,,,DOWN_OLPOS_RUN_SP,+2 on 4th down with 2+ OL,Diamonds
+Desmond Cross,OL,0,You may skip drawing a card to add +6 run this turn,3,0,0,10,,,,,,,,RUN_DRAW,Skip draw to add +6 run,Spades
+Andre Strickland,OL,0,On each run play if you gained 15 or more yards draw 1 card,1,0,0,12,,,,,,,,RUN_DRAW,Draw after 15+ yard run,Hearts
+Tyson Campbell,OL,0,Once per game you may negate a fumble if it occurs and lose 6 stamina,1,0,0,10,,,,,,,,LOSS_PREV,Once per game negate fumble,Spades
+Jalen White,OL,0,If you control more OL than your opponent has total defensive players add +2 run,2,0,0,10,,,,,,,,OLPOS_DEFPOS_RUN,+2 run if OL > defensive players,Spades
+Dom Garrett,OL,0,If the defense guesses incorrectly add +2 to run and short pass for this play,2,0,1,8,,,,,,,,GUESS_RUN_SP,+2 if defense guesses wrong,Diamonds
+Brock Canyon,QB,0,Only gains play bonuses if defense has wrong coverage,0,5,1,35,,,,,,,,"+5 if defense wrong coverage",Clubs
+Trent Hawthorne,QB,0,Add +5 yards on 4th downs.,0,2,3,35,,,,,,,,"+5 on 4th down",Hearts
+Max Rourke,QB,0,"On Long Pass plays, draw 1 card after completion",0,2,2,35,,,,,,,,"Draw after long pass completion",Diamonds
+Hunter Roarke,QB,0,"Short pass completions increase deep pass bonus by 1, any incompletion reverts bonus to 0.",0,2,0,35,,,,,,,,"+1 deep pass after short pass",Hearts
+Nash Thornton,QB,0,Opponent discards a card when you throw an incomplete pass,0,4,2,35,,,,,,,,"Opponent discards on incomplete pass",Clubs
+Malik Rhodes,RB,0,+15 short pass slot trigger 15%,1,2,0,12,,,,,,,,SLOTDRAW,+15 short pass slot trigger 15%,Hearts
+Xavier Knight,RB,0,+2 yard on runs for every OL on field,2,0,2,12,,,,,,,,OLPOS,+2 run with OL,Spades
+Donovan West,RB,0,Add +5 yards to any Run play with SLOT 25%,2,1,1,12,,,,,,,,SLOTDRAW,+5 run with SLOT 25%,Diamonds
+Kyler Hawkins,RB,0,set the tone: +5 yards on first downs,3,1,0,12,,,,,,,,DOWN,+5 on first down,Spades
+Deion McCall,RB,0,Sit out every 3rd down,4,1,0,12,,,,,,,,DOWN,Sit out on 3rd down,Spades
+Raylan Brooks,RB,0,checkdown: gain 3 yards if slots roll incomplete,2,1,0,12,,,,,,,,"+3 if slot incomplete",Hearts
+Keenan Frost,RB,0,"First Snap: if it is 4th down, run bonus is +16 this play",1,2,1,5,,,,,,,,DOWN,+16 run first snap on 4th down,Diamonds
+Marcus Valdez,RB,0,slot trigger: 10 percent chance to fumble on run,7,2,0,10,,,,,,,,RUN_FUMBLE,10% fumble on run,Clubs
+Isaiah Haynes,RB,0,First Snap: If your O line includes at least 1 star player run bonus becomes +5,2,2,0,8,,,,,,,,RUN_FIRST_SNAP_STARQTY,+5 run first snap with star OL,Clubs
+Jace Whitaker,RB,0,If short pass gains 15 or more yards draw 1 card,1,2,0,9,,,,,,,,SP_DRAW,Draw after 15+ yard short pass,Hearts
+Damien Vaughn,RB,0,For each consecutive run add +1 run up to +3 then reset if a pass is called,2,2,1,10,,,,,,,,RUN_SEQ,+1 per consecutive run up to +3,Spades
+Preston Ward,RB,0,.+2 short pass if defense has 1 or fewer LB,1,2,0,10,,,,,,,,SP_DEFPOS_STARQTY,+2 short pass vs 1 or fewer LB,Diamonds
+Zaire Lawson,RB,0,slot trigger: 5 percent chance to break for +15 extra yards on short pass,1,2,0,10,,,,,,,,SP,15 extra yards on short pass 5%,Hearts
+Myles King,RB,0,"If you run on 1st or 2nd down and gain 8 or fewer yards, draw 1 card",2,0,2,10,,,,,,,,RUN_DRAW,Draw after 8 or fewer yards on 1st/2nd,Hearts
+Jermaine Cross,RB,0,if you have 3 or more OL in play your next run is +4,4,0,0,10,,,,,,,,RUN_OLPOS,+4 run with 3+ OL,Spades
+Derek Castillo,RB,0,"If you play a play enhancer, add +2 short pass",2,2,0,9,,,,,,,,RUN_SP_SLOTMANIP,+2 short pass with play enhancer,Diamonds
+Landon Pierce,RB,0,Short pass +5 if you have a TE and your run gained 10 or more yards last play,0,3,1,10,,,,,,,,DP_RUN_SEQ,+5 short pass with TE after 10+ run,Clubs
+Keon Greene,RB,0,"If defense has a pass coverage, run bonus +3",2,1,0,7,,,,,,,,GUESS_RUN_SP,+3 run vs pass coverage,Diamonds

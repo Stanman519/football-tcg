@@ -1,10 +1,20 @@
 ﻿using Assets.TcgEngine.Scripts.Gameplay;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace TcgEngine
 {
+    public enum CardSuit
+    {
+        None = 0,
+        Clubs = 1,
+        Diamonds = 2,
+        Hearts = 3,
+        Spades = 4,
+    }
+
     public enum CardType
     {
         None = 0,
@@ -58,10 +68,14 @@ namespace TcgEngine
         public bool isSuperstar;
         public PlayType[] required_plays;
         public PlayerPositionGrp playerPosition;
+        public CardSuit suit;
 
         [Header("Traits")]
         public TraitData[] traits;
         public TraitStat[] stats;
+
+        [Header("Live Ball")]
+        public SlotRequirement[] slotRequirements; // Slot icons required to play this card during LiveBall (acts as public "mana")
 
         [Header("Abilities")]
         public AbilityData[] abilities;
@@ -164,6 +178,37 @@ namespace TcgEngine
         public bool IsPlayer()
         {
             return type == CardType.OffensivePlayer || type == CardType.DefensivePlayer;
+        }
+
+        public bool IsLiveBall()
+        {
+            return type == CardType.OffLiveBall || type == CardType.DefLiveBall;
+        }
+
+        /// <summary>
+        /// Checks whether this card's slot requirements (play cost) are met by the current spin.
+        /// Empty requirements = always playable. Uses same wild-filling logic as AbilityData.
+        /// </summary>
+        public bool AreSlotRequirementsMet(SlotMachineResultDTO slotData)
+        {
+            if (slotRequirements == null || slotRequirements.Length == 0)
+                return true;
+            if (slotData?.Results == null || slotData.Results.Count == 0)
+                return false;
+
+            var middleIcons = slotData.Results
+                .Select(r => r.Middle?.IconId ?? SlotMachineIconType.None)
+                .ToList();
+
+            int wilds = middleIcons.Count(i => i == SlotMachineIconType.WildCard);
+            int totalDeficit = 0;
+            foreach (var req in slotRequirements)
+            {
+                if (req == null || req.icon == SlotMachineIconType.None) continue;
+                int have = middleIcons.Count(i => i == req.icon);
+                totalDeficit += Mathf.Max(0, req.requiredCount - have);
+            }
+            return wilds >= totalDeficit;
         }
 
         public bool IsSecret()

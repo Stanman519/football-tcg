@@ -15,14 +15,7 @@ namespace TcgEngine
 
         public override bool IsTriggerConditionMet(Game data, AbilityData ability, Card caster)
         {
-            // This requires tracking what the defense guessed vs what offense ran
-            // For now, we check if there's a coverage system
-            
-            // Would need game state: data.defense_guessed_play
-            // Compare to: data.current_offensive_player.SelectedPlay
-            
-            // Placeholder - would need implementation
-            return false;
+            return data.WasDefenseGuessCorrect() == guessCorrect;
         }
 
         public override bool IsTargetConditionMet(Game data, AbilityData ability, Card caster, Card target)
