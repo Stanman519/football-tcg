@@ -89,6 +89,17 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         public List<string> abilities_ongoing = new List<string>();
 
         public List<CardHistory> on_field_history = new List<CardHistory>();
+        public Dictionary<string, int> counters = new Dictionary<string, int>();
+
+        // Standard counter keys
+        public const string CTR_PLAYS_ON_FIELD      = "plays_on_field";
+        public const string CTR_RUNS_ON_FIELD        = "runs_on_field";
+        public const string CTR_PASSES_ON_FIELD      = "passes_on_field";
+        public const string CTR_PLAYS_COVERED        = "plays_covered";
+        public const string CTR_CORRECT_GUESSES      = "correct_guesses";
+        public const string CTR_TOUCHDOWNS_ON_FIELD  = "touchdowns_on_field";
+        public const string CTR_TURNOVERS_ON_FIELD   = "turnovers_on_field";
+        public const string CTR_SACKS_ON_FIELD       = "sacks_on_field";
 
         [System.NonSerialized] private int hash = 0;
         [System.NonSerialized] private CardData data = null;
@@ -96,6 +107,9 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         [System.NonSerialized] private List<AbilityData> abilities_data = null;
 
         public Card(string card_id, string uid, int player_id) { this.card_id = card_id; this.uid = uid; this.player_id = player_id; }
+
+        public int GetCounter(string key) => counters.TryGetValue(key, out int v) ? v : 0;
+        public void IncrementCounter(string key, int amount = 1) { counters[key] = GetCounter(key) + amount; }
 
         public virtual void Refresh() { exhausted = false; }
         public virtual void ClearOngoing() { ongoing_status.Clear(); ongoing_traits.Clear(); ClearOngoingAbility(); attack_ongoing = 0; hp_ongoing = 0; mana_ongoing = 0; }
@@ -130,8 +144,9 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         public void SetTraits(CardData icard)
         {
             traits.Clear();
-            foreach (TraitData trait in icard.traits)
-                SetTrait(trait.id, 0);
+            if (icard.traits != null)
+                foreach (TraitData trait in icard.traits)
+                    SetTrait(trait.id, 0);
             if (icard.stats != null)
             {
                 foreach (TraitStat stat in icard.stats)
@@ -145,8 +160,9 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             abilities_ongoing.Clear();
             if (abilities_data != null)
                 abilities_data.Clear();
-            foreach (AbilityData ability in icard.abilities)
-                AddAbility(ability);
+            if (icard.abilities != null)
+                foreach (AbilityData ability in icard.abilities)
+                    AddAbility(ability);
         }
         
         //------ Custom Traits/Stats ---------
@@ -615,9 +631,14 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             CardTrait.CloneList(source.ongoing_traits, dest.ongoing_traits);
             CardStatus.CloneList(source.status, dest.status);
             CardStatus.CloneList(source.ongoing_status, dest.ongoing_status);
-            GameTool.CloneList(source.abilities, dest.abilities); 
-            GameTool.CloneList(source.abilities_ongoing, dest.abilities_ongoing); 
+            GameTool.CloneList(source.abilities, dest.abilities);
+            GameTool.CloneList(source.abilities_ongoing, dest.abilities_ongoing);
             GameTool.CloneListRefNull(source.abilities_data, ref dest.abilities_data); //No need to deep copy since AbilityData doesn't change dynamically, its just a reference
+
+            dest.counters.Clear();
+            foreach (var kvp in source.counters) dest.counters[kvp.Key] = kvp.Value;
+            dest.on_field_history.Clear();
+            foreach (var h in source.on_field_history) dest.on_field_history.Add(h);
         }
 
         //Clone a var that could be null

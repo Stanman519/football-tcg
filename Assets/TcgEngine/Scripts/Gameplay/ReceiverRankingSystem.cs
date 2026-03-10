@@ -25,7 +25,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                     .ToList();
             }
         }
-        public Card ApplyCoverage(Game game_data, ReceiverRankingSystem rankingSystem)
+        public Card ApplyCoverage(Game game_data)
         {
             // method to determine the best receiver card after applying defensive coverages with the CTR/CNR system
 

@@ -419,6 +419,47 @@ namespace TcgEngine
                     targets.AddRange(caster_player.cards_temp);
             }
 
+            if (target == AbilityTarget.AllBoardOffense)
+            {
+                Player offPlayer = data.current_offensive_player;
+                if (offPlayer != null)
+                {
+                    foreach (Card card in offPlayer.cards_board)
+                    {
+                        if (AreTargetConditionsMet(data, caster, card))
+                            targets.Add(card);
+                    }
+                }
+            }
+
+            if (target == AbilityTarget.AllBoardDefense)
+            {
+                Player defPlayer = data.GetCurrentDefensivePlayer();
+                if (defPlayer != null)
+                {
+                    foreach (Card card in defPlayer.cards_board)
+                    {
+                        if (AreTargetConditionsMet(data, caster, card))
+                            targets.Add(card);
+                    }
+                }
+            }
+
+            if (target == AbilityTarget.LowestStaminaAlly)
+            {
+                Player allyPlayer = data.GetPlayer(caster.player_id);
+                Card lowestStam = null;
+                foreach (Card card in allyPlayer.cards_board)
+                {
+                    if (card.uid == caster.uid) continue;
+                    if (!card.CardData.IsPlayer()) continue;
+                    if (lowestStam == null || card.current_stamina < lowestStam.current_stamina)
+                        lowestStam = card;
+                }
+                if (lowestStam != null && AreTargetConditionsMet(data, caster, lowestStam))
+                    targets.Add(lowestStam);
+            }
+
             if (target == AbilityTarget.LastPlayed)
             {
                 Card target = data.GetCard(data.last_played);
@@ -734,6 +775,7 @@ namespace TcgEngine
         OnKill = 35,        //When killing another card during an attack
 
         OnDeath = 40, //When dying
+        OnKnockout = 41, //When knocked out via stamina exhaustion (stamina drain path only)
         OnDeathOther = 42, //When another dying
         OnDiscard = 43, //When any card is discarded (fires on all board cards for both players)
 
@@ -778,10 +820,12 @@ namespace TcgEngine
         CardSelectorDiscover = 42,  //Discover: pull random cards from deck to temp, player picks 1, rest return to deck
         ChoiceSelector = 50,        //Choice selector menu
 
-        LastPlayed = 70,            //Last card that was played 
+        LastPlayed = 70,            //Last card that was played
         LastTargeted = 72,          //Last card that was targeted with an ability
         LastDestroyed = 74,            //Last card that was killed
         LastSummoned = 77,            //Last card that was summoned or created
+
+        LowestStaminaAlly = 85,     //Ally player card with lowest current_stamina
 
     }
 

@@ -124,21 +124,6 @@ namespace TcgEngine.AI
                 SelectPlay(action.selectedPlay, action.card_uid);
             }
 
-            /*if (action.type == GameAction.Attack)
-            {
-                AttackCard(action.card_uid, action.target_uid);
-            }
-
-            if (action.type == GameAction.AttackPlayer)
-            {
-                AttackPlayer(action.card_uid, action.target_player_id);
-            }
-
-            if (action.type == GameAction.Move)
-            {
-                MoveCard(action.card_uid, action.slot);
-            }*/
-
             if (action.type == GameAction.CastAbility)
             {
                 CastAbility(action.card_uid, action.ability_id);
@@ -215,38 +200,6 @@ namespace TcgEngine.AI
                 game_data.GetPlayer(player_id).PlayEnhancer = card;
             }
             game_data.GetPlayer(player_id).SelectedPlay = playType;
-        }
-
-        private void MoveCard(string card_uid, CardPositionSlot slot)
-        {
-            Game game_data = gameplay.GetGameData();
-            Card card = game_data.GetCard(card_uid);
-            if (card != null)
-            {
-                gameplay.MoveCard(card, slot); 
-            }
-        }
-
-        private void AttackCard(string attacker_uid, string target_uid)
-        {
-            Game game_data = gameplay.GetGameData();
-            Card card = game_data.GetCard(attacker_uid);
-            Card target = game_data.GetCard(target_uid);
-            if (card != null && target != null)
-            {
-                gameplay.AttackTarget(card, target);
-            }
-        }
-
-        private void AttackPlayer(string attacker_uid, int target_player_id)
-        {
-            Game game_data = gameplay.GetGameData();
-            Card card = game_data.GetCard(attacker_uid);
-            if (card != null)
-            {
-                Player oplayer = game_data.GetPlayer(target_player_id);
-                gameplay.AttackPlayer(card, oplayer);
-            }
         }
 
         private void CastAbility(string caster_uid, string ability_id)

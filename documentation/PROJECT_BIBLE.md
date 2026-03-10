@@ -76,11 +76,18 @@ Mulligan → ChoosePlayers → RevealPlayers → ChoosePlay → RevealPlayCalls
 - Example: WR has +4 deep pass, TE has +2 deep pass, RB has +1 deep pass. You call deep pass → WR is primary (+4 applies).
 - This matters because defensive cards can target "top receiver" and negate their bonus.
 
-**PERFECT COVERAGE (Key Defensive Mechanic)**
-- Defensive cards can have "perfect coverage on [receiver type] for [pass type]"
-- If perfect coverage hits the primary receiver, that receiver's bonus is NEGATED.
-- The next-highest bonus receiver becomes primary instead.
-- Example: Defense plays "perfect coverage on top receiver for deep passes." You have WR (+4 deep) and TE (+2 deep). WR's bonus is negated → TE becomes primary with +2.
+**CTR/CNR COVERAGE SYSTEM (Key Defensive Mechanic)**
+- **Cover Top Receiver (CTR)**: removes the bonus of the highest net receiver this play.
+- **Cover Next Receiver (CNR)**: removes one additional receiver's bonus, but only if at least one receiver is already being covered (by CTR or a prior CNR chain).
+- Resolution: count all CTR+CNR players on field. If 0 CTRs → no receivers covered. If ≥1 CTR → skip the top N receivers (N = total CTR+CNR count), return the next uncovered receiver as primary.
+- If all receivers are covered → zero receiver bonus (other OL/QB bonuses still apply).
+- Examples:
+  - 1 CTR: covers #1, #2 gets bonus.
+  - 1 CNR alone: covers nobody, #1 gets bonus.
+  - 1 CTR + 1 CNR: covers #1 and #2, #3 gets bonus.
+  - 2 CTRs: covers #1 and #2, #3 gets bonus.
+  - 2 CNRs: covers nobody, #1 gets bonus.
+- A DB playing CTR/CNR still contributes their raw coverage stat to yardage reduction regardless.
 
 **COACH COVERAGE BONUS/PENALTY**
 - Head coach card has: coverage bonus (for correct guess) and coverage penalty (for wrong guess).
@@ -175,56 +182,101 @@ Mulligan → ChoosePlayers → RevealPlayers → ChoosePlay → RevealPlayCalls
 ## 7. LIVE BALL PHASE
 
 ### Overview
-Live ball starts after `ResolvePlayOutcome` returns `BallIsLive = true` (no sack/TFL/INT from fail events, yardage not yet a score or safety). Both players secretly select one live ball card (or pass), reveal simultaneously, resolve by priority.
+Live ball starts after `ResolvePlayOutcome` returns `BallIsLive = true` (no sack/TFL/INT from fail events, no score/safety). Both players secretly select one live ball card (or pass), reveal simultaneously, resolve by priority. Live ball cards are in the main deck/hand (like MTG artifacts).
+
+### When Live Ball Does NOT Happen
+- Incompletion → dead ball, next down
+- Interception (from fail events) → possession already switched
+- Sack / TFL → ball carrier stopped behind line
+- QB Fumble → already resolved as turnover
+- Yardage reaches end zone (TD) or ≤0 (Safety)
 
 ### Play Eligibility ("Public Mana")
 - Slot result is **public** — both players see it before choosing
-- `CardData.slotRequirements[]` = the slot icons required to play the card (same `SlotRequirement` struct as `AbilityData`)
+- `CardData.slotRequirements[]` = slot icons required to play (like mana cost)
 - `CardData.AreSlotRequirementsMet(current_slot_data)` checked in `CanPlayCard`
-- Max **1 live ball card per player per turn** (enforced via `player.LiveBallCard`)
+- Max **1 live ball card per player per turn** (`player.LiveBallCard`)
+- `OffLiveBall` = offense only, `DefLiveBall` = defense only
 
 ### Card Storage
-- Played live ball cards go to `player.cards_temp` (not board or discard) and `player.LiveBallCard` tracks the reference
+- Played live ball cards go to `player.cards_temp` and `player.LiveBallCard` tracks the reference
 - After resolution, `ClearLiveBallCards()` discards them and nulls the reference
 - `player.LiveBallCard` reset to null at start of each `StartTurn`
 
-### Resolution Order (5-Step Priority)
+### Resolution Order (6-Step Priority)
 ```
-1. TURNOVERS (Step 1)    DefLiveBall cards with EffectForceTurnover
-                         → Detected via HasEffect<EffectForceTurnover>()
-                         → Uncounterable — fires, ClearLiveBallCards(), return (no EndTurn)
-                         → HandleLiveBallTurnover(returnYards) → SwitchPossession → ResetDrive → StartTurn
+1. BOTH PASS CHECK      Both null → subtotal stands, EndTurn
 
-2. DEFENSIVE YARDAGE     DefLiveBall yardage mods (tackles, deflections)
-   (Step 2)              → EffectYardageModifier with negative value
-                         → Applies first so offense can see and respond via Step 3
+2. NEGATE CHECK         DefLiveBall with EffectNegateCard (Blanket Coverage)
+                        → Cancels opponent's card entirely (including fumbles)
+                        OffLiveBall with EffectImmunity (In the Zone)
+                        → Blocks ALL defensive effects (including fumbles)
 
-3. OFFENSIVE YARDAGE     OffLiveBall yardage mods (juke, spin move, stiff arm)
-   (Step 3)              → EffectYardageModifier with positive value
-                         → Modifies game_data.yardage_this_play
+3. FUMBLE CHECK         DefLiveBall with EffectForceTurnover
+                        a. Ball Security (EffectPreventTurnover)? → DENIED. Subtotal stands. END.
+                        b. Apply grit boosts from off card (read-only, not async)
+                        c. Compare board grit: off total vs def total
+                           → Def > Off → FUMBLE. Turnover. Return = 2×(diff). END.
+                           → Off ≥ Def → RECOVERY. Subtotal stands. END.
+                        ANY fumble outcome = play ends. No further effects fire.
 
-4. STATUS EFFECTS        Multi-turn effects (Big Hit = remove RB bonus next 2 plays)
-   (Step 4)              → Applied via abilities in Steps 2/3 using AddStatus with duration
+4. DEF EFFECTS          Yardage mods, silence, stamina drain (non-fumble abilities)
 
-5. SLOT MANIPULATION     For-next-play reel changes
-   (Step 5)              → Fires on OnPlay trigger when card is played
-                         → EffectAddSlotSymbol writes to game_data.temp_slot_modifiers
-                         → Already handled by existing infrastructure
+5. OFF EFFECTS          Yardage mods, draw cards, stamina recovery
+
+6. CLEANUP              ClearLiveBallCards() → EndTurn
 ```
 
-### New Types
-| Type | Notes |
-|---|---|
-| `CardType.OffLiveBall` | Offensive live ball cards (already existed in enum) |
-| `CardType.DefLiveBall` | Defensive live ball cards (already existed in enum) |
-| `AbilityTrigger.OnLiveBallResolution = 55` | Fires during ResolveLiveBallEffects (Steps 2–4) |
-| `EffectYardageModifier` | +/- yards via `ability.value`; modifies `game_data.yardage_this_play` |
-| `EffectForceTurnover` | Step 1 turnover; calls `HandleLiveBallTurnover(returnYards)` |
+### Fumble Design Rules
+- Live ball turnovers = **fumbles only** (never INTs — pass was already caught/run is in progress)
+- Grit-based resolution: defense needs higher board grit to recover the fumble
+- `EffectPreventTurnover` (Ball Security) = auto-prevent regardless of grit (rare, 1 Star cost)
+- Grit-boost cards (Grit Up, +5 grit) = softer protection, cheaper slot cost
+- `EffectNegateCard` (Blanket Coverage) also blocks fumble attempts
+- `EffectImmunity` (In the Zone) also blocks fumble attempts
+- Return yardage = 2× grit difference (same formula as existing turnovers)
 
-### INT Design Notes
-- INTs in live ball are **uncounterable** — once triggered, possession switches
-- Gate them with harsh slot requirements on `CardData.slotRequirements` + conditions on the ability (e.g. `ConditionCoverageGuess(guessCorrect=true)`)
-- Return yardage = 2× grit advantage (same formula as existing interceptions)
+### Card Lineup (20 Cards)
+
+**Offense (OffLiveBall, 00400–00409):**
+| ID | Name | Effect | Slot Cost |
+|----|------|--------|-----------|
+| 00400 | Juke Move | +3 yards | Free |
+| 00401 | Stiff Arm | +5 yards | 1 Helmet |
+| 00402 | Speed Burst | +7 yards | 1 Star |
+| 00403 | Ball Security | Auto-prevent fumble | 1 Star |
+| 00404 | Grit Up | +5 grit this play | 1 Football |
+| 00405 | Second Wind | +1 stamina to carrier | 1 Football |
+| 00406 | In the Zone | Immune to def effects | 1 Star + 1 Helmet |
+| 00407 | Smart Play | Draw 1 card | Free |
+| 00408 | Momentum | +4 yards; if 8+ total: draw 1 | 1 Helmet |
+| 00409 | Second Effort | +3 yards, -1 stamina | 1 Football |
+
+**Defense (DefLiveBall, 00410–00419):**
+| ID | Name | Effect | Slot Cost |
+|----|------|--------|-----------|
+| 00410 | Ankle Tackle | -2 yards | Free |
+| 00411 | Form Tackle | -4 yards | 1 Football |
+| 00412 | Gang Tackle | -6 yards | 1 Helmet + 1 Football |
+| 00413 | Strip the Ball | Force fumble (grit check) | 1 Star |
+| 00414 | Ball Hawk | Fumble if gaining 5+ | 1 Helmet |
+| 00415 | Big Ol Lick | Silence off player 1 turn | 1 Helmet |
+| 00416 | Lights Out | KO player (stamina to 0) | 2 Stars |
+| 00417 | Blanket Coverage | Negate opp's live ball card | 1 Football |
+| 00418 | Wear Them Down | -1 stamina all off players | 1 Star |
+| 00419 | Disruption | Add Wrench to outer reels | 1 Helmet |
+
+### Effects Reference
+| Effect | Purpose |
+|--------|---------|
+| `EffectYardageModifier` | +/- yards via `ability.value` |
+| `EffectForceTurnover` | Fumble (grit-based resolution) |
+| `EffectPreventTurnover` | Ball Security auto-prevent |
+| `EffectNegateCard` | Cancel opponent's live ball card |
+| `EffectImmunity` | Immune to all opponent effects |
+
+### Builder
+`Assets/TcgEngine/Editor/LiveBallCardBuilder.cs` → menu `First&Long > Create Live Ball Cards`
 
 ---
 

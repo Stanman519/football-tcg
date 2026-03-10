@@ -67,6 +67,10 @@ namespace TcgEngine.UI
 
             SetCard(card.CardData, card.VariantData);
 
+            // Override with runtime current_stamina (SetCard(CardData) only knows max)
+            if (stamina != null && card.CardData != null && card.CardData.IsPlayer())
+                stamina.text = card.current_stamina.ToString();
+
             foreach (TraitUI stat in stats)
                 stat.SetCard(card);
         }

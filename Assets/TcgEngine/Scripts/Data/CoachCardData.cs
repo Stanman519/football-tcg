@@ -36,6 +36,7 @@ public class CoachCardData : ScriptableObject
     public CoachSchemeEntry[]  positionalScheme;
     public CoachFormationEntry[] offenseFormations;
     public CoachFormationEntry[] defenseFormations;
+    public CoachData coachProfile;
 
     public int GetOffenseYardage(PlayType pt)
     {

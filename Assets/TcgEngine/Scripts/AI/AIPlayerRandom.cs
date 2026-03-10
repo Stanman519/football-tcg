@@ -1,20 +1,23 @@
-﻿using Assets.TcgEngine.Scripts.Gameplay;
+using Assets.TcgEngine.Scripts.Gameplay;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace TcgEngine.AI
 {
     /// <summary>
-    /// AI player making completely random decisions, really bad AI but useful for testing
+    /// AI player making random decisions per football phase. Bad AI but useful for testing.
     /// </summary>
-    
+
     public class AIPlayerRandom : AIPlayer
     {
         private bool is_playing = false;
         private bool is_selecting = false;
 
         private System.Random rand = new System.Random();
+
+        private GamePhase[] relevantPhases = { GamePhase.ChoosePlayers, GamePhase.ChoosePlay, GamePhase.LiveBall };
 
         public AIPlayerRandom(GameLogicService gameplay, int id, int level)
         {
@@ -30,51 +33,45 @@ namespace TcgEngine.AI
             Game game_data = gameplay.GetGameData();
             Player player = game_data.GetPlayer(player_id);
 
-            // Guard: Don't start AI turn if game is ended or not player's turn
-            if (game_data.HasEnded() || !game_data.IsPlayerTurn(player))
+            if (game_data.HasEnded())
                 return;
 
-            if (game_data.IsPlayerTurn(player) && !gameplay.IsResolving())
+            // Phase-based action
+            if (!is_playing && relevantPhases.Contains(game_data.phase))
             {
-                if(!is_playing && game_data.selector == SelectorType.None && game_data.current_offensive_player.player_id == player_id)
+                if (!player.IsReadyForPhase(game_data.phase))
                 {
                     is_playing = true;
                     TimeTool.StartCoroutine(AiTurn());
                 }
-
-                if (!is_selecting && game_data.selector != SelectorType.None && game_data.selector_player_id == player_id)
-                {
-                    if (game_data.selector == SelectorType.SelectTarget)
-                    {
-                        //AI select target
-                        is_selecting = true;
-                        TimeTool.StartCoroutine(AiSelectTarget());
-                    }
-
-                    if (game_data.selector == SelectorType.SelectorCard)
-                    {
-                        //AI select target
-                        is_selecting = true;
-                        TimeTool.StartCoroutine(AiSelectCard());
-                    }
-
-                    if (game_data.selector == SelectorType.SelectorChoice)
-                    {
-                        //AI select target
-                        is_selecting = true;
-                        TimeTool.StartCoroutine(AiSelectChoice());
-                    }
-
-                    if (game_data.selector == SelectorType.SelectorCost)
-                    {
-                        //AI select target
-                        is_selecting = true;
-                        TimeTool.StartCoroutine(AiSelectCost());
-                    }
-                }
-
             }
 
+            // Selector handling
+            if (!is_selecting && game_data.selector != SelectorType.None && game_data.selector_player_id == player_id)
+            {
+                if (game_data.selector == SelectorType.SelectTarget)
+                {
+                    is_selecting = true;
+                    TimeTool.StartCoroutine(AiSelectTarget());
+                }
+                if (game_data.selector == SelectorType.SelectorCard)
+                {
+                    is_selecting = true;
+                    TimeTool.StartCoroutine(AiSelectCard());
+                }
+                if (game_data.selector == SelectorType.SelectorChoice)
+                {
+                    is_selecting = true;
+                    TimeTool.StartCoroutine(AiSelectChoice());
+                }
+                if (game_data.selector == SelectorType.SelectorCost)
+                {
+                    is_selecting = true;
+                    TimeTool.StartCoroutine(AiSelectCost());
+                }
+            }
+
+            // Mulligan
             if (!is_selecting && game_data.IsPlayerMulliganTurn(player))
             {
                 is_selecting = true;
@@ -86,43 +83,102 @@ namespace TcgEngine.AI
         {
             yield return new WaitForSeconds(1f);
 
-            PlayCard();
+            Game game_data = gameplay.GetGameData();
+            Player player = game_data.GetPlayer(player_id);
+            GamePhase phase = game_data.phase;
+            Player offPlayer = game_data.current_offensive_player;
+            bool isOffense = offPlayer != null && offPlayer.player_id == player_id;
 
-            yield return new WaitForSeconds(0.5f);
+            if (phase == GamePhase.ChoosePlayers)
+            {
+                // Play up to 3 random player cards
+                for (int i = 0; i < 3; i++)
+                {
+                    yield return new WaitForSeconds(0.3f);
+                    PlayRandomPlayerCard(player, isOffense);
+                }
+            }
+            else if (phase == GamePhase.ChoosePlay)
+            {
+                // Pick a random play type
+                PlayType[] plays = { PlayType.Run, PlayType.ShortPass, PlayType.LongPass };
+                player.SelectedPlay = plays[rand.Next(plays.Length)];
 
-            PlayCard();
+                // Optionally play a random enhancer
+                CardType enhType = isOffense ? CardType.OffensivePlayEnhancer : CardType.DefensivePlayEnhancer;
+                var enhancers = player.cards_hand.Where(c => c.Data.type == enhType).ToList();
+                if (enhancers.Count > 0 && rand.Next(2) == 0) // 50% chance to use enhancer
+                {
+                    Card enh = enhancers[rand.Next(enhancers.Count)];
+                    player.PlayEnhancer = enh;
+                }
+            }
+            else if (phase == GamePhase.LiveBall)
+            {
+                // Play a random live ball card if available
+                CardType liveType = isOffense ? CardType.OffLiveBall : CardType.DefLiveBall;
+                var liveCards = player.cards_hand
+                    .Where(c => c.Data.type == liveType && game_data.CanPlayCard(c, CardPositionSlot.None))
+                    .ToList();
+                if (liveCards.Count > 0)
+                {
+                    Card card = liveCards[rand.Next(liveCards.Count)];
+                    gameplay.PlayCard(card, CardPositionSlot.None);
+                }
+            }
 
-            yield return new WaitForSeconds(0.5f);
+            yield return new WaitForSeconds(0.3f);
 
-            PlayCard();
-
-            yield return new WaitForSeconds(0.5f);
-
-            Attack();
-
-            yield return new WaitForSeconds(0.5f);
-
-            Attack();
-
-            yield return new WaitForSeconds(0.5f);
-
-            AttackPlayer();
-
-            yield return new WaitForSeconds(0.5f);
-
-            EndTurn();
+            // Signal ready
+            game_data = gameplay.GetGameData();
+            player = game_data.GetPlayer(player_id);
+            if (!player.IsReadyForPhase(phase))
+            {
+                player.SetReadyForPhase(phase, true);
+                game_data.playerPhaseReady[player_id] = true;
+            }
 
             is_playing = false;
+        }
+
+        private void PlayRandomPlayerCard(Player player, bool isOffense)
+        {
+            if (!CanPlay()) return;
+            Game game_data = gameplay.GetGameData();
+
+            var playerCards = player.cards_hand
+                .Where(c => {
+                    if (!c.CardData.IsPlayer()) return false;
+                    var pos = c.CardData.playerPosition;
+                    if (pos == PlayerPositionGrp.NONE) return false;
+                    if (isOffense) return game_data.offensive_pos_grps.Contains(pos);
+                    return game_data.defensive_pos_grps.Contains(pos);
+                })
+                .ToList();
+
+            if (playerCards.Count == 0) return;
+
+            Card card = playerCards[rand.Next(playerCards.Count)];
+
+            // Find a valid slot
+            var slots = CardPositionSlot.GetAll(player.player_id)
+                .Where(s => s.posGroupType == card.CardData.playerPosition)
+                .ToList();
+            foreach (var slot in slots)
+            {
+                if (game_data.CanPlayCard(card, slot))
+                {
+                    gameplay.PlayCard(card, slot);
+                    return;
+                }
+            }
         }
 
         private IEnumerator AiSelectCard()
         {
             yield return new WaitForSeconds(0.5f);
-
             SelectCard();
-
             yield return new WaitForSeconds(0.5f);
-
             CancelSelect();
             is_selecting = false;
         }
@@ -130,11 +186,8 @@ namespace TcgEngine.AI
         private IEnumerator AiSelectTarget()
         {
             yield return new WaitForSeconds(0.5f);
-
             SelectTarget();
-
             yield return new WaitForSeconds(0.5f);
-
             CancelSelect();
             is_selecting = false;
         }
@@ -142,11 +195,8 @@ namespace TcgEngine.AI
         private IEnumerator AiSelectChoice()
         {
             yield return new WaitForSeconds(0.5f);
-
             SelectChoice();
-
             yield return new WaitForSeconds(0.5f);
-
             CancelSelect();
             is_selecting = false;
         }
@@ -154,8 +204,6 @@ namespace TcgEngine.AI
         private IEnumerator AiSelectCost()
         {
             yield return new WaitForSeconds(0.5f);
-
-
             CancelSelect();
             is_selecting = false;
         }
@@ -163,80 +211,20 @@ namespace TcgEngine.AI
         private IEnumerator AiSelectMulligan()
         {
             yield return new WaitForSeconds(0.5f);
-
             SelectMulligan();
-
             yield return new WaitForSeconds(0.5f);
             is_selecting = false;
         }
 
         //----------
 
-        public void PlayCard()
-        {
-            if (!CanPlay())
-                return;
-
-            Game game_data = gameplay.GetGameData();
-            Player player = game_data.GetPlayer(player_id);
-            if (player.cards_hand.Count > 0 && game_data.IsPlayerActionTurn(player))
-            {
-                Card random = player.GetRandomCard(player.cards_hand, rand);
-                CardPositionSlot slot = player.GetRandomEmptySlot(rand);
-
-                //if (random != null && random.CardData.IsRequireTargetSpell())
-                //    slot = game_data.GetRandomSlot(rand); //Spell can target any slot, not just your side
-
-                if(random != null && random.CardData.IsEquipment())
-                    slot = player.GetRandomOccupiedSlot(rand);
-
-                if (random != null)
-                    gameplay.PlayCard(random, slot);
-            }
-        }
-
-        public void Attack()
-        {
-            if (!CanPlay())
-                return;
-
-            Game game_data = gameplay.GetGameData();
-            Player player = game_data.GetPlayer(player_id);
-            if (player.cards_board.Count > 0 && game_data.IsPlayerActionTurn(player))
-            {
-                Card random = player.GetRandomCard(player.cards_board, rand);
-                Card rtarget = game_data.GetRandomBoardCard(rand);
-                if (random != null && rtarget != null)
-                    gameplay.AttackTarget(random, rtarget);
-            }
-        }
-
-        public void AttackPlayer()
-        {
-            if (!CanPlay())
-                return;
-
-            Game game_data = gameplay.GetGameData();
-            Player player = game_data.GetPlayer(player_id);
-            Player oplayer = game_data.GetRandomPlayer(rand);
-            if (player.cards_board.Count > 0 && game_data.IsPlayerActionTurn(player))
-            {
-                Card random = player.GetRandomCard(player.cards_board, rand);
-                if (random != null && oplayer != null && oplayer != player)
-                    gameplay.AttackPlayer(random, oplayer);
-            }
-        }
-
         public void SelectCard()
         {
-            if (!CanPlay())
-                return;
-
+            if (!CanPlay()) return;
             Game game_data = gameplay.GetGameData();
-            Player player = game_data.GetPlayer(player_id);
             AbilityData ability = AbilityData.Get(game_data.selector_ability_id);
             Card caster = game_data.GetCard(game_data.selector_caster_uid);
-            if (player != null && ability != null && caster != null)
+            if (ability != null && caster != null)
             {
                 List<Card> card_list = ability.GetCardTargets(game_data, caster);
                 if (card_list.Count > 0)
@@ -249,9 +237,7 @@ namespace TcgEngine.AI
 
         public void SelectTarget()
         {
-            if (!CanPlay())
-                return;
-
+            if (!CanPlay()) return;
             Game game_data = gameplay.GetGameData();
             if (game_data.selector != SelectorType.None)
             {
@@ -272,9 +258,7 @@ namespace TcgEngine.AI
 
         public void SelectChoice()
         {
-            if (!CanPlay())
-                return;
-
+            if (!CanPlay()) return;
             Game game_data = gameplay.GetGameData();
             if (game_data.selector != SelectorType.None)
             {
@@ -287,21 +271,15 @@ namespace TcgEngine.AI
             }
         }
 
-
-
         public void CancelSelect()
         {
             if (CanPlay())
-            {
                 gameplay.CancelSelection();
-            }
         }
 
         public void SelectMulligan()
         {
-            if (!CanPlay())
-                return;
-
+            if (!CanPlay()) return;
             Game game_data = gameplay.GetGameData();
             if (game_data.phase == GamePhase.Mulligan)
             {
@@ -310,14 +288,5 @@ namespace TcgEngine.AI
                 gameplay.Mulligan(player, cards);
             }
         }
-
-        public void EndTurn()
-        {
-            if (CanPlay())
-            {
-                gameplay.EndTurn();
-            }
-        }
     }
-
 }

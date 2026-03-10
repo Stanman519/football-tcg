@@ -743,6 +743,7 @@ public static class PlayerCardImporter
         "INCOMPLETE"   => FailPlayEventType.IncompletePass,
         "BATTEDPASS"   => FailPlayEventType.BattedPass,
         "TIPPEDPASS"   => FailPlayEventType.TippedPass,
+        "SACKFUMBLE"   => FailPlayEventType.SackFumble,
         _              => FailPlayEventType.None
     };
 

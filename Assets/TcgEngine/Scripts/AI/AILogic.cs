@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
 using UnityEngine.Profiling;
@@ -8,33 +8,27 @@ using Assets.TcgEngine.Scripts.Gameplay;
 namespace TcgEngine.AI
 {
     /// <summary>
-    /// Minimax algorithm for AI. 
+    /// Minimax algorithm for AI.
     /// </summary>
 
     public class AILogic
     {
         //-------- AI Logic Params ------------------
 
-        public int ai_depth = 3;                //How many turns in advance does it check, higher number takes exponentially longer
-        public int ai_depth_wide = 1;           //For these first few turns, will consider more options, slow!
-        public int actions_per_turn = 2;          //AI wont predict more than this number of sequential actions per turn, if more than that will EndTurn (Do A, then do B, then do C, then end turn)
-        public int actions_per_turn_wide = 3;     //Same but in wide depth
-        public int nodes_per_action = 4;         //For a turn action (1st, 2nd, or 3rd...), cannot evaluate more than this number of child nodes, if more, will only process the AIActions with with best score
-        public int nodes_per_action_wide = 7;    //Same but in wide depth
-
-        //Example: for the first turn, AI will predict 3 sequential actions (I play a card, then attack with this one, then play a spell),
-        //for each of those actions, it will look at 7 possibilities, if more will cut based on score, keeping the actions with highest score
-        //At depth 2 and 3 it will only try to perform 2 actions but for each one will evaluate 4 possibilities. Depth 2 is the opponent's turn and depth 3 is the AI's next turn.
-        //For the nodes that are evaluated, will go down to depth 3 and calculate heuristic at the max depth, and then propagate the heuristic up in the node tree.
-        //AI will choose the move that has a path leading to the best heuristic.
+        public int ai_depth = 3;                //How many turns in advance does it check
+        public int ai_depth_wide = 1;           //For first few turns, consider more options
+        public int actions_per_turn = 2;        //Max sequential actions per turn
+        public int actions_per_turn_wide = 3;   //Same but in wide depth
+        public int nodes_per_action = 4;        //Max child nodes per action
+        public int nodes_per_action_wide = 7;   //Same but in wide depth
 
         //-----
 
-        public int ai_player_id;                    //AI player_id  (usually its 1)
-        public int ai_level;                       //AI level
+        public int ai_player_id;
+        public int ai_level;
 
-        private GameLogicService game_logic;           //Game logic used to calculate moves
-        private Game original_data;             //Original game data when start calculating possibilities
+        private GameLogicService game_logic;
+        private Game original_data;
         private AIHeuristic heuristic;
         private Thread ai_thread;
 
@@ -61,7 +55,7 @@ namespace TcgEngine.AI
             job.ai_level = level;
 
             job.heuristic = new AIHeuristic(player_id, level);
-            job.game_logic = new GameLogicService(true); //Skip all delays for the AI calculations
+            job.game_logic = new GameLogicService(true);
 
             return job;
         }
@@ -71,21 +65,20 @@ namespace TcgEngine.AI
             if (running)
                 return;
 
-            original_data = Game.CloneNew(data);        //Clone game data to keep original data unaffected
-            game_logic.ClearResolve();                 //Clear temp memory
-            game_logic.SetData(original_data);          //Assign data to game logic
-            random_gen = new System.Random();       //Reset random seed
+            original_data = Game.CloneNew(data);
+            game_logic.ClearResolve();
+            game_logic.SetData(original_data);
+            random_gen = new System.Random();
 
             first_node = null;
             reached_depth = 0;
             nb_calculated = 0;
             running = true;
 
-            //Uncomment these lines to run on separate thread (and comment Execute()), better for production so it doesn't freeze the UI while calculating the AI
+            //Uncomment for threaded execution (production):
             //ai_thread = new Thread(Execute);
             //ai_thread.Start();
 
-            //Uncomment this line to run on main thread (and comment the thread one), better for debuging since you will be able to use breakpoints, profiler and Debug.Log
             Execute();
         }
 
@@ -98,7 +91,6 @@ namespace TcgEngine.AI
 
         private void Execute()
         {
-            //Create first node
             first_node = CreateNode(null, null, ai_player_id, 0, 0);
             first_node.hvalue = heuristic.CalculateHeuristic(original_data, first_node);
             first_node.alpha = int.MinValue;
@@ -107,24 +99,21 @@ namespace TcgEngine.AI
             Profiler.BeginSample("AI");
             System.Diagnostics.Stopwatch watch = System.Diagnostics.Stopwatch.StartNew();
 
-            //Calculate first node
             CalculateNode(original_data, first_node);
 
             Debug.Log("AI: Time " + watch.ElapsedMilliseconds + "ms Depth " + reached_depth + " Nodes " + nb_calculated);
             Profiler.EndSample();
 
-            //Save best move
             best_move = first_node.best_child;
             running = false;
         }
 
-        //Add list of all possible orders and search in all of them
         private void CalculateNode(Game data, NodeState node)
         {
             Profiler.BeginSample("Add Actions");
             Player offensivePlayer = data.current_offensive_player;
             var player = data.GetPlayer(node.current_player);
-            var isOffense = offensivePlayer == player;
+            var isOffense = offensivePlayer != null && offensivePlayer == player;
             List<AIAction> action_list = list_pool.Create();
 
             int max_actions = node.tdepth < ai_depth_wide ? actions_per_turn_wide : actions_per_turn;
@@ -132,10 +121,17 @@ namespace TcgEngine.AI
             {
                 if (data.selector == SelectorType.None && player != null)
                 {
+                    // --- ChoosePlayers: play player cards from hand (matching side) ---
                     if (original_data.phase == GamePhase.ChoosePlayers)
                     {
-                        var playersInHand = player.cards_hand.Where(c => !c.CardData.playerPosition.Equals(PlayerPositionGrp.NONE)).ToList();
-                        //Play Player card
+                        var playersInHand = player.cards_hand
+                            .Where(c => {
+                                var pos = c.CardData.playerPosition;
+                                if (pos == PlayerPositionGrp.NONE) return false;
+                                if (isOffense) return data.offensive_pos_grps.Contains(pos);
+                                return data.defensive_pos_grps.Contains(pos);
+                            })
+                            .ToList();
                         for (int c = 0; c < playersInHand.Count; c++)
                         {
                             Card card = playersInHand[c];
@@ -143,45 +139,57 @@ namespace TcgEngine.AI
                         }
                     }
 
+                    // --- ChoosePlay: select play type + optional enhancer ---
                     if (original_data.phase == GamePhase.ChoosePlay)
                     {
-                        var enhancers = player.cards_hand.Where(c => c.Data.type == (isOffense ? CardType.OffensivePlayEnhancer : CardType.DefensivePlayEnhancer)).ToList();
-                        // choose play without enhancer
+                        var enhancers = player.cards_hand
+                            .Where(c => c.Data.type == (isOffense ? CardType.OffensivePlayEnhancer : CardType.DefensivePlayEnhancer))
+                            .ToList();
+
+                        // Generate one action per play type (no enhancer)
                         AddActions(action_list, data, node, GameAction.SelectPlay, null);
-                        //Choose Play with enhancer
+
+                        // Generate enhancer actions
                         for (int c = 0; c < enhancers.Count; c++)
                         {
                             Card card = enhancers[c];
                             AddActions(action_list, data, node, GameAction.SelectPlay, card);
-                            
                         }
-
                     }
 
-
-
-/*                    if (player.hero != null)
-                        AddActions(action_list, data, node, GameAction.CastAbility, player.hero);*/
+                    // --- LiveBall: play live ball cards ---
+                    if (original_data.phase == GamePhase.LiveBall)
+                    {
+                        CardType liveType = isOffense ? CardType.OffLiveBall : CardType.DefLiveBall;
+                        var liveCards = player.cards_hand
+                            .Where(c => c.Data.type == liveType)
+                            .ToList();
+                        for (int c = 0; c < liveCards.Count; c++)
+                        {
+                            Card card = liveCards[c];
+                            if (data.CanPlayCard(card, CardPositionSlot.None))
+                            {
+                                AIAction action = CreateAction(GameAction.PlayCard, card);
+                                action_list.Add(action);
+                            }
+                        }
+                    }
                 }
-                else
+                else if (data.selector != SelectorType.None)
                 {
-                    // TODO: if there are selectable things do this
-                     // AddSelectActions(action_list, data, node);
+                    AddSelectActions(action_list, data, node);
                 }
             }
 
-            //End Turn (dont add action if ai can still attack player, or ai hasnt spent any mana)
-            bool can_attack_player = HasAction(action_list, GameAction.AttackPlayer);
-
-            // In phase-locked modes, use PlayerReadyPhase to confirm rather than EndTurn
-            bool is_phase_locked = original_data.phase == GamePhase.ChoosePlayers 
-                                || original_data.phase == GamePhase.ChoosePlay 
+            // Phase-locked modes use PlayerReadyPhase, not EndTurn
+            bool is_phase_locked = original_data.phase == GamePhase.ChoosePlayers
+                                || original_data.phase == GamePhase.ChoosePlay
                                 || original_data.phase == GamePhase.LiveBall;
 
-            // In ChoosePlay phase, don't add PlayerReadyPhase - SelectPlay is the only action
+            // In ChoosePlay, SelectPlay is the terminal action
             bool skip_ready_action = original_data.phase == GamePhase.ChoosePlay;
 
-            bool can_end = !can_attack_player && data.selector == SelectorType.None;
+            bool can_end = data.selector == SelectorType.None;
             if ((action_list.Count == 0 || can_end) && !skip_ready_action)
             {
                 ushort action_type = is_phase_locked ? GameAction.PlayerReadyPhase : GameAction.EndTurn;
@@ -189,11 +197,9 @@ namespace TcgEngine.AI
                 action_list.Add(actiont);
             }
 
-            //Remove actions with low score
             FilterActions(data, node, action_list);
             Profiler.EndSample();
 
-            //Execute valid action and search child node
             for (int o = 0; o < action_list.Count; o++)
             {
                 AIAction action = action_list[o];
@@ -207,7 +213,6 @@ namespace TcgEngine.AI
             list_pool.Dispose(action_list);
         }
 
-        //Mark valid/invalid on each action, if too many actions, will keep only the ones with best score
         private void FilterActions(Game data, NodeState node, List<AIAction> action_list)
         {
             int count_valid = 0;
@@ -221,11 +226,10 @@ namespace TcgEngine.AI
             }
 
             int max_actions = node.tdepth < ai_depth_wide ? nodes_per_action_wide : nodes_per_action;
-            int max_actions_skip = max_actions + 2; //No need to calculate all scores if its just to remove 1-2 actions
+            int max_actions_skip = max_actions + 2;
             if (count_valid <= max_actions_skip)
-                return; //No filtering needed
+                return;
 
-            //Calculate scores
             for (int o = 0; o < action_list.Count; o++)
             {
                 AIAction action = action_list[o];
@@ -235,7 +239,6 @@ namespace TcgEngine.AI
                 }
             }
 
-            //Sort, and invalidate actions with low score
             action_list.Sort((AIAction a, AIAction b) => { return b.score.CompareTo(a.score); });
             for (int o = 0; o < action_list.Count; o++)
             {
@@ -244,28 +247,24 @@ namespace TcgEngine.AI
             }
         }
 
-        //Create a child node for parent, and calculate it
         private void CalculateChildNode(Game data, NodeState parent, AIAction action)
         {
             if (action.type == GameAction.None)
                 return;
 
-            int player_id = data.current_offensive_player.player_id;
+            int player_id = parent.current_player;
 
-            //Clone data so we can update it in a new node
             Profiler.BeginSample("Clone Data");
             Game ndata = data_pool.Create();
-            Game.Clone(data, ndata); //Clone
+            Game.Clone(data, ndata);
             game_logic.ClearResolve();
             game_logic.SetData(ndata);
             Profiler.EndSample();
 
-            //Execute move and update data
             Profiler.BeginSample("Execute AIAction");
             DoAIAction(ndata, action, player_id);
             Profiler.EndSample();
 
-            //Update depth
             bool new_turn = action.type == GameAction.EndTurn;
             bool phase_transition = action.type == GameAction.PlayerReadyPhase;
             int next_tdepth = parent.tdepth;
@@ -277,31 +276,24 @@ namespace TcgEngine.AI
                 next_taction = 0;
             }
 
-            //Create node
             Profiler.BeginSample("Create Node");
             NodeState child_node = CreateNode(parent, action, player_id, next_tdepth, next_taction);
             parent.childs.Add(child_node);
             Profiler.EndSample();
 
-            //Set minimum sort for next AIActions, if new turn, reset to 0
             child_node.sort_min = (new_turn || phase_transition) ? 0 : Mathf.Max(action.sort, child_node.sort_min);
 
-            //If win or reached max depth, stop searching deeper
             if (!ndata.HasEnded() && child_node.tdepth < ai_depth)
             {
-                //Calculate child
                 CalculateNode(ndata, child_node);
             }
             else
             {
-                //End of tree, calculate full Heuristic
                 child_node.hvalue = heuristic.CalculateHeuristic(ndata, child_node);
             }
 
-            //Update parents hvalue, alpha, beta, and best child
             if (player_id == ai_player_id)
             {
-                //AI player
                 if (parent.best_child == null || child_node.hvalue > parent.hvalue)
                 {
                     parent.best_child = child_node;
@@ -311,7 +303,6 @@ namespace TcgEngine.AI
             }
             else
             {
-                //Opponent player
                 if (parent.best_child == null || child_node.hvalue < parent.hvalue)
                 {
                     parent.best_child = child_node;
@@ -320,13 +311,10 @@ namespace TcgEngine.AI
                 }
             }
 
-            //Just for debug, keep track of node/depth count
             nb_calculated++;
             if (child_node.tdepth > reached_depth)
                 reached_depth = child_node.tdepth;
 
-            //We are done with this game data, dispose it.
-            //Dont dispose NodeState here (node_pool) since we want to retrieve the full tree path later
             data_pool.Dispose(ndata);
         }
 
@@ -345,7 +333,6 @@ namespace TcgEngine.AI
             return nnode;
         }
 
-        //Add all possible moves for card to list of actions
         private void AddActions(List<AIAction> actions, Game data, NodeState node, ushort type, Card card)
         {
             Player player = data.GetPlayer(node.current_player);
@@ -360,8 +347,8 @@ namespace TcgEngine.AI
             {
                 if (card.CardData.IsPlayer())
                 {
-                    var slotsForPosition = slot_array.Get().Where(s => s.posGroupType == card.CardData.playerPosition).ToList();
-                    //Doesn't matter where the card is played
+                    var slotsForPosition = slot_array.Get()
+                        .Where(s => s.posGroupType == card.CardData.playerPosition).ToList();
                     CardPositionSlot slot = player.GetRandomEmptySlotForPosition(random_gen, slotsForPosition);
 
                     if (data.CanPlayCard(card, slot))
@@ -371,149 +358,52 @@ namespace TcgEngine.AI
                         actions.Add(action);
                     }
                 }
-
-/*                else if (card.CardData.IsEquipment())
-                {
-                    Player tplayer = data.GetPlayer(card.player_id);
-                    for (int c = 0; c < tplayer.cards_board.Count; c++)
-                    {
-                        Card tcard = tplayer.cards_board[c];
-                        if (data.CanPlayCard(card, tcard.slot))
-                        {
-                            AIAction action = CreateAction(type, card);
-                            action.slot = tcard.slot;
-                            action.target_player_id = tplayer.player_id;
-                            actions.Add(action);
-                        }
-                    }
-                }*/
-                /*else if (card.CardData.IsRequireTargetSpell())
-                {
-                    for (int p = 0; p < data.players.Length; p++)
-                    {
-                        Player tplayer = data.players[p];
-                        CardPositionSlot tslot = new CardPositionSlot(tplayer.player_id, 0);
-                        if (data.CanPlayCard(card, tslot))
-                        {
-                            AIAction action = CreateAction(type, card);
-                            action.slot = tslot;
-                            action.target_player_id = tplayer.player_id;
-                            actions.Add(action);
-                        }
-                    }
-                    foreach (CardPositionSlot slot in CardPositionSlot.GetAll())
-                    {
-                        if (data.CanPlayCard(card, slot))
-                        {
-                            List<Card> slot_cards = data.GetSlotCards(slot);
-                            foreach (var slot_card in slot_cards)
-                            {
-                                AIAction action = CreateAction(type, card);
-                                action.slot = slot;
-                                action.target_uid = slot_card != null ? slot_card.uid : null;
-                                actions.Add(action);
-                            }
-
-                        }
-                    }
-                }*/
                 else if (data.CanPlayCard(card, CardPositionSlot.None))
                 {
                     AIAction action = CreateAction(type, card);
                     actions.Add(action);
                 }
             }
+
             if (type == GameAction.SelectPlay)
             {
-                if (card == null )
+                if (card == null)
                 {
-                    PlayType[] validPlays = new PlayType[3] { PlayType.Run, PlayType.ShortPass, PlayType.LongPass };
-                    //random number between 0 and 2;
-                    var playCall = validPlays[random_gen.Next(validPlays.Length)];
-                    AIAction action = CreateAction(type, playCall);
-                    actions.Add(action);
+                    // Generate one action per play type so MiniMax evaluates each
+                    PlayType[] validPlays = { PlayType.Run, PlayType.ShortPass, PlayType.LongPass };
+                    foreach (var play in validPlays)
+                    {
+                        AIAction action = CreateAction(type, play);
+                        actions.Add(action);
+                    }
                 }
                 else
                 {
-                    AIAction action = CreateAction(type, card);
-                    actions.Add(action);
-                }
-
-            }
-            if (type == GameAction.Attack)
-            {
-                if (card.CanAttack())
-                {
-                    for (int p = 0; p < data.players.Length; p++)
+                    // Enhancer — generate one action per required play
+                    if (card.Data.required_plays != null && card.Data.required_plays.Length > 0)
                     {
-                        if (p != player.player_id)
+                        foreach (var play in card.Data.required_plays)
                         {
-                            Player oplayer = data.players[p];
-                            for (int tc = 0; tc < oplayer.cards_board.Count; tc++)
-                            {
-                                Card target = oplayer.cards_board[tc];
-                                if (data.CanAttackTarget(card, target))
-                                {
-                                    AIAction action = CreateAction(type, card);
-                                    action.target_uid = target.uid;
-                                    actions.Add(action);
-                                }
-                            }
+                            AIAction action = CreateAction(type, card);
+                            action.selectedPlay = play;
+                            actions.Add(action);
                         }
                     }
-                }
-            }
-
-            if (type == GameAction.AttackPlayer)
-            {
-                if (card.CanAttack())
-                {
-                    for (int p = 0; p < data.players.Length; p++)
+                    else
                     {
-                        if (p != player.player_id)
+                        // Enhancer with no play restriction — pair with each play type
+                        PlayType[] validPlays = { PlayType.Run, PlayType.ShortPass, PlayType.LongPass };
+                        foreach (var play in validPlays)
                         {
-                            Player oplayer = data.players[p];
-                            if (data.CanAttackTarget(card, oplayer))
-                            {
-                                AIAction action = CreateAction(type, card);
-                                action.target_player_id = oplayer.player_id;
-                                actions.Add(action);
-                            }
+                            AIAction action = CreateAction(type, card);
+                            action.selectedPlay = play;
+                            actions.Add(action);
                         }
-                    }
-                }
-            }
-
-            if (type == GameAction.CastAbility)
-            {
-                List<AbilityData> abilities = card.GetAbilities();
-                for (int a = 0; a < abilities.Count; a++)
-                {
-                    AbilityData ability = abilities[a];
-                    if (ability.trigger == AbilityTrigger.Activate && data.CanCastAbility(card, ability) && ability.HasValidSelectTarget(data, card))
-                    {
-                        AIAction action = CreateAction(type, card);
-                        action.ability_id = ability.id;
-                        actions.Add(action);
-                    }
-                }
-            }
-
-            if (type == GameAction.Move)
-            {
-                foreach (CardPositionSlot slot in CardPositionSlot.GetAll(player.player_id))
-                {
-                    if (data.CanMoveCard(card, slot))
-                    {
-                        AIAction action = CreateAction(type, card);
-                        action.slot = slot;
-                        actions.Add(action);
                     }
                 }
             }
         }
 
-        //Add all possible moves for a selection
         private void AddSelectActions(List<AIAction> actions, Game data, NodeState node)
         {
             if (data.selector == SelectorType.None)
@@ -556,21 +446,17 @@ namespace TcgEngine.AI
                             actions.Add(action);
                         }
                     }
-
                 }
             }
 
             if (data.selector == SelectorType.SelectorCard && ability != null)
             {
-                for (int p = 0; p < data.players.Length; p++)
+                List<Card> cards = ability.GetCardTargets(data, caster, card_array);
+                foreach (Card tcard in cards)
                 {
-                    List<Card> cards = ability.GetCardTargets(data, caster, card_array);
-                    foreach (Card tcard in cards)
-                    {
-                        AIAction action = CreateAction(GameAction.SelectCard, caster);
-                        action.target_uid = tcard.uid;
-                        actions.Add(action);
-                    }
+                    AIAction action = CreateAction(GameAction.SelectCard, caster);
+                    action.target_uid = tcard.uid;
+                    actions.Add(action);
                 }
             }
 
@@ -588,7 +474,6 @@ namespace TcgEngine.AI
                 }
             }
 
-            //Add option to cancel, if no valid options
             if (actions.Count == 0)
             {
                 AIAction caction = CreateAction(GameAction.CancelSelect, caster);
@@ -604,14 +489,17 @@ namespace TcgEngine.AI
             action.valid = true;
             return action;
         }
+
         private AIAction CreateAction(ushort type, PlayType playCall)
         {
             AIAction action = action_pool.Create();
+            action.Clear();
             action.type = type;
             action.valid = true;
             action.selectedPlay = playCall;
             return action;
         }
+
         private AIAction CreateAction(ushort type, Card card)
         {
             AIAction action = action_pool.Create();
@@ -619,15 +507,9 @@ namespace TcgEngine.AI
             action.type = type;
             action.card_uid = card.uid;
             action.valid = true;
-            if (card.Data.IsPlayEnhancer())
-            {
-                action.selectedPlay = card.Data.required_plays[random_gen.Next(card.Data.required_plays.Length)];
-
-            }
             return action;
         }
 
-        //Simulate AI action
         private void DoAIAction(Game data, AIAction action, int player_id)
         {
             Player player = data.GetPlayer(player_id);
@@ -636,26 +518,6 @@ namespace TcgEngine.AI
             {
                 Card card = player.GetHandCard(action.card_uid);
                 game_logic.PlayCard(card, action.slot);
-            }
-
-            if (action.type == GameAction.Move)
-            {
-                Card card = player.GetBoardCard(action.card_uid);
-                game_logic.MoveCard(card, action.slot);
-            }
-
-            if (action.type == GameAction.Attack)
-            {
-                Card card = player.GetBoardCard(action.card_uid);
-                Card target = data.GetBoardCard(action.target_uid);
-                game_logic.AttackTarget(card, target);
-            }
-
-            if (action.type == GameAction.AttackPlayer)
-            {
-                Card card = player.GetBoardCard(action.card_uid);
-                Player tplayer = data.GetPlayer(action.target_player_id);
-                game_logic.AttackPlayer(card, tplayer);
             }
 
             if (action.type == GameAction.CastAbility)
@@ -695,14 +557,12 @@ namespace TcgEngine.AI
             if (action.type == GameAction.PlayerReadyPhase)
             {
                 player.SetReadyForPhase(data.phase, true);
-                Debug.Log($"AI Player {player_id} marked ready for phase {data.phase}");
             }
 
             if (action.type == GameAction.SelectPlay)
             {
                 player.SelectedPlay = action.selectedPlay;
                 player.PlayEnhancer = action.card_uid != null ? player.GetHandCard(action.card_uid) : null;
-                Debug.Log($"AI Player {player_id} selected play: {action.selectedPlay}");
             }
 
             if (action.type == GameAction.EndTurn)
@@ -765,7 +625,7 @@ namespace TcgEngine.AI
             action_pool.DisposeAll();
             list_pool.DisposeAll();
 
-            System.GC.Collect(); //Free memory from AI
+            System.GC.Collect();
         }
 
         public int GetNbNodesCalculated()
@@ -801,12 +661,12 @@ namespace TcgEngine.AI
 
     public class NodeState
     {
-        public int tdepth;      //Depth in number of turns
-        public int taction;     //How many orders in current turn
-        public int sort_min;    //Sorting minimum value, orders below this value will be ignored to avoid calculate both path A -> B and path B -> A
-        public int hvalue;      //Heuristic value, this AI tries to maximize it, opponent tries to minimize it
-        public int alpha;       //Highest heuristic reached by the AI player, used for optimization and ignore some tree branch
-        public int beta;        //Lowest heuristic reached by the opponent player, used for optimization and ignore some tree branch
+        public int tdepth;
+        public int taction;
+        public int sort_min;
+        public int hvalue;
+        public int alpha;
+        public int beta;
 
         public AIAction last_action = null;
         public int current_player;
@@ -847,9 +707,9 @@ namespace TcgEngine.AI
         public PlayType selectedPlay;
         public int value;
 
-        public int score;           //Score to determine which orders get cut and ignored
-        public int sort;            //Orders must be executed in sort order
-        public bool valid;          //If false, this order will be ignored
+        public int score;
+        public int sort;
+        public bool valid;
 
         public AIAction() { }
         public AIAction(ushort t) { type = t; }
@@ -867,6 +727,8 @@ namespace TcgEngine.AI
                 txt += " slot " + slot.posGroupType + "-" + slot.p;
             if (ability_id != null)
                 txt += " ability " + ability_id;
+            if (type == GameAction.SelectPlay)
+                txt += " play " + selectedPlay;
             if (value > 0)
                 txt += " value " + value;
             return txt;
@@ -881,6 +743,7 @@ namespace TcgEngine.AI
             ability_id = null;
             target_player_id = -1;
             slot = CardPositionSlot.None;
+            selectedPlay = PlayType.Huddle;
             value = -1;
             score = 0;
             sort = 0;

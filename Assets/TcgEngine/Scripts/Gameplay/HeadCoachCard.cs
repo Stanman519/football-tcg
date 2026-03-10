@@ -25,8 +25,11 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         public Dictionary<PlayType, List<CompletionRequirement>> completionRequirements;
 
         // Formation assets per play type (null entries fall back to hardcoded data in FieldSlotManager)
-        public Dictionary<PlayType, FormationData> offenseFormations = new Dictionary<PlayType, FormationData>();
-        public Dictionary<PlayType, FormationData> defenseFormations = new Dictionary<PlayType, FormationData>();
+        [System.NonSerialized] public Dictionary<PlayType, FormationData> offenseFormations = new Dictionary<PlayType, FormationData>();
+        [System.NonSerialized] public Dictionary<PlayType, FormationData> defenseFormations = new Dictionary<PlayType, FormationData>();
+
+        [System.NonSerialized] public CoachData coachData;
+        public CoachType coachType = CoachType.Balanced;
 
         public HeadCoachCard()
         {
@@ -87,6 +90,9 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             if (data.positionalScheme != null)
                 foreach (var e in data.positionalScheme)
                     positional_Scheme[e.position] = new HCPlayerSchemeData { pos_max = e.maxCards };
+
+            coachData = data.coachProfile;
+            coachType = data.coachProfile != null ? data.coachProfile.coachType : CoachType.Balanced;
 
             offenseFormations.Clear();
             if (data.offenseFormations != null)

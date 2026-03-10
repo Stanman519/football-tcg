@@ -45,7 +45,7 @@ namespace Assets.TcgEngine.Scripts.Effects
         private void ModifyStamina(Card card, int amount)
         {
             int finalAmount = removeStamina ? -amount : amount;
-            card.current_stamina = System.Math.Max(0, card.current_stamina + finalAmount);
+            card.current_stamina = System.Math.Clamp(card.current_stamina + finalAmount, 0, card.Data.stamina);
         }
 
         private void ModifyTeamStamina(Player player, int amount)

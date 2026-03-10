@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(ls project\\\\Assets\\\\TcgEngine\\\\\":*)",
+      "Bash(grep:*)"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "ai-game-developer"
+  ]
+}

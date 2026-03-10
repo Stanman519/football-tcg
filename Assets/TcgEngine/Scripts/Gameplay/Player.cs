@@ -66,6 +66,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         public Dictionary<string, Card> cards_all = new Dictionary<string, Card>(); //Dictionnary for quick access to any card by UID
         public Card hero = null;
         public HeadCoachCard head_coach = new HeadCoachCard();
+        [System.NonSerialized] public CoachManager coachManager;
 
         public List<Card> cards_deck = new List<Card>();    //Cards in the player's deck
         public List<Card> cards_hand = new List<Card>();    //Cards in the player's hand
@@ -638,7 +639,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             //dest.connected = source.connected;
             //dest.ready = source.ready;
 
-            //dest.hp = source.hp;
+            dest.hp = source.hp;
             //dest.hp_max = source.hp_max;
             //dest.kill_count = source.kill_count;
 
@@ -657,6 +658,15 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             CardStatus.CloneList(source.ongoing_status, dest.ongoing_status);
 
             dest.coach_card_id = source.coach_card_id;
+            dest.head_coach.baseOffenseYardage = new Dictionary<PlayType, int>(source.head_coach.baseOffenseYardage);
+            dest.head_coach.baseDefenseYardage = new Dictionary<PlayType, int>(source.head_coach.baseDefenseYardage);
+            dest.head_coach.coachType = source.head_coach.coachType;
+            dest.head_coach.coachData = source.head_coach.coachData;
+
+            dest.points = source.points;
+            dest.SelectedPlay = source.SelectedPlay;
+            dest.PlayEnhancer = source.PlayEnhancer != null ? dest.GetCard(source.PlayEnhancer.uid) : null;
+            dest.LiveBallCard = source.LiveBallCard != null ? dest.GetCard(source.LiveBallCard.uid) : null;
 
             dest.suits_played_this_turn.Clear();
             dest.suits_played_this_turn.AddRange(source.suits_played_this_turn);
@@ -690,7 +700,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             {
                 if (card != null && card.Data != null)
                 {
-                    total += card.Data.stamina;
+                    total += card.current_stamina;
                 }
             }
             return total;

@@ -53,12 +53,8 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         public int ball_position;               // Ball position after play
         public bool was_touchdown;              // Did this play result in TD
         public bool was_field_goal;             // Did this play result in FG
-
-        // Can be extended to include:
-        // public List<string> offensive_cards_played;
-        // public List<string> defensive_cards_played;
-        // public int defensive_yards;
-        // etc.
+        public List<string> offensive_card_uids = new List<string>();
+        public List<string> defensive_card_uids = new List<string>();
     }
 
     [System.Serializable]
@@ -74,12 +70,15 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         public float turn_timer = 0f;
         public int current_down = 1;
         public int current_half = 1;
+        public int first_half_offense_player_id = 0; // who started half 1 on offense; opponent gets ball in half 2
         public int raw_ball_on = 25;
         public FieldDirection fieldDirection;
         public int plays_left_in_half = 11;
         public int yardage_this_play;
         public int yardage_to_go;
         public bool turnover_pending = false; // Set by ResolvePlayOutcome when a fail-event turnover fires; consumed by EndPlayPhase
+        public int live_ball_grit_bonus = 0;    // grit bonus from off live-ball card; set before fumble ability fires; read by EffectForceTurnover.DoEffect
+        public int live_ball_return_yards = 0;  // return yards from live-ball fumble; set in HandleLiveBallTurnover; applied in EndPlayPhase turnover path
 
         // Slot machine modifiers (from abilities)
         public List<SlotModifier> temp_slot_modifiers;
@@ -276,7 +275,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         void InitializeTestGame()
         {
             InitCoachFromAsset(players[0], "TestCoach_Offense");
-            InitCoachFromAsset(players[1], "TestCoach_Defense");
+            InitCoachFromAsset(players[1], "TestCoachProfile_Aggressive");
 
             // Fallback: if assets not found, keep default constructor values but set completion reqs
             EnsureCompletionRequirements(players[0].head_coach);
@@ -285,23 +284,32 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
         private static void InitCoachFromAsset(Player player, string assetName)
         {
-            CoachCardData data = Resources.Load<CoachCardData>("Coaches/" + assetName);
-            if (data != null)
+            // Try CoachCardData first (full card wrapper)
+            CoachCardData cardData = Resources.Load<CoachCardData>("Coaches/" + assetName);
+            if (cardData != null)
             {
                 player.coach_card_id = assetName;
-                player.head_coach.InitFromData(data);
+                player.head_coach.InitFromData(cardData);
+                return;
             }
-            else
+
+            // Fallback: raw CoachData asset (not wrapped in CoachCardData)
+            CoachData coachData = Resources.Load<CoachData>("Coaches/" + assetName);
+            if (coachData != null)
             {
-                Debug.LogWarning($"[Game] CoachCardData not found: Coaches/{assetName}. Using defaults.");
-                // Hard-coded fallback so yardage still works before assets are created
-                player.head_coach.baseOffenseYardage[PlayType.Run]       = 3;
-                player.head_coach.baseOffenseYardage[PlayType.ShortPass] = 5;
-                player.head_coach.baseOffenseYardage[PlayType.LongPass]  = 10;
-                player.head_coach.baseDefenseYardage[PlayType.Run]       = 2;
-                player.head_coach.baseDefenseYardage[PlayType.ShortPass] = 3;
-                player.head_coach.baseDefenseYardage[PlayType.LongPass]  = 7;
+                player.coach_card_id = assetName;
+                player.head_coach.coachData = coachData;
+                player.head_coach.coachType = coachData.coachType;
+                return;
             }
+
+            Debug.LogWarning($"[Game] No coach asset found: Coaches/{assetName}. Using defaults.");
+            player.head_coach.baseOffenseYardage[PlayType.Run]       = 3;
+            player.head_coach.baseOffenseYardage[PlayType.ShortPass] = 5;
+            player.head_coach.baseOffenseYardage[PlayType.LongPass]  = 10;
+            player.head_coach.baseDefenseYardage[PlayType.Run]       = 2;
+            player.head_coach.baseDefenseYardage[PlayType.ShortPass] = 3;
+            player.head_coach.baseDefenseYardage[PlayType.LongPass]  = 7;
         }
 
         private static void EnsureCompletionRequirements(HeadCoachCard coach)
@@ -412,6 +420,11 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                     return false;
                 if (player.PlayEnhancer != null)
                     return false; // Already played one enhancer this turn
+                if (card.CardData.required_plays != null && card.CardData.required_plays.Length > 0
+                    && System.Array.IndexOf(card.CardData.required_plays, player.SelectedPlay) < 0)
+                    return false; // Play type doesn't match enhancer requirement
+                if (!card.CardData.AreSlotRequirementsMet(current_slot_data))
+                    return false; // Slot icons don't meet the play cost
             }
             if ((cardType == CardType.OffLiveBall || cardType == CardType.DefLiveBall) && phase != GamePhase.LiveBall)
                 return false;
@@ -934,11 +947,19 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             dest.game_uid = source.game_uid;
             dest.settings = source.settings;
 
-            dest.current_offensive_player = source.current_offensive_player;
             dest.turn_count = source.turn_count;
             dest.turn_timer = source.turn_timer;
             dest.state = source.state;
             dest.phase = source.phase;
+
+            // Football fields
+            dest.raw_ball_on = source.raw_ball_on;
+            dest.current_down = source.current_down;
+            dest.plays_left_in_half = source.plays_left_in_half;
+            dest.yardage_this_play = source.yardage_this_play;
+            dest.current_half = source.current_half;
+            dest.play_count_this_drive = source.play_count_this_drive;
+            dest.after_field_goal = source.after_field_goal;
 
             if (dest.players == null)
             {
@@ -949,6 +970,10 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
             for (int i = 0; i < source.players.Length; i++)
                 Player.Clone(source.players[i], dest.players[i]);
+
+            // Remap player reference to cloned instance
+            dest.current_offensive_player = source.current_offensive_player != null
+                ? dest.players[source.current_offensive_player.player_id] : null;
 
             dest.selector = source.selector;
             dest.selector_player_id = source.selector_player_id;
@@ -965,6 +990,10 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
             CloneHash(source.ability_played, dest.ability_played);
             CloneHash(source.cards_attacked, dest.cards_attacked);
+
+            dest.playerPhaseReady.Clear();
+            foreach (var kvp in source.playerPhaseReady)
+                dest.playerPhaseReady[kvp.Key] = kvp.Value;
         }
 
         public static void CloneHash(HashSet<string> source, HashSet<string> dest)
@@ -1003,6 +1032,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             last_coverage_guess_correct = WasDefenseGuessCorrect();
 
             // Create and store play history snapshot
+            Player defPlayer = GetCurrentDefensivePlayer();
             PlayHistory history = new PlayHistory
             {
                 turn_number = turn_count,
@@ -1016,10 +1046,14 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 current_half = current_half,
                 ball_position = raw_ball_on,
                 was_touchdown = IsTouchdown(),
-                was_field_goal = after_field_goal
+                was_field_goal = after_field_goal,
+                offensive_card_uids = current_offensive_player.cards_board.Select(c => c.uid).ToList(),
+                defensive_card_uids = defPlayer != null ? defPlayer.cards_board.Select(c => c.uid).ToList() : new List<string>()
             };
 
             play_history.Add(history);
+            if (play_history.Count > 50)
+                play_history.RemoveAt(0);
         }
 
         /// <summary>
@@ -1213,7 +1247,8 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         TippedPass = 5,       
         Interception = 6,
         IncompletePass = 7,          
-        RunnerFumble = 8,   
+        RunnerFumble = 8,
+        SackFumble = 9,     // sack + QB fumble in one ability slot
     }
     public enum FieldDirection
     {
