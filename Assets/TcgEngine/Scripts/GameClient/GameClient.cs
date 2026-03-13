@@ -869,6 +869,21 @@ namespace TcgEngine.Client
         {
             MsgRefreshAll msg = sdata.Get<MsgRefreshAll>();
             game_data = msg.game_data;
+
+            // Re-populate [NonSerialized] coach dictionaries from the serialized coach_card_id
+            if (game_data?.players != null)
+            {
+                foreach (Player player in game_data.players)
+                {
+                    if (player.head_coach != null && !string.IsNullOrEmpty(player.coach_card_id))
+                    {
+                        CoachCardData coachData = Resources.Load<CoachCardData>("Coaches/" + player.coach_card_id);
+                        if (coachData != null)
+                            player.head_coach.InitFromData(coachData);
+                    }
+                }
+            }
+
             onRefreshAll?.Invoke();
         }
 

@@ -70,6 +70,12 @@ public class FieldSlotManager : MonoBehaviour
     private GamePhase lastPhase = GamePhase.None;
     private int lastBoardCount = -1;
     private int lastOffensivePlayerId = -1;
+    private PlayType lastSelectedPlay = PlayType.Huddle;
+
+    /// <summary>
+    /// When true, Update() skips ApplyFormations(). Set by PlayAnimationController during choreographed sequences.
+    /// </summary>
+    public bool animationLocked { get; set; }
 
     // -------------------------------------------------------
 
@@ -81,18 +87,22 @@ public class FieldSlotManager : MonoBehaviour
 
     void Update()
     {
+        if (animationLocked) return;
         if (!GameClient.Get()?.IsReady() ?? false) return;
         Game g = GameClient.Get().GetGameData();
         if (g == null) return;
 
         int boardCount = g.players?.Sum(p => p.cards_board.Count) ?? 0;
         int currentOffId = g.current_offensive_player?.player_id ?? -1;
+        PlayType currentSelectedPlay = g.current_offensive_player?.SelectedPlay ?? PlayType.Huddle;
 
-        if (g.phase != lastPhase || boardCount != lastBoardCount || currentOffId != lastOffensivePlayerId)
+        if (g.phase != lastPhase || boardCount != lastBoardCount
+            || currentOffId != lastOffensivePlayerId || currentSelectedPlay != lastSelectedPlay)
         {
             lastPhase = g.phase;
             lastBoardCount = boardCount;
             lastOffensivePlayerId = currentOffId;
+            lastSelectedPlay = currentSelectedPlay;
             ApplyFormations(g);
         }
     }
@@ -218,7 +228,7 @@ public class FieldSlotManager : MonoBehaviour
         Player player = g.players?.FirstOrDefault(p => p.player_id == playerId);
         if (player?.head_coach != null)
         {
-            PlayType offPlay = g.current_offensive_player?.SelectedPlay ?? PlayType.Run;
+            PlayType offPlay = g.current_offensive_player?.SelectedPlay ?? PlayType.Huddle;
             var coachFormations = isOffense
                 ? player.head_coach.offenseFormations
                 : player.head_coach.defenseFormations;
@@ -288,9 +298,9 @@ public class FieldSlotManager : MonoBehaviour
                     : DefenseFormationForPlay(offPlay);
 
             default:
-                // StartTurn, ChoosePlayers, RevealPlayers, ChoosePlay, EndTurn — use
-                // a near-LOS formation. MoveSlots() routes bench-role groups to Sidelines.
-                return isOffense ? FieldFormation.Offense_Run : FieldFormation.Defense_vs_Run;
+                // StartTurn, ChoosePlayers, RevealPlayers, ChoosePlay, EndTurn — huddle.
+                // Formation breaks at RevealPlayCalls (handled above).
+                return FieldFormation.Huddle;
         }
     }
 

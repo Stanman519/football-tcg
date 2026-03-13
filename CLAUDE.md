@@ -112,6 +112,20 @@ One card per suit per turn (player cards). `CardSuit` enum: None/Clubs/Diamonds/
 - ScriptableObjects must be created via `ScriptableObject.CreateInstance<T>()`, never `new`.
 - Card assets are YAML ScriptableObjects in `Assets/Resources/Cards/`.
 - `ResolveQueue` handles all deferred/timed callbacks — don't bypass it for sequenced game actions.
+
+## Unity MCP Development Rules
+- **Two MCP servers**: `UnityMCP` (primary, structured) and `coplay-mcp` (AI generation, profiling)
+- **coplay-mcp setup**: Call `set_unity_project_root("C:\Users\Stanley\My project")` before using coplay tools each session.
+- **Code Verification**: After creating or modifying C# scripts, MUST call `refresh_unity` (UnityMCP) to trigger recompilation.
+- **Feedback Loop**: After refresh, call `read_console` (filter errors). If errors exist, fix them and repeat until clean.
+- **Scene Safety**: Use `manage_scene(get_hierarchy)` or `find_gameobjects` to verify objects exist before attaching scripts.
+- **ScriptableObject Reads**: Use `manage_scriptable_object` to inspect card/ability assets rather than parsing YAML manually.
+- **Menu Commands**: Use `execute_menu_item` for CSV imports (`First&Long/Import Player Cards from CSV`) and card builders.
+- **Screenshots**: Use `manage_camera(screenshot)` to visually verify UI/scene changes.
+- **Diagnostics First**: Before investigating code bugs, use `read_console` (with `include_stacktrace=true, format=detailed`) to get the full error + call stack. This often reveals the root cause without reading code.
+- **Scene Inspection**: Use `find_gameobjects(by_component)` and `mcpforunity://scene/gameobject/{id}/components` to verify scripts are attached before assuming they work.
+- **Use MCP for Unity mutations**: Prefer `manage_components`, `manage_scene(save)`, `manage_scriptable_object` over manually editing YAML assets where possible.
+
 ## Testing & Quality
 - **EditMode Tests**: Use these for `GameLogicService` math. No Unity Scene required.
 - **Mocking**: Use `Substitute` or manual mock classes if dependencies are too heavy.

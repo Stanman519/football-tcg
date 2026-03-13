@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
 using TcgEngine.Client;
@@ -54,8 +55,8 @@ public class SlotMachineUI : MonoBehaviour
     public float decelTime  = 0.45f;  // seconds from fast → slow
 
     [Header("Layout — Full (SlotSpin phase)")]
-    public Vector2 fullAnchorMin = new Vector2(0.15f, 0.20f);
-    public Vector2 fullAnchorMax = new Vector2(0.85f, 0.80f);
+    public Vector2 fullAnchorMin = new Vector2(0.30f, 0.32f);
+    public Vector2 fullAnchorMax = new Vector2(0.70f, 0.72f);
 
     [Header("Layout — Mini (all other phases)")]
     public Vector2 miniAnchorMin = new Vector2(0.72f, 0.36f);
@@ -67,6 +68,8 @@ public class SlotMachineUI : MonoBehaviour
     private GameObject        slotMachinePanel;
     private Image             winLineImg;
     private int               stoppedCount;
+    private bool              layoutLocked;   // prevents auto-layout during orchestrated animations
+    private Tween             layoutTween;
 
     // ═════════════════════════════════════════════════════════════════════════
     // Unity lifecycle
@@ -169,8 +172,16 @@ public class SlotMachineUI : MonoBehaviour
     {
         Game gd = GameClient.Get()?.GetGameData();
         if (gd == null || slotMachinePanel == null) return;
-        SetLayout(mini: gd.phase != GamePhase.SlotSpin);
+        if (layoutLocked) return; // PlayAnimationController owns the minimize timing
+
+        // Only go full-size during SlotSpin; Resolution minimize is handled by MinimizeAnimated
+        if (gd.phase == GamePhase.SlotSpin)
+            SetLayout(mini: false);
+        else if (gd.phase != GamePhase.Resolution)
+            SetLayout(mini: true);
     }
+
+    public event System.Action onAllReelsStopped;
 
     private void OnReelStopped(int reelIndex)
     {
@@ -178,7 +189,10 @@ public class SlotMachineUI : MonoBehaviour
 
         stoppedCount++;
         if (stoppedCount >= spinners.Count)
+        {
             StartCoroutine(WinLineFlash());
+            onAllReelsStopped?.Invoke();
+        }
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -193,6 +207,38 @@ public class SlotMachineUI : MonoBehaviour
         rt.anchorMax = mini ? miniAnchorMax : fullAnchorMax;
         rt.offsetMin = Vector2.zero;
         rt.offsetMax = Vector2.zero;
+    }
+
+    /// <summary>
+    /// Lock layout so OnGameDataRefreshed won't auto-switch during orchestrated animations.
+    /// </summary>
+    public void LockLayout() { layoutLocked = true; }
+
+    /// <summary>
+    /// Smoothly animate from current layout to mini position. Unlocks layout on complete.
+    /// </summary>
+    public void MinimizeAnimated(float duration = 0.5f)
+    {
+        if (slotMachinePanel == null) return;
+        var rt = slotMachinePanel.GetComponent<RectTransform>();
+        if (rt == null) return;
+
+        layoutTween?.Kill();
+        layoutLocked = true;
+
+        Vector2 startMin = rt.anchorMin;
+        Vector2 startMax = rt.anchorMax;
+
+        layoutTween = DOTween.To(() => 0f, t =>
+        {
+            rt.anchorMin = Vector2.Lerp(startMin, miniAnchorMin, t);
+            rt.anchorMax = Vector2.Lerp(startMax, miniAnchorMax, t);
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+        }, 1f, duration).SetEase(Ease.InOutQuad).SetLink(gameObject).OnComplete(() =>
+        {
+            layoutLocked = false;
+        });
     }
 
     // ═════════════════════════════════════════════════════════════════════════

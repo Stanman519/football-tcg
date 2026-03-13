@@ -102,6 +102,10 @@ namespace TcgEngine
         [Header("Formation Override")]
         public FormationData formationOverride;   // null = use coach base formation
 
+        [Header("Animation")]
+        public RouteData receiverRoute;            // personal route for this card's slot (fallback if no coach route)
+        public RouteData routeOverride;            // play enhancer: replaces ALL coach routes for this play when set
+
         [Header("Availability")]
         public bool deckbuilding = false;
         public int cost = 100;

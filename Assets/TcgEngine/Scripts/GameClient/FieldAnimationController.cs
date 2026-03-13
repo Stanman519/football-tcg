@@ -119,9 +119,10 @@ public class FieldAnimationController : MonoBehaviour
             {
                 if (wp.posGroup == slot.player_position_type && wp.slotIndex == slot.slotIndex)
                 {
-                    Vector3 targetLocal = FieldSlotManager.Instance != null
-                        ? FieldSlotManager.Instance.ToLocalPosPublic(new Vector2(wp.xFraction, wp.yardsFromLOS))
-                        : Vector3.zero;
+                    // Routes are relative — apply delta from current position
+                    Vector3 current = slot.transform.localPosition;
+                    float fieldWidth = FieldSlotManager.Instance != null ? FieldSlotManager.Instance.fieldWidth : 53.3f;
+                    Vector3 targetLocal = current + new Vector3(wp.deltaX, wp.deltaYards, 0);
                     slot.SetTargetPosition(targetLocal);
                     break;
                 }

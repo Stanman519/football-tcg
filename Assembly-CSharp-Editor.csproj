@@ -56,12 +56,14 @@
     <Compile Include="Assets\TcgEngine\Tests\Editor\FumbleTests.cs" />
     <Compile Include="Assets\TcgEngine\Tests\Editor\PlayEnhancerTests.cs" />
     <Compile Include="Assets\Editor\CardImporter.cs" />
+    <Compile Include="Assets\TcgEngine\Editor\CoachRouteSetupWindow.cs" />
     <Compile Include="Assets\TcgEngine\Editor\FormationDesignerWindow.cs" />
     <Compile Include="Assets\TcgEngine\Editor\IronWillCardBuilder.cs" />
     <Compile Include="Assets\TcgEngine\Tests\Editor\CoachCardTests.cs" />
     <Compile Include="Assets\TcgEngine\Editor\PlayerCardImporter.cs" />
     <Compile Include="Assets\TcgEngine\Editor\PlayEnhancerCardBuilder.cs" />
     <Compile Include="Assets\Editor\ApplyTestCardArt.cs" />
+    <Compile Include="Assets\TcgEngine\Editor\RouteDesignerWindow.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Editor\ImportPackage.cs" />
     <Compile Include="Assets\TcgEngine\Tests\Editor\FootballMathTests.cs" />
     <Compile Include="Assets\TcgEngine\Editor\LiveBallCardBuilder.cs" />
@@ -646,6 +648,10 @@
       <HintPath>Assets\Plugins\Demigiant\DOTween\Editor\DOTweenEditor.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Microsoft.CodeAnalysis.CSharp">
+      <HintPath>Assets\Plugins\Roslyn\Microsoft.CodeAnalysis.CSharp.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Unity.Plastic.Newtonsoft.Json">
       <HintPath>Library\PackageCache\com.unity.collab-proxy@e566cd3e7623\Lib\Editor\Unity.Plastic.Newtonsoft.Json.dll</HintPath>
       <Private>False</Private>
@@ -668,6 +674,10 @@
     </Reference>
     <Reference Include="DOTween">
       <HintPath>Assets\Plugins\Demigiant\DOTween\DOTween.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Microsoft.CodeAnalysis">
+      <HintPath>Assets\Plugins\Roslyn\Microsoft.CodeAnalysis.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Unity.VisualScripting.Antlr3.Runtime">
@@ -1570,6 +1580,10 @@
       <HintPath>Library\ScriptAssemblies\Unity.2D.Psdimporter.Editor.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="MCPForUnity.Runtime">
+      <HintPath>Library\ScriptAssemblies\MCPForUnity.Runtime.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Unity.RenderPipelines.Core.Runtime">
       <HintPath>Library\ScriptAssemblies\Unity.RenderPipelines.Core.Runtime.dll</HintPath>
       <Private>False</Private>
@@ -1620,6 +1634,10 @@
     </Reference>
     <Reference Include="Unity.Networking.Transport">
       <HintPath>Library\ScriptAssemblies\Unity.Networking.Transport.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="MCPForUnity.Editor">
+      <HintPath>Library\ScriptAssemblies\MCPForUnity.Editor.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Unity.Timeline.Editor">

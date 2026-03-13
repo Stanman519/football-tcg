@@ -37,14 +37,17 @@ namespace TcgEngine
     }
 
     /// <summary>
-    /// A single slot's target position at a given keyframe.
+    /// A single slot's movement delta at a given keyframe.
+    /// All values are RELATIVE to the slot's position when the route started.
+    /// deltaYards: positive = toward opponent end zone, negative = backward
+    /// deltaX: positive = right, negative = left (in yards, not fraction)
     /// </summary>
     [Serializable]
     public class SlotWaypoint
     {
         public PlayerPositionGrp posGroup;
         public int slotIndex;
-        public float xFraction;     // -0.5 … +0.5
-        public float yardsFromLOS;  // negative = own backfield
+        public float deltaX;       // yards left/right from starting position
+        public float deltaYards;   // yards forward/backward from starting position
     }
 }

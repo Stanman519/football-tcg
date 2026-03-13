@@ -1,4 +1,5 @@
 using Assets.TcgEngine.Scripts.Gameplay;
+using DG.Tweening;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -20,7 +21,11 @@ namespace TcgEngine.Client
         public bool isStarSlot = false; // Determines if a Star/Superstar can go here
 
         private Vector3 targetLocalPos;
-        public float moveSpeed = 3f;
+        private Tween formationTween;
+        private bool wasQueueActive;
+
+        private SlotMovementQueue moveQueue;
+        public SlotMovementQueue MoveQueue => moveQueue;
 
         private static List<BoardSlot> slot_list = new List<BoardSlot>();
         public SpriteRenderer spriteRenderer; // Controls the slot appearance
@@ -36,6 +41,7 @@ namespace TcgEngine.Client
             collide = GetComponent<Collider>();
             start_alpha = spriteRenderer.color.a;
             targetLocalPos = transform.localPosition;
+            moveQueue = new SlotMovementQueue(this);
         }
 
         protected virtual void OnDestroy()
@@ -73,8 +79,19 @@ namespace TcgEngine.Client
 
             target_alpha = valid ? 1f : 0f;
 
-            // Smooth lerp to formation target position
-            transform.localPosition = Vector3.Lerp(transform.localPosition, targetLocalPos, moveSpeed * Time.deltaTime);
+            // If movement queue is active, let it drive position; otherwise formation tween handles it
+            bool queueActive = moveQueue != null && !moveQueue.IsIdle;
+            if (queueActive)
+            {
+                moveQueue.Tick();
+            }
+
+            // When queue finishes, freeze position so slots don't Lerp back to stale formation targets
+            if (wasQueueActive && !queueActive)
+            {
+                targetLocalPos = transform.localPosition;
+            }
+            wasQueueActive = queueActive;
         }
         public bool IsValidDragTarget()
         {
@@ -172,6 +189,58 @@ namespace TcgEngine.Client
         {
             localPos.z = -1f;
             targetLocalPos = localPos;
+            MeanderTo(localPos);
+        }
+
+        /// <summary>
+        /// DOTween-driven move. Pass duration > 0 for choreographed animation.
+        /// </summary>
+        public void SetTargetPosition(Vector3 localPos, float duration, Ease ease = Ease.OutQuad)
+        {
+            localPos.z = -1f;
+            targetLocalPos = localPos;
+            formationTween?.Kill();
+            if (duration > 0f)
+                formationTween = transform.DOLocalMove(targetLocalPos, duration).SetEase(ease).SetLink(gameObject);
+        }
+
+        /// <summary>
+        /// Organic formation transition — players meander to target with slight lateral wobble.
+        /// </summary>
+        private void MeanderTo(Vector3 target)
+        {
+            formationTween?.Kill();
+            target.z = -1f;
+
+            Vector3 start = transform.localPosition;
+            float dist = Vector3.Distance(start, target);
+            if (dist < 0.1f) return; // already there
+
+            float duration = PlayerSpeed.Duration(dist, SpeedTier.Jog);
+
+            // Build 2-3 intermediate waypoints with random lateral offset for organic feel
+            var seq = DOTween.Sequence();
+            int legs = dist > 5f ? 3 : 2;
+
+            for (int i = 1; i <= legs; i++)
+            {
+                float t = (float)i / (legs + 1);
+                if (i == legs) t = 1f; // final leg goes to exact target
+
+                Vector3 wp = Vector3.Lerp(start, target, t);
+                if (i < legs) // intermediate waypoints get lateral wobble
+                {
+                    Vector3 lateral = Vector3.Cross((target - start).normalized, Vector3.forward);
+                    wp += lateral * Random.Range(-1.2f, 1.2f);
+                }
+                wp.z = -1f;
+
+                float legDuration = duration / legs;
+                seq.Append(transform.DOLocalMove(wp, legDuration).SetEase(Ease.InOutSine));
+            }
+
+            seq.SetLink(gameObject);
+            formationTween = seq;
         }
 
         public virtual Vector3 GetPosition(CardPositionSlot slot)

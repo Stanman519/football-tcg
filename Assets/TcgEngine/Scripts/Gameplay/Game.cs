@@ -79,6 +79,8 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         public bool turnover_pending = false; // Set by ResolvePlayOutcome when a fail-event turnover fires; consumed by EndPlayPhase
         public int live_ball_grit_bonus = 0;    // grit bonus from off live-ball card; set before fumble ability fires; read by EffectForceTurnover.DoEffect
         public int live_ball_return_yards = 0;  // return yards from live-ball fumble; set in HandleLiveBallTurnover; applied in EndPlayPhase turnover path
+        public string ball_carrier_uid;          // uid of card carrying the ball (RB for runs, receiver for passes) — drives client animation
+        public string target_receiver_uid;       // uid of receiver who caught the pass — drives client animation
 
         // Slot machine modifiers (from abilities)
         public List<SlotModifier> temp_slot_modifiers;
@@ -979,6 +981,9 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             dest.selector_player_id = source.selector_player_id;
             dest.selector_caster_uid = source.selector_caster_uid;
             dest.selector_ability_id = source.selector_ability_id;
+
+            dest.ball_carrier_uid = source.ball_carrier_uid;
+            dest.target_receiver_uid = source.target_receiver_uid;
 
             dest.last_destroyed = source.last_destroyed;
             dest.last_played = source.last_played;

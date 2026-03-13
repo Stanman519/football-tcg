@@ -166,7 +166,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 Debug.Log("All players ready for ChoosePlay, transitioning to RevealPlayCalls");
                 RevealPlayCalls();
                 resolve_queue.AddCallback(StartSlotSpinPhase);
-                resolve_queue.ResolveAll();
+                resolve_queue.ResolveAll(FormationTransitionDelay);
             }
             else
             {
@@ -183,7 +183,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                     Debug.Log("Both players selected plays, progressing from ChoosePlay");
                     RevealPlayCalls();
                     resolve_queue.AddCallback(StartSlotSpinPhase);
-                    resolve_queue.ResolveAll();
+                    resolve_queue.ResolveAll(FormationTransitionDelay);
                 }
                 else
                 {
@@ -222,7 +222,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             slotMachineUI.FireReelUI(game_data.current_slot_data.Results, slotMachineManager.slot_data);
 
             resolve_queue.AddCallback(ResolvePlayOutcome);
-            resolve_queue.ResolveAll(1.5f);
+            resolve_queue.ResolveAll(SlotSpinDelay);
         }
 
         /// <summary>
@@ -241,7 +241,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             slotMachineUI.FireReelUI(game_data.current_slot_data.Results, slotMachineManager.slot_data);
 
             resolve_queue.AddCallback(StartTurn);
-            resolve_queue.ResolveAll(1.5f);
+            resolve_queue.ResolveAll(SlotSpinDelay);
         }
 
         private SlotMachineResultDTO SpinSlotsWithModifiers(bool recordHistory = true)
@@ -283,11 +283,32 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             return results;
         }
 
+        // ── Animation timing constants ──────────────────────
+        // Huddle→formation at jog (~4.5 yd/s), max ~15yd = ~3.3s + 0.5s dramatic beat
+        private const float FormationTransitionDelay = 4.0f;
+        // ~2s spin + 1s results display + 0.5s beat
+        private const float SlotSpinDelay = 3.5f;
+        // settle(0.5) + minimize(0.7) + routes(~2s) + beats(0.6) + yardage(~1s) + pursuit(~1.5s)
+        private const float RouteAnimationDelay = 7.0f;
+
         public virtual void StartLiveBallPhase()
         {
             if (game_data.state == GameState.GameEnded)
                 return;
 
+            // Set Resolution phase so client fires route animations (snap → routes + yardage movement)
+            game_data.phase = GamePhase.Resolution;
+            RefreshData();
+
+            // After routes finish, transition to LiveBall
+            resolve_queue.AddCallback(StartLiveBallPhaseInternal);
+            resolve_queue.ResolveAll(RouteAnimationDelay);
+        }
+
+        private void StartLiveBallPhaseInternal()
+        {
+            if (game_data.state == GameState.GameEnded)
+                return;
             game_data.phase = GamePhase.LiveBall;
             RefreshData();
         }

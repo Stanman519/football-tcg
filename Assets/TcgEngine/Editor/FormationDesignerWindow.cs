@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
 using TcgEngine;
@@ -32,27 +31,13 @@ using Assets.TcgEngine.Scripts.Gameplay;
 ///   ------L-----------L---------------   row 8  (LBs)
 ///   ---D-----D-------D-----D----------   row 18 (DL near LOS)
 ///
-/// FULL-FIELD ROUTE (variable rows, multiple keyframes)
-///   "===" marks the line of scrimmage.
-///   Above "===" = own backfield (negative yardsFromLOS).
-///   Below "===" = opponent side (positive yardsFromLOS).
-///   "--- FRAME N t=X.X ---" starts a new keyframe.
-///
-///   --- FRAME 0 t=0.0 ---
-///   W-------------W---W-------------W-   (pre-snap)
-///   ===================================   LOS
-///   --- FRAME 1 t=1.5 ---
-///   ----------W-----------W-----------   (routes)
-///   ===================================
-///   ------W-------------------W-------
-///
 /// ── LETTER MAP ─────────────────────────────────────────────────────────────
 ///   Q=QB  W=WR  R=RB_TE  O=OL  K=K  D=DL  L=LB  B=DB
 /// ───────────────────────────────────────────────────────────────────────────
 /// </summary>
 public class FormationDesignerWindow : EditorWindow
 {
-    private enum GridType { Offense, Defense, FullFieldRoute }
+    private enum GridType { Offense, Defense }
 
     private GridType gridType = GridType.Offense;
     private string gridText = "";
@@ -125,9 +110,6 @@ public class FormationDesignerWindow : EditorWindow
                 case GridType.Defense:
                     CreateFormationAsset(ParseHalfField(gridText, isDefense: true), isDefense: true);
                     break;
-                case GridType.FullFieldRoute:
-                    CreateRouteAsset(ParseFullFieldRoute(gridText));
-                    break;
             }
         }
         catch (Exception ex)
@@ -189,90 +171,6 @@ public class FormationDesignerWindow : EditorWindow
         return entries;
     }
 
-    // ── Full-field route (RouteData) ──────────────────────────────────────
-
-    private List<RouteKeyframe> ParseFullFieldRoute(string text)
-    {
-        var keyframes = new List<RouteKeyframe>();
-
-        string[] rawLines = text.Split('\n');
-        var framePattern = new Regex(@"---\s*FRAME\s+\d+\s+t=([\d.]+)\s*---", RegexOptions.IgnoreCase);
-        var losPattern   = new Regex(@"^=+$");
-
-        RouteKeyframe currentFrame = null;
-        int  losRow         = -1;   // row index of the "===" marker in the current frame's block
-        var  frameLines     = new List<string>();
-
-        void FlushFrame()
-        {
-            if (currentFrame == null || frameLines.Count == 0) return;
-
-            // Find "===" in frameLines
-            int localLos = -1;
-            for (int i = 0; i < frameLines.Count; i++)
-                if (losPattern.IsMatch(frameLines[i].Trim())) { localLos = i; break; }
-
-            if (localLos < 0) localLos = frameLines.Count; // treat all rows as backfield
-
-            var counters = new Dictionary<PlayerPositionGrp, int>();
-
-            for (int rowIdx = 0; rowIdx < frameLines.Count; rowIdx++)
-            {
-                string row = frameLines[rowIdx];
-                if (losPattern.IsMatch(row.Trim())) continue; // skip LOS marker
-
-                float yardsFromLOS = rowIdx < localLos
-                    ? -(localLos - rowIdx)    // above LOS = backfield
-                    :  (rowIdx - localLos);   // below LOS = opponent side
-
-                for (int colIdx = 0; colIdx < row.Length; colIdx++)
-                {
-                    char c = char.ToUpper(row[colIdx]);
-                    if (!LetterMap.TryGetValue(c, out PlayerPositionGrp posGroup)) continue;
-
-                    if (!counters.ContainsKey(posGroup)) counters[posGroup] = 0;
-                    int slotIdx = counters[posGroup]++;
-
-                    float xFraction = colIdx / 30f - 0.5f;
-
-                    currentFrame.waypoints.Add(new SlotWaypoint
-                    {
-                        posGroup     = posGroup,
-                        slotIndex    = slotIdx,
-                        xFraction    = xFraction,
-                        yardsFromLOS = yardsFromLOS,
-                    });
-                }
-            }
-
-            keyframes.Add(currentFrame);
-            currentFrame = null;
-            frameLines.Clear();
-        }
-
-        foreach (string rawLine in rawLines)
-        {
-            string line = rawLine.TrimEnd();
-            if (line.StartsWith("#")) continue;
-
-            Match m = framePattern.Match(line);
-            if (m.Success)
-            {
-                FlushFrame();
-                float t = float.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
-                currentFrame = new RouteKeyframe { timeOffset = t, waypoints = new List<SlotWaypoint>() };
-                frameLines.Clear();
-                continue;
-            }
-
-            if (currentFrame != null)
-                frameLines.Add(line);
-        }
-
-        FlushFrame();
-        return keyframes;
-    }
-
     // -------------------------------------------------------
     // Asset creation
 
@@ -292,25 +190,6 @@ public class FormationDesignerWindow : EditorWindow
         Debug.Log($"[FormationDesigner] Created FormationData at {assetPath} — {entries.Count} slot entries.");
         EditorUtility.DisplayDialog("Formation Designer",
             $"Created FormationData with {entries.Count} entries.\n{assetPath}", "OK");
-    }
-
-    private void CreateRouteAsset(List<RouteKeyframe> keyframes)
-    {
-        EnsureDirectory(assetPath);
-
-        RouteData asset = ScriptableObject.CreateInstance<RouteData>();
-        asset.keyframes = keyframes;
-
-        AssetDatabase.CreateAsset(asset, assetPath);
-        AssetDatabase.SaveAssets();
-        EditorUtility.FocusProjectWindow();
-        Selection.activeObject = asset;
-
-        int total = 0;
-        foreach (var f in keyframes) total += f.waypoints.Count;
-        Debug.Log($"[FormationDesigner] Created RouteData at {assetPath} — {keyframes.Count} keyframe(s), {total} waypoints.");
-        EditorUtility.DisplayDialog("Formation Designer",
-            $"Created RouteData with {keyframes.Count} keyframe(s).\n{assetPath}", "OK");
     }
 
     private static void EnsureDirectory(string assetPath)
@@ -354,19 +233,567 @@ public class FormationDesignerWindow : EditorWindow
                     "  ---D-----D-------D-----D----------   row 18 (DL at LOS)\n" +
                     "yardsFromLOS = (totalRows-1 - rowIndex)  (last row = 0 = LOS)";
 
-            case GridType.FullFieldRoute:
-                return
-                    "Full-field route template (=== marks LOS, FRAME headers mark keyframes):\n" +
-                    "  --- FRAME 0 t=0.0 ---\n" +
-                    "  W-------------W---W-------------W-\n" +
-                    "  ===================================   LOS\n" +
-                    "  --- FRAME 1 t=1.5 ---\n" +
-                    "  ----------W-----------W-----------\n" +
-                    "  ===================================\n" +
-                    "  ------W-------------------W-------";
-
             default: return "";
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #endif

@@ -103,7 +103,9 @@ namespace TcgEngine.Client
             card_transform.localScale = Vector3.Lerp(card_transform.localScale, target_size, 5f * Time.deltaTime);
 
             card_ui.SetCard(card);
-            card_glow.enabled = IsFocus() || IsDrag();
+            bool eligible = IsPhaseEligible();
+            card_glow.enabled = IsFocus() || IsDrag() || eligible;
+            card_glow.color = (eligible && !IsFocus() && !IsDrag()) ? new Color(1f, 0.85f, 0f) : Color.white;
             prev_pos = Vector3.Lerp(prev_pos, card_transform.position, 1f * Time.deltaTime);
 
             // Promote press → drag once mouse moves enough (avoids card sticking on simple click)
@@ -145,6 +147,20 @@ namespace TcgEngine.Client
             {
                 destroyed = true;
                 Destroy(gameObject);
+            }
+        }
+
+        private bool IsPhaseEligible()
+        {
+            Game g = GameClient.Get()?.GetGameData();
+            Card card = GetCard();
+            if (g == null || card?.CardData == null) return false;
+            switch (g.phase)
+            {
+                case GamePhase.ChoosePlayers: return card.CardData.IsPlayer();
+                case GamePhase.ChoosePlay:    return card.CardData.IsPlayEnhancer();
+                case GamePhase.LiveBall:      return card.CardData.IsLiveBall();
+                default:                      return false;
             }
         }
 

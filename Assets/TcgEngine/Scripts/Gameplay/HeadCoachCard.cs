@@ -28,6 +28,12 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         [System.NonSerialized] public Dictionary<PlayType, FormationData> offenseFormations = new Dictionary<PlayType, FormationData>();
         [System.NonSerialized] public Dictionary<PlayType, FormationData> defenseFormations = new Dictionary<PlayType, FormationData>();
 
+        // Post-snap routes per play type + position slot
+        [System.NonSerialized] public Dictionary<PlayType, Dictionary<(PlayerPositionGrp, int), RouteData>> offenseRoutes
+            = new Dictionary<PlayType, Dictionary<(PlayerPositionGrp, int), RouteData>>();
+        [System.NonSerialized] public Dictionary<PlayType, Dictionary<(PlayerPositionGrp, int), RouteData>> defenseRoutes
+            = new Dictionary<PlayType, Dictionary<(PlayerPositionGrp, int), RouteData>>();
+
         [System.NonSerialized] public CoachData coachData;
         public CoachType coachType = CoachType.Balanced;
 
@@ -79,6 +85,12 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         {
             if (data == null) return;
 
+            // Lazy-init [NonSerialized] dicts in case object was created by deserializer (bypasses ctor)
+            offenseFormations ??= new Dictionary<PlayType, FormationData>();
+            defenseFormations ??= new Dictionary<PlayType, FormationData>();
+            offenseRoutes ??= new Dictionary<PlayType, Dictionary<(PlayerPositionGrp, int), RouteData>>();
+            defenseRoutes ??= new Dictionary<PlayType, Dictionary<(PlayerPositionGrp, int), RouteData>>();
+
             if (data.offenseYardage != null)
                 foreach (var e in data.offenseYardage)
                     baseOffenseYardage[e.playType] = e.yards;
@@ -103,6 +115,29 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             if (data.defenseFormations != null)
                 foreach (var e in data.defenseFormations)
                     defenseFormations[e.playType] = e.formation;
+
+            // Post-snap routes
+            offenseRoutes.Clear();
+            if (data.offenseRoutes != null)
+            {
+                foreach (var e in data.offenseRoutes)
+                {
+                    if (!offenseRoutes.ContainsKey(e.playType))
+                        offenseRoutes[e.playType] = new Dictionary<(PlayerPositionGrp, int), RouteData>();
+                    offenseRoutes[e.playType][(e.posGroup, e.slotIndex)] = e.route;
+                }
+            }
+
+            defenseRoutes.Clear();
+            if (data.defenseRoutes != null)
+            {
+                foreach (var e in data.defenseRoutes)
+                {
+                    if (!defenseRoutes.ContainsKey(e.playType))
+                        defenseRoutes[e.playType] = new Dictionary<(PlayerPositionGrp, int), RouteData>();
+                    defenseRoutes[e.playType][(e.posGroup, e.slotIndex)] = e.route;
+                }
+            }
         }
     }
 }

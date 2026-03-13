@@ -222,6 +222,10 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 Debug.Log($"[PreventLoss] Pass yardage clamped to {passTotal}");
             }
 
+            // Set receiver uids for client animation
+            game_data.target_receiver_uid = targetReceiver?.uid;
+            game_data.ball_carrier_uid = targetReceiver?.uid;
+
             foreach (var p in game_data.players)
                 p.coachManager?.OnCoachTrigger(CoachTrigger.OnPassPlay);
 
@@ -584,6 +588,14 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 totalYardage = FootballMath.ApplyPreventLoss(totalYardage, preventLoss);
                 Debug.Log($"[PreventLoss] Run yardage clamped to {totalYardage}");
             }
+
+            // Set ball carrier for client animation (highest run_bonus RB_TE)
+            var ballCarrier = game_data.current_offensive_player.cards_board
+                .Where(c => c.Data.playerPosition == PlayerPositionGrp.RB_TE)
+                .OrderByDescending(c => c.Data.run_bonus)
+                .FirstOrDefault();
+            game_data.ball_carrier_uid = ballCarrier?.uid;
+            game_data.target_receiver_uid = null;
 
             var failEvent = ResolveRunFailEvents();
             if (failEvent != null)

@@ -24,6 +24,15 @@ public struct CoachFormationEntry
     public FormationData formation;
 }
 
+[Serializable]
+public struct CoachRouteEntry
+{
+    public PlayType playType;
+    public PlayerPositionGrp posGroup;
+    public int slotIndex;
+    public RouteData route;
+}
+
 [CreateAssetMenu(menuName = "TcgEngine/CoachCardData", fileName = "CoachCard")]
 public class CoachCardData : ScriptableObject
 {
@@ -36,6 +45,8 @@ public class CoachCardData : ScriptableObject
     public CoachSchemeEntry[]  positionalScheme;
     public CoachFormationEntry[] offenseFormations;
     public CoachFormationEntry[] defenseFormations;
+    public CoachRouteEntry[] offenseRoutes;
+    public CoachRouteEntry[] defenseRoutes;
     public CoachData coachProfile;
 
     public int GetOffenseYardage(PlayType pt)
@@ -75,6 +86,24 @@ public class CoachCardData : ScriptableObject
         if (defenseFormations != null)
             foreach (var e in defenseFormations)
                 if (e.playType == pt) return e.formation;
+        return null;
+    }
+
+    public RouteData GetOffenseRoute(PlayType pt, PlayerPositionGrp posGroup, int slotIndex)
+    {
+        if (offenseRoutes != null)
+            foreach (var e in offenseRoutes)
+                if (e.playType == pt && e.posGroup == posGroup && e.slotIndex == slotIndex)
+                    return e.route;
+        return null;
+    }
+
+    public RouteData GetDefenseRoute(PlayType pt, PlayerPositionGrp posGroup, int slotIndex)
+    {
+        if (defenseRoutes != null)
+            foreach (var e in defenseRoutes)
+                if (e.playType == pt && e.posGroup == posGroup && e.slotIndex == slotIndex)
+                    return e.route;
         return null;
     }
 }
