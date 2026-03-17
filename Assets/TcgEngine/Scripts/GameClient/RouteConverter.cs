@@ -14,8 +14,8 @@ namespace TcgEngine.Client
 
             float fieldWidth = FieldSlotManager.Instance != null ? FieldSlotManager.Instance.fieldWidth : 53.3f;
 
-            // First pass: collect matching waypoints with cumulative positions
-            var legs = new List<(Vector2 cumDelta, SlotWaypoint wp)>();
+            // First pass: collect matching waypoints with cumulative positions and authored timing
+            var legs = new List<(Vector2 cumDelta, float timeOffset, SlotWaypoint wp)>();
             foreach (RouteKeyframe frame in route.keyframes)
             {
                 SlotWaypoint match = null;
@@ -28,28 +28,39 @@ namespace TcgEngine.Client
                     }
                 }
                 if (match == null) continue;
-                legs.Add((new Vector2(match.deltaX, match.deltaYards), match));
+                legs.Add((new Vector2(match.deltaX, match.deltaYards), frame.timeOffset, match));
             }
 
             if (legs.Count == 0) return segments;
 
-            // Second pass: compute per-leg directions, turn angles, and build segments
+            // Second pass: use authored timeOffset deltas for duration, keep turn-aware easing
             Vector2 prevPos = Vector2.zero;     // cumulative position tracker
             Vector2 prevDir = Vector2.zero;     // direction of previous leg
+            float prevTime = 0f;                // previous keyframe's timeOffset
 
             for (int i = 0; i < legs.Count; i++)
             {
                 Vector2 cumDelta = legs[i].cumDelta;
                 Vector2 legDelta = cumDelta - prevPos; // per-leg displacement (in yards)
+                float authoredDur = legs[i].timeOffset - prevTime;
+
+                // Skip zero-displacement origin keyframe (t=0, pos=0,0)
+                if (legDelta.sqrMagnitude < 0.001f)
+                {
+                    prevTime = legs[i].timeOffset;
+                    prevPos = cumDelta;
+                    continue;
+                }
+
                 Vector2 curDir = legDelta;
 
-                bool isFirst = (i == 0);
+                bool isFirst = (i == 0 || prevDir == Vector2.zero);
                 bool isLast = (i == legs.Count - 1);
 
-                // Turn angle entering this leg (angle between previous direction and this direction)
+                // Turn angle entering this leg
                 float turnAngleIn = PlayerSpeed.AngleBetween(prevDir, curDir);
 
-                // Turn angle exiting this leg (angle between this direction and next direction)
+                // Turn angle exiting this leg
                 float turnAngleOut = 0f;
                 if (!isLast)
                 {
@@ -58,13 +69,10 @@ namespace TcgEngine.Client
                     turnAngleOut = PlayerSpeed.AngleBetween(curDir, nextDir);
                 }
 
-                // Speed: apply turn factor based on the sharper of entry/exit angles
-                float turnFactor = PlayerSpeed.TurnFactor(prevDir, curDir);
-                float legDistYards = legDelta.magnitude;
-                float effectiveSpeed = PlayerSpeed.SprintYps * turnFactor;
-                float dur = Mathf.Max(0.15f, legDistYards / effectiveSpeed);
+                // Use authored timing with a floor so nothing is instant
+                float dur = Mathf.Max(0.15f, authoredDur);
 
-                // Ease based on leg context
+                // Ease based on leg context (turn-aware)
                 Ease ease = PlayerSpeed.RouteLegEase(isFirst, isLast, turnAngleIn, turnAngleOut);
 
                 // Convert delta to football coords (x = xFraction, y = yards)
@@ -79,6 +87,7 @@ namespace TcgEngine.Client
 
                 prevPos = cumDelta;
                 prevDir = curDir;
+                prevTime = legs[i].timeOffset;
             }
 
             return segments;

@@ -17,6 +17,7 @@ namespace TcgEngine.UI
         public BigPlayOverlay bigPlayOverlay;
         public BoardStatOverlay boardStatOverlay;
         public StatChangePopup statChangePopup;
+        public AbilitySpotlight abilitySpotlight;
 
         // Cached previous state for change detection
         private GamePhase prevPhase = GamePhase.None;

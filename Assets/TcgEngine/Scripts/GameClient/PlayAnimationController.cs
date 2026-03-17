@@ -9,19 +9,21 @@ using UnityEngine;
 
 /// <summary>
 /// Phase-based coordinator for play animations.
-/// Populates each BoardSlot's movement queue incrementally as game phases progress.
-/// Slots own their movement — this controller just decides WHEN to assign/start/resume them.
+/// Routes are generated PROCEDURALLY after yardage calculation (Resolution phase),
+/// not during RevealPlayCalls. Formations (pre-snap positions) remain coach-driven.
+///
+/// Timing: ChoosePlay → Formations set → Slots spin → Yardage calculated
+///   → Routes generated procedurally → Pre-snap beat → Snap → Play animates
 /// </summary>
 public class PlayAnimationController : MonoBehaviour
 {
     public static PlayAnimationController Instance { get; private set; }
 
-    [Header("Default Route Templates (assign in Inspector)")]
-    public RouteData defaultRoute_Slant;
-    public RouteData defaultRoute_Out;
-    public RouteData defaultRoute_Fly;
-    public RouteData defaultRoute_Curl;
-    public RouteData defaultRoute_Post;
+    [Header("Pre-Snap Timing")]
+    [Tooltip("Seconds for the pre-snap 'hut hut' beat")]
+    public float preSnapBeatDuration = 1.2f;
+    [Tooltip("Seconds for audible animation when hot route triggers")]
+    public float audibleDuration = 0.8f;
 
     // ── State ───────────────────────────────────────────────
     private FieldSlotManager fieldSlotMgr;
@@ -30,6 +32,10 @@ public class PlayAnimationController : MonoBehaviour
     private int lastTurn = -1;
     private bool routesAssigned;
     private Coroutine resolutionCoroutine;
+
+    // Route plans from procedural generation (kept for audible detection)
+    private List<ProceduralRouteGenerator.SlotRoutePlan> currentRoutePlans;
+    private bool hasAudible;
 
     // ── Lifecycle ───────────────────────────────────────────
 
@@ -67,13 +73,9 @@ public class PlayAnimationController : MonoBehaviour
 
         if (phaseChanged)
         {
-            // Broadcast phase change to all slot queues
             BroadcastPhaseChange(phase);
 
-            // Handle phase transitions
-            if (phase == GamePhase.RevealPlayCalls)
-                OnRevealPlayCalls(g);
-            else if (phase == GamePhase.Resolution)
+            if (phase == GamePhase.Resolution)
                 OnResolutionStart(g);
             else if (phase == GamePhase.LiveBall)
                 OnLiveBallStart(g);
@@ -90,28 +92,8 @@ public class PlayAnimationController : MonoBehaviour
     // ── Phase Handlers ──────────────────────────────────────
 
     /// <summary>
-    /// Play calls revealed — assign post-snap routes from coach to each slot's queue.
-    /// Routes won't execute yet (they start with WaitForSignal("snap")).
-    /// </summary>
-    private void OnRevealPlayCalls(Game g)
-    {
-        if (fieldSlotMgr == null) return;
-
-        Player offPlayer = g.current_offensive_player;
-        Player defPlayer = g.GetCurrentDefensivePlayer();
-        PlayType playType = offPlayer?.SelectedPlay ?? PlayType.Huddle;
-        if (playType == PlayType.Huddle) return;
-
-        AssignCoachRoutes(offPlayer, playType, isOffense: true);
-        // Defense gets routes based on their coverage guess
-        PlayType defGuess = defPlayer?.SelectedPlay ?? PlayType.Run;
-        AssignCoachRoutes(defPlayer, defGuess, isOffense: false);
-
-        routesAssigned = true;
-    }
-
-    /// <summary>
-    /// Resolution phase — orchestrate the full play animation sequence with breathing room.
+    /// Resolution phase — yardage is calculated. Generate routes procedurally,
+    /// then orchestrate the full play animation with pre-snap beat.
     /// </summary>
     private void OnResolutionStart(Game g)
     {
@@ -119,9 +101,19 @@ public class PlayAnimationController : MonoBehaviour
 
         fieldSlotMgr.animationLocked = true;
 
-        // Lock slot machine layout so it doesn't auto-minimize
         if (slotMachineUI != null)
             slotMachineUI.LockLayout();
+
+        // Generate procedural routes now that yardage is known
+        Player offPlayer = g.current_offensive_player;
+        PlayType playType = offPlayer?.SelectedPlay ?? PlayType.Huddle;
+        if (playType != PlayType.Huddle)
+        {
+            float fw = fieldSlotMgr != null ? fieldSlotMgr.fieldWidth : 53.3f;
+            currentRoutePlans = ProceduralRouteGenerator.PlanOffenseRoutes(g, offPlayer, playType, fw);
+            hasAudible = currentRoutePlans.Any(p => p.route.wasHotRouted && p.isTargetReceiver);
+            AssignProceduralRoutes(offPlayer, g);
+        }
 
         // Start all queues (they'll pause at WaitForSignal("snap"))
         StartAllQueues();
@@ -133,61 +125,72 @@ public class PlayAnimationController : MonoBehaviour
 
     private IEnumerator ResolutionSequence(Game g)
     {
-        // 1. Let the scene settle after phase change
+        // 1. Let the scene settle
         yield return new WaitForSeconds(0.5f);
 
-        // 2. Animate slot machine to mini position
+        // 2. Minimize slot machine
         if (slotMachineUI != null)
             slotMachineUI.MinimizeAnimated(0.5f);
         yield return new WaitForSeconds(0.7f);
 
-        // FUTURE: QB cadence hook ("Ready... Set... Hut!")
+        // 3. Pre-snap beat ("hut hut")
+        yield return new WaitForSeconds(preSnapBeatDuration);
 
-        // 3. Snap the ball — routes begin
+        // 4. Audible — if a hot route was needed, brief visual beat
+        if (hasAudible)
+            yield return new WaitForSeconds(audibleDuration);
+
+        // 5. Snap the ball — routes begin
         BroadcastSignal("snap");
 
-        // Dynamic route wait: computed from longest assigned route
+        // Dynamic wait: computed from longest assigned route
         float routeWait = ComputeLongestRouteTime();
         yield return new WaitForSeconds(routeWait);
 
-        // 4. Beat before yardage
+        // 6. Beat before yardage
         yield return new WaitForSeconds(0.3f);
 
-        // 5. Ball carrier yardage movement
+        // 7. Ball carrier yardage movement (for run plays, route already includes yardage)
         Player offPlayer = g.current_offensive_player;
         Player defPlayer = g.GetCurrentDefensivePlayer();
+        PlayType playType = offPlayer?.SelectedPlay ?? PlayType.Huddle;
         int yardage = g.yardage_this_play;
+        bool isPass = (playType == PlayType.ShortPass || playType == PlayType.LongPass);
 
-        float yardageDur = PlayerSpeed.Duration(Mathf.Abs(yardage), SpeedTier.Sprint);
-        BoardSlot carrierSlot = FindSlotForCardUid(offPlayer, g.ball_carrier_uid);
-        if (carrierSlot != null && yardage != 0)
+        // For pass plays, target receiver's route already includes net yardage via GenerateForTarget.
+        // For run plays, the run route already includes net yardage via GenerateRunRoute.
+        // Only add explicit yardage movement if no procedural route was assigned (fallback).
+        if (!routesAssigned)
         {
-            carrierSlot.MoveQueue.Enqueue(SlotMovementSegment.MoveBy(
-                new Vector2(0, yardage),
-                SpeedTier.Sprint,
-                "yardage"
-            ));
+            float yardageDur = PlayerSpeed.Duration(Mathf.Abs(yardage), SpeedTier.Sprint);
+            BoardSlot carrierSlot = FindSlotForCardUid(offPlayer, g.ball_carrier_uid);
+            if (carrierSlot != null && yardage != 0)
+            {
+                carrierSlot.MoveQueue.Enqueue(SlotMovementSegment.MoveBy(
+                    new Vector2(0, yardage),
+                    SpeedTier.Sprint,
+                    "yardage"
+                ));
+            }
+            yield return new WaitForSeconds(yardageDur);
         }
-        yield return new WaitForSeconds(yardageDur);
 
-        // 6. Beat before pursuit
+        // 8. Beat before pursuit
         yield return new WaitForSeconds(0.3f);
 
-        // 7. Defense tracks toward ball carrier
+        // 9. Defense tracks toward ball carrier
+        BoardSlot carrierForPursuit = FindSlotForCardUid(offPlayer, g.ball_carrier_uid ?? g.target_receiver_uid);
         float pursuitDur = 0f;
-        if (carrierSlot != null)
-            pursuitDur = EnqueueDefenseTracking(defPlayer, carrierSlot);
+        if (carrierForPursuit != null)
+            pursuitDur = EnqueueDefenseTracking(defPlayer, carrierForPursuit);
         yield return new WaitForSeconds(pursuitDur);
-
-        // FUTURE: Announcer hook ("Complete pass to WR1!")
 
         resolutionCoroutine = null;
     }
 
     private void OnLiveBallStart(Game g)
     {
-        // Queues that had WaitForPhase(LiveBall) will auto-resume via BroadcastPhaseChange
-        // Players can now play live ball cards that modify slot queues via AppendToSlot
+        // Queues with WaitForPhase(LiveBall) auto-resume via BroadcastPhaseChange
     }
 
     private void OnEndTurn(Game g)
@@ -196,6 +199,8 @@ public class PlayAnimationController : MonoBehaviour
         if (fieldSlotMgr != null)
             fieldSlotMgr.animationLocked = false;
         routesAssigned = false;
+        currentRoutePlans = null;
+        hasAudible = false;
     }
 
     private void OnStartTurn(Game g)
@@ -204,76 +209,130 @@ public class PlayAnimationController : MonoBehaviour
         if (fieldSlotMgr != null)
             fieldSlotMgr.animationLocked = false;
         routesAssigned = false;
+        currentRoutePlans = null;
+        hasAudible = false;
     }
 
-    // ── Route Assignment ────────────────────────────────────
+    // ── Route Assignment (Library-first, procedural fallback) ──
 
-    private void AssignCoachRoutes(Player player, PlayType playType, bool isOffense)
+    /// <summary>
+    /// Assign routes to ALL offensive board slots.
+    /// Ball carrier + target receiver use procedural routes (encode net yardage).
+    /// Everyone else uses hand-authored RouteLibrary routes, with procedural fallback.
+    /// </summary>
+    private void AssignProceduralRoutes(Player offPlayer, Game g)
     {
-        if (player?.head_coach == null || fieldSlotMgr == null) return;
+        if (offPlayer == null || fieldSlotMgr == null) return;
 
-        // Play enhancer route override replaces ALL coach routes for this play
-        RouteData enhancerOverride = player.PlayEnhancer?.Data?.routeOverride;
+        RouteLibrary.Initialize();
 
-        var routeDict = isOffense ? player.head_coach.offenseRoutes : player.head_coach.defenseRoutes;
+        PlayType playType = offPlayer.SelectedPlay;
+        float fw = fieldSlotMgr.fieldWidth;
+        string carrierUid = g.ball_carrier_uid;
+        string targetUid = g.target_receiver_uid;
+        bool isRun = (playType == PlayType.Run);
 
-        // Get all position groups for this player
-        var allSlots = BoardSlot.GetAll().Where(s => s.player_id == player.player_id).ToList();
+        // Track which slots got card-backed procedural routes (carrier/target)
+        var assignedSlots = new HashSet<BoardSlot>();
 
-        int fallbackIndex = 0;
-        foreach (BoardSlot slot in allSlots)
+        // Step 1: Assign procedural routes for ball carrier + target receiver
+        if (currentRoutePlans != null)
         {
-            slot.MoveQueue.Clear();
-
-            // Priority 1: play enhancer overrides the whole scheme
-            RouteData route = enhancerOverride;
-
-            // Priority 2: coach route for this play type + position + slot
-            if (route == null)
+            foreach (var plan in currentRoutePlans)
             {
-                if (routeDict != null && routeDict.TryGetValue(playType, out var posDict))
-                    posDict.TryGetValue((slot.player_position_type, slot.slotIndex), out route);
+                // Only use procedural for carrier and target — they encode net yardage
+                bool isCarrier = (plan.cardUid == carrierUid);
+                bool isTarget = plan.isTargetReceiver;
+                if (!isCarrier && !isTarget) continue;
+                if (plan.route.segments == null || plan.route.segments.Count == 0) continue;
+
+                BoardSlot slot = FindSlotForCardUid(offPlayer, plan.cardUid);
+                if (slot == null) continue;
+
+                slot.MoveQueue.Clear();
+                slot.MoveQueue.Enqueue(SlotMovementSegment.WaitForSignal("snap"));
+                slot.MoveQueue.EnqueueRange(plan.route.segments);
+                assignedSlots.Add(slot);
             }
-
-            // Priority 3: card's personal receiverRoute
-            if (route == null)
-            {
-                Game g = GameClient.Get()?.GetGameData();
-                Card card = FindCardInSlot(g, player, slot);
-                if (card?.Data?.receiverRoute != null)
-                    route = card.Data.receiverRoute;
-            }
-
-            // Fallback: default route templates (for receivers only)
-            if (route == null && isOffense &&
-                (slot.player_position_type == PlayerPositionGrp.WR ||
-                 slot.player_position_type == PlayerPositionGrp.RB_TE))
-            {
-                route = GetDefaultRoute(fallbackIndex++);
-            }
-
-            if (route == null) continue;
-
-            // Convert route to segments, prepend snap wait
-            var segments = RouteConverter.ToSegments(route, slot, "coach");
-            if (segments.Count == 0) continue;
-
-            slot.MoveQueue.Enqueue(SlotMovementSegment.WaitForSignal("snap"));
-            slot.MoveQueue.EnqueueRange(segments);
         }
+
+        // Step 2: Iterate ALL offensive slots — library route for non-carrier/non-target
+        var offGroups = new[] { PlayerPositionGrp.QB, PlayerPositionGrp.WR, PlayerPositionGrp.RB_TE, PlayerPositionGrp.OL };
+        foreach (var grp in offGroups)
+        {
+            var slots = fieldSlotMgr.GetSlotsForPosition(grp, offPlayer.player_id);
+            for (int si = 0; si < slots.Count; si++)
+            {
+                BoardSlot slot = slots[si];
+                if (assignedSlots.Contains(slot)) continue;
+                if (slot.MoveQueue.Count > 0) continue;
+
+                // Determine if this slot has a TE card (for RB_TE group disambiguation)
+                bool isTE = false;
+                Card slotCard = FindCardInSlot(g, offPlayer, slot);
+                if (slotCard != null && slotCard.CardData != null)
+                    isTE = (slotCard.CardData.playerPosition == PlayerPositionGrp.RB_TE &&
+                            slotCard.CardData.type == CardType.OffensivePlayer); // TE heuristic: later slots in RB_TE
+
+                // Determine context and lateral direction
+                RouteContext ctx = RouteLibrary.GetContext(grp, playType, isTE);
+                int lateralDir = RouteLibrary.LateralFromSlot(slot, fw);
+                int olSlot = (grp == PlayerPositionGrp.OL) ? si : -1;
+
+                // Try library first
+                RouteData libraryRoute = RouteLibrary.Pick(grp, olSlot, ctx, lateralDir);
+
+                slot.MoveQueue.Enqueue(SlotMovementSegment.WaitForSignal("snap"));
+
+                if (libraryRoute != null)
+                {
+                    var segments = RouteConverter.ToSegments(libraryRoute, slot, "library");
+                    if (segments.Count > 0)
+                    {
+                        slot.MoveQueue.EnqueueRange(segments);
+                        continue;
+                    }
+                }
+
+                // Procedural fallback
+                slot.MoveQueue.EnqueueRange(ProceduralFallback(grp, playType, fw).segments);
+            }
+        }
+
+        routesAssigned = true;
     }
 
-    private RouteData GetDefaultRoute(int index)
+    /// <summary>
+    /// Generate a procedural fallback route for a position group + play type.
+    /// Used only when RouteLibrary has no matching asset.
+    /// </summary>
+    private static ProceduralRouteGenerator.GeneratedRoute ProceduralFallback(
+        PlayerPositionGrp grp, PlayType playType, float fw)
     {
-        RouteData[] defaults = { defaultRoute_Slant, defaultRoute_Out, defaultRoute_Fly, defaultRoute_Curl, defaultRoute_Post };
-        var available = defaults.Where(r => r != null).ToArray();
-        if (available.Length == 0) return null;
-        return available[index % available.Length];
+        bool isPass = (playType == PlayType.ShortPass || playType == PlayType.LongPass);
+
+        if (isPass)
+        {
+            switch (grp)
+            {
+                case PlayerPositionGrp.QB:
+                    return ProceduralRouteGenerator.Generate(RouteShape.DropBack, 7f, 0, fw);
+                case PlayerPositionGrp.OL:
+                    return ProceduralRouteGenerator.Generate(RouteShape.Block, 1f, 0, fw);
+                case PlayerPositionGrp.WR:
+                    RouteShape wrShape = RouteShapeData.PickRandom(PlayerPositionGrp.WR, playType) ?? RouteShape.Go;
+                    return ProceduralRouteGenerator.Generate(wrShape, Random.Range(8f, 12f), 0, fw);
+                default:
+                    RouteShape rbShape = RouteShapeData.PickRandom(PlayerPositionGrp.RB_TE, playType) ?? RouteShape.Flat;
+                    return ProceduralRouteGenerator.Generate(rbShape, Random.Range(4f, 6f), 0, fw);
+            }
+        }
+
+        return ProceduralRouteGenerator.Generate(RouteShape.Block, 1f, 0, fw);
     }
 
     // ── Defense Tracking ────────────────────────────────────
 
-    /// <summary>Enqueue defense pursuit and return max pursuit duration for coroutine wait.</summary>
     private float EnqueueDefenseTracking(Player defPlayer, BoardSlot targetSlot)
     {
         if (fieldSlotMgr == null || targetSlot == null) return 0f;
@@ -308,21 +367,18 @@ public class PlayAnimationController : MonoBehaviour
 
     // ── Public API for Abilities/Effects ─────────────────────
 
-    /// <summary>Append a movement segment to a specific slot's queue.</summary>
     public void AppendToSlot(BoardSlot slot, SlotMovementSegment segment)
     {
         if (slot == null) return;
         slot.MoveQueue.Enqueue(segment);
     }
 
-    /// <summary>Replace all remaining segments for a slot (e.g., interception reroute).</summary>
     public void ReplaceRemainingForSlot(BoardSlot slot, List<SlotMovementSegment> newSegments)
     {
         if (slot == null) return;
         slot.MoveQueue.ReplaceFromCurrent(newSegments);
     }
 
-    /// <summary>Modify the ball carrier's yardage segment by adding extra yards.</summary>
     public void ModifyBallCarrierYardage(int additionalYards)
     {
         Game g = GameClient.Get()?.GetGameData();
@@ -341,12 +397,17 @@ public class PlayAnimationController : MonoBehaviour
         }
     }
 
-    /// <summary>Broadcast a named signal to all slot queues.</summary>
     public void BroadcastSignal(string signal)
     {
         foreach (BoardSlot slot in BoardSlot.GetAll())
             slot.MoveQueue.OnSignal(signal);
     }
+
+    /// <summary>Get the current route plans (for external queries like audible UI).</summary>
+    public List<ProceduralRouteGenerator.SlotRoutePlan> GetCurrentRoutePlans() => currentRoutePlans;
+
+    /// <summary>Whether the current play has a hot-routed audible.</summary>
+    public bool HasAudible => hasAudible;
 
     // ── Queue Management ────────────────────────────────────
 
@@ -396,10 +457,9 @@ public class PlayAnimationController : MonoBehaviour
         return cards != null && cards.Count > 0 ? cards[0] : null;
     }
 
-    /// <summary>Compute the longest route time across all assigned slot queues.</summary>
     private float ComputeLongestRouteTime()
     {
-        float longest = 1.0f; // minimum 1s even with no routes
+        float longest = 1.0f;
         foreach (BoardSlot slot in BoardSlot.GetAll())
         {
             if (slot.MoveQueue.IsIdle) continue;

@@ -286,23 +286,32 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         // ── Animation timing constants ──────────────────────
         // Huddle→formation at jog (~4.5 yd/s), max ~15yd = ~3.3s + 0.5s dramatic beat
         private const float FormationTransitionDelay = 4.0f;
-        // ~2s spin + 1s results display + 0.5s beat
-        private const float SlotSpinDelay = 3.5f;
+        // ~1.5s spin + 1s results display = 2.5s total
+        private const float SlotSpinDelay = 2.5f;
         // settle(0.5) + minimize(0.7) + routes(~2s) + beats(0.6) + yardage(~1s) + pursuit(~1.5s)
         private const float RouteAnimationDelay = 7.0f;
 
-        public virtual void StartLiveBallPhase()
+        /// <summary>
+        /// Routes play through Resolution phase (triggers client snap + route animations),
+        /// then proceeds to LiveBall or EndPlayPhase depending on ballIsLive.
+        /// </summary>
+        private void StartPlayResolutionPhase(bool ballIsLive)
         {
             if (game_data.state == GameState.GameEnded)
                 return;
 
-            // Set Resolution phase so client fires route animations (snap → routes + yardage movement)
             game_data.phase = GamePhase.Resolution;
             RefreshData();
 
-            // After routes finish, transition to LiveBall
-            resolve_queue.AddCallback(StartLiveBallPhaseInternal);
+            resolve_queue.AddCallback(ballIsLive
+                ? (System.Action)StartLiveBallPhaseInternal
+                : EndPlayPhase);
             resolve_queue.ResolveAll(RouteAnimationDelay);
+        }
+
+        public virtual void StartLiveBallPhase()
+        {
+            StartPlayResolutionPhase(true);
         }
 
         private void StartLiveBallPhaseInternal()

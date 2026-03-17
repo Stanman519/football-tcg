@@ -54,10 +54,6 @@ public class SlotMachineUI : MonoBehaviour
     public float slowSpeed  = 280f;   // px/s at end of deceleration
     public float decelTime  = 0.45f;  // seconds from fast → slow
 
-    [Header("Layout — Full (SlotSpin phase)")]
-    public Vector2 fullAnchorMin = new Vector2(0.30f, 0.32f);
-    public Vector2 fullAnchorMax = new Vector2(0.70f, 0.72f);
-
     [Header("Layout — Mini (all other phases)")]
     public Vector2 miniAnchorMin = new Vector2(0.72f, 0.36f);
     public Vector2 miniAnchorMax = new Vector2(0.98f, 0.68f);
@@ -145,6 +141,9 @@ public class SlotMachineUI : MonoBehaviour
             spinners.Add(spinner);
         }
 
+        // Resize panel to snugly wrap the reel content
+        SizeToContent(numReels);
+
         // Win-line overlay on top of everything
         if (winLineImg != null) Destroy(winLineImg.gameObject);
         winLineImg = BuildWinLine();
@@ -198,15 +197,41 @@ public class SlotMachineUI : MonoBehaviour
     // ═════════════════════════════════════════════════════════════════════════
     // Layout switching
     // ═════════════════════════════════════════════════════════════════════════
+
+    private int cachedNumReels = 3; // track for SizeToContent calls
+
+    private void SizeToContent(int numReels)
+    {
+        cachedNumReels = numReels;
+        var rt = slotMachinePanel.GetComponent<RectTransform>();
+        if (rt == null) return;
+        float contentW = numReels * iconSize + (numReels - 1) * reelSpacing + panelPadding * 2f;
+        float contentH = iconSize * 3f + panelPadding * 2f;
+        rt.sizeDelta = new Vector2(contentW, contentH);
+    }
+
     private void SetLayout(bool mini)
     {
         if (slotMachinePanel == null) return;
         var rt = slotMachinePanel.GetComponent<RectTransform>();
         if (rt == null) return;
-        rt.anchorMin = mini ? miniAnchorMin : fullAnchorMin;
-        rt.anchorMax = mini ? miniAnchorMax : fullAnchorMax;
-        rt.offsetMin = Vector2.zero;
-        rt.offsetMax = Vector2.zero;
+
+        if (mini)
+        {
+            rt.anchorMin = miniAnchorMin;
+            rt.anchorMax = miniAnchorMax;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+            rt.sizeDelta = Vector2.zero; // stretched mode, size from anchors
+        }
+        else
+        {
+            // Centered, content-sized
+            rt.anchorMin = new Vector2(0.5f, 0.5f);
+            rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = Vector2.zero;
+            SizeToContent(cachedNumReels);
+        }
     }
 
     /// <summary>
@@ -226,13 +251,19 @@ public class SlotMachineUI : MonoBehaviour
         layoutTween?.Kill();
         layoutLocked = true;
 
-        Vector2 startMin = rt.anchorMin;
-        Vector2 startMax = rt.anchorMax;
+        // Capture starting state (centered, content-sized)
+        Vector2 startMin  = rt.anchorMin;
+        Vector2 startMax  = rt.anchorMax;
+        Vector2 startSize = rt.sizeDelta;
+        Vector2 startPos  = rt.anchoredPosition;
 
         layoutTween = DOTween.To(() => 0f, t =>
         {
             rt.anchorMin = Vector2.Lerp(startMin, miniAnchorMin, t);
             rt.anchorMax = Vector2.Lerp(startMax, miniAnchorMax, t);
+            // Tween sizeDelta toward zero (mini uses stretched anchors)
+            rt.sizeDelta = Vector2.Lerp(startSize, Vector2.zero, t);
+            rt.anchoredPosition = Vector2.Lerp(startPos, Vector2.zero, t);
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
         }, 1f, duration).SetEase(Ease.InOutQuad).SetLink(gameObject).OnComplete(() =>

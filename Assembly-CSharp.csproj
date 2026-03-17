@@ -53,6 +53,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\TcgEngine\Scripts\Effects\Template\EffectAddStatCount.cs" />
+    <Compile Include="Assets\TcgEngine\Scripts\GameClient\RouteLibrary.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Effects\Template\EffectSetStat.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Effects\Template\EffectHeal.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\UI\TutoBox.cs" />
@@ -120,6 +121,7 @@
     <Compile Include="Assets\TcgEngine\Scripts\FX\DamageFX.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\UI\AbilityButton.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\SlotMachine\SlotIcon.cs" />
+    <Compile Include="Assets\TcgEngine\Scripts\Gameplay\ProceduralRouteGenerator.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\UI\NumberSelector.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Data\StatusData.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Conditions\ConditionBoardPositionCount.cs" />
@@ -138,6 +140,7 @@
     <Compile Include="Assets\TcgEngine\Scripts\UI\PlayerUI.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Tools\CameraResize.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Data\FormationData.cs" />
+    <Compile Include="Assets\TcgEngine\Scripts\Data\RouteShape.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\UI\ProgressBar.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Data\CardbackData.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Tools\WebTool.cs" />
@@ -401,6 +404,7 @@
     <Compile Include="Assets\TcgEngine\Scripts\UI\AvatarUI.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\UI\CardMulligan.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Effects\Template\EffectClearStatus.cs" />
+    <Compile Include="Assets\TcgEngine\Scripts\UI\AbilitySpotlight.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\GameClient\FieldSlotManager.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Data\GameplayData.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Conditions\ConditionSelf.cs" />

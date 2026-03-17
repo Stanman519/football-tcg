@@ -1241,19 +1241,25 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         SelectorChoice = 30,
         SelectorCost = 40,
     }
+    /// <summary>
+    /// Fail events ordered by chronological football priority.
+    /// Pass: Sack(pre-throw) → QBFumble(pre-throw) → BattedPass(at-line) → TippedPass(in-flight)
+    ///       → Interception(in-flight) → IncompletePass(in-flight) → RunnerFumble(post-catch)
+    /// Run:  TackleForLoss(at-contact) → RunnerFumble(post-contact)
+    /// First-match-wins via OrderBy(enum value) in ResolvePassFailEvents / ResolveRunFailEvents.
+    /// </summary>
     [System.Serializable]
     public enum FailPlayEventType
     {
         None = 0,
-        TackleForLoss= 1,
-        Sack = 2,
-        QBFumble  = 3,       
-        BattedPass = 4,
-        TippedPass = 5,       
-        Interception = 6,
-        IncompletePass = 7,          
-        RunnerFumble = 8,
-        SackFumble = 9,     // sack + QB fumble in one ability slot
+        TackleForLoss = 1,   // Run: at-contact
+        Sack = 2,            // Pass: pre-throw — chains to QBFumble if both present
+        QBFumble = 3,        // Pass: pre-throw — ball loose at LOS
+        BattedPass = 4,      // Pass: at-line — knocked down at scrimmage
+        TippedPass = 5,      // Pass: in-flight — deflected, grit-based INT check
+        Interception = 6,    // Pass: in-flight — clean INT
+        IncompletePass = 7,  // Pass: in-flight — ball hits ground
+        RunnerFumble = 8,    // Both: post-contact/post-catch
     }
     public enum FieldDirection
     {

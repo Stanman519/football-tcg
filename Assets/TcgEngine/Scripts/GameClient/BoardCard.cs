@@ -36,6 +36,9 @@ namespace TcgEngine.Client
 
         public UnityAction onKill;
 
+        [System.NonSerialized]
+        public bool spotlightActive;
+
         private CardUI card_ui;
         private BoardCardFX card_fx;
         private Canvas canvas;
@@ -113,15 +116,19 @@ namespace TcgEngine.Client
 
             transform.position = Vector3.MoveTowards(transform.position, targ_pos, speed * Time.deltaTime);
 
-            float target_alpha = IsFocus() || selected ? 1f : 0f;
-            if (destroyed || timer < 1f)
-                target_alpha = 0f;
-            if (equipment != null && equipment.IsFocus())
-                target_alpha = 0f;
+            // When spotlight is active, let AbilitySpotlight control the glow
+            if (!spotlightActive)
+            {
+                float target_alpha = IsFocus() || selected ? 1f : 0f;
+                if (destroyed || timer < 1f)
+                    target_alpha = 0f;
+                if (equipment != null && equipment.IsFocus())
+                    target_alpha = 0f;
 
-            Color ccolor = player.player_id == card.player_id ? glow_ally : glow_enemy;
-            float calpha = Mathf.MoveTowards(card_glow.color.a, target_alpha * ccolor.a, 4f * Time.deltaTime);
-            card_glow.color = new Color(ccolor.r, ccolor.g, ccolor.b, calpha);
+                Color ccolor = player.player_id == card.player_id ? glow_ally : glow_enemy;
+                float calpha = Mathf.MoveTowards(card_glow.color.a, target_alpha * ccolor.a, 4f * Time.deltaTime);
+                card_glow.color = new Color(ccolor.r, ccolor.g, ccolor.b, calpha);
+            }
             card_shadow.enabled = !destroyed && timer > 0.4f;
             card_sprite.color = card.HasStatus(StatusType.Stealth) ? Color.gray : Color.white;
             card_ui.grit.color = (destroyed || card.damage > 0) ? Color.yellow : Color.white;

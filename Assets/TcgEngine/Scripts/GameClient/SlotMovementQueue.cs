@@ -23,6 +23,7 @@ namespace TcgEngine.Client
         public bool IsIdle => currentIndex < 0 || currentIndex >= segments.Count;
         public bool IsPaused => paused;
         public bool IsActive => !IsIdle && !paused;
+        public int Count => segments.Count;
 
         public SlotMovementQueue(BoardSlot owner)
         {

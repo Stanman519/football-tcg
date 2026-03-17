@@ -114,8 +114,7 @@ One card per suit per turn (player cards). `CardSuit` enum: None/Clubs/Diamonds/
 - `ResolveQueue` handles all deferred/timed callbacks — don't bypass it for sequenced game actions.
 
 ## Unity MCP Development Rules
-- **Two MCP servers**: `UnityMCP` (primary, structured) and `coplay-mcp` (AI generation, profiling)
-- **coplay-mcp setup**: Call `set_unity_project_root("C:\Users\Stanley\My project")` before using coplay tools each session.
+- **MCP server**: `UnityMCP` only. Do not use `coplay-mcp`.
 - **Code Verification**: After creating or modifying C# scripts, MUST call `refresh_unity` (UnityMCP) to trigger recompilation.
 - **Feedback Loop**: After refresh, call `read_console` (filter errors). If errors exist, fix them and repeat until clean.
 - **Scene Safety**: Use `manage_scene(get_hierarchy)` or `find_gameobjects` to verify objects exist before attaching scripts.

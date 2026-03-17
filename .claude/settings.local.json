@@ -12,7 +12,11 @@
       "mcp__UnityMCP__find_gameobjects",
       "mcp__UnityMCP__manage_components",
       "mcp__UnityMCP__refresh_unity",
-      "Bash(cd /c/Users/Stanley/\"My Project\" && find . -name \"FormationData.cs\" -o -name \"FieldManager.cs\" | head -5)"
+      "Bash(cd /c/Users/Stanley/\"My Project\" && find . -name \"FormationData.cs\" -o -name \"FieldManager.cs\" | head -5)",
+      "Bash(find:*)",
+      "mcp__coplay-mcp__check_compile_errors",
+      "mcp__UnityMCP__manage_gameobject",
+      "Bash(wc -l Assets/TcgEngine/Scripts/Gameplay/GameLogicService.*.cs)"
     ]
   },
   "enabledMcpjsonServers": [

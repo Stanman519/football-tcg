@@ -276,7 +276,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             }
 
             onAbilityEnd?.Invoke(iability, caster);
-            resolve_queue.ResolveAll(0.5f);
+            resolve_queue.ResolveAll(1.2f);
             RefreshData();
         }
 

@@ -16,26 +16,10 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         private void ResolvePlayOutcome()
         {
             var playResolution = new PlayResolution();
-            // TODO: Implement logic for resolving what happens after a play (e.g., determining success/failure)
 
-            // TODO: order of potential play enders / turnover event priority, (TFL, Sack,tipped pass, batted down pass, interception/fumble)?
-            // at this point we will have all the slot based bonuses and events.
-            // need a way to look at all the events and action on them in order of operations
-            // probably split into two streams here, run or pass.
-
-
-
-
-            // PASS logic
-            // look for sack, tipped pass, batted down pass, interception
-            // action on those
-
-            // if none, calculate if pass is completed.
-            // rank all potential receivers based on bonuses
-            // decipher coverage on top receivers to determine who is the best eligible receiver.
-            // tabulate net yardage
-            // look for fumbles
-            // move to live ball phase
+            // Fail events are resolved in chronological football order via
+            // OrderBy(FailPlayEventType enum value), first-match-wins.
+            // See FailPlayEventType XML doc for the priority tiers.
 
             // Fire all slot-triggered abilities (stat buffs sync, fail events queued)
             TriggerBoardSlotAbilities(game_data.current_offensive_player.SelectedPlay);
@@ -66,14 +50,8 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             if (game_data.raw_ball_on + playResolution.YardageGained >= 100 || game_data.raw_ball_on + playResolution.YardageGained <= 0)
                 playResolution.BallIsLive = false;
 
-            if (!playResolution.BallIsLive)
-            {
-                EndPlayPhase();
-                return;
-            }
-
-            // Step 8: Move to Live Ball Phase
-            StartLiveBallPhase();
+            // Always go through Resolution phase so client fires snap + route animations
+            StartPlayResolutionPhase(playResolution.BallIsLive);
 
         }
 
@@ -245,7 +223,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             var failList = resolve_queue.GetAbilityQueue()
                 .Where(a => a.ability.trigger == AbilityTrigger.OnPassResolution &&
                             a.ability.failEventType != FailPlayEventType.None)
-                .OrderBy(a => a.ability.failEventType) // Priority-based order
+                .OrderBy(a => a.ability.failEventType) // Chronological football priority (enum value)
                 .ToList();
 
             foreach (var failEvent in failList)
@@ -267,14 +245,23 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                         }
                         return HandleSack(failEvent, failList.ToList());
 
-                    case FailPlayEventType.Interception:
-                        return HandleInterception(failEvent);
+                    case FailPlayEventType.QBFumble:
+                        // Pre-throw fumble — ball loose at LOS, live ball resolves turnover
+                        if (game_data.current_offensive_player.PlayEnhancer?.card_id == "00308_enh_ball_security")
+                        {
+                            Debug.Log("[BallSecurity] QB fumble prevented.");
+                            break;
+                        }
+                        return HandleQbFumble(failEvent);
 
                     case FailPlayEventType.BattedPass:
                         return HandleBattedPass(failEvent);
 
                     case FailPlayEventType.TippedPass:
                         return TryToInterceptTippedPass(failEvent);
+
+                    case FailPlayEventType.Interception:
+                        return HandleInterception(failEvent);
 
                     case FailPlayEventType.IncompletePass:
                         return HandleIncompletePass(failEvent);
@@ -289,29 +276,6 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                         // Receiver fumble — only reachable if no IncompletePass fired first (sorted by priority)
                         return HandleFumble(failEvent);
 
-                    case FailPlayEventType.QBFumble:
-                        // Standalone pre-pass fumble (no sack) — ball loose at LOS, live ball resolves turnover
-                        if (game_data.current_offensive_player.PlayEnhancer?.card_id == "00308_enh_ball_security")
-                        {
-                            Debug.Log("[BallSecurity] QB fumble prevented.");
-                            break;
-                        }
-                        return HandleQbFumble(failEvent);
-
-                    case FailPlayEventType.SackFumble:
-                        // Sack + fumble in one ability slot
-                        if (game_data.current_offensive_player.PlayEnhancer?.card_id == "00307_enh_throw_it_away")
-                        {
-                            Debug.Log("[ThrowItAway] SackFumble converted to incomplete.");
-                            return HandleIncompletePass(failEvent);
-                        }
-                        if (game_data.current_offensive_player.cards_board.Any(c => c.GetTraitValue("prevent_loss") > 0))
-                        {
-                            Debug.Log("[PreventLoss] SackFumble converted to incomplete.");
-                            return HandleIncompletePass(failEvent);
-                        }
-                        return HandleSackFumble(failEvent);
-
                     default:
                         break;
                 }
@@ -325,7 +289,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             var failList = resolve_queue.GetAbilityQueue()
                 .Where(a => a.ability.trigger == AbilityTrigger.OnRunResolution &&
                             a.ability.failEventType != FailPlayEventType.None)
-                .OrderBy(a => a.ability.failEventType) // Priority-based order
+                .OrderBy(a => a.ability.failEventType) // Chronological football priority (enum value)
                 .ToList();
 
             foreach (var failEvent in failList)
@@ -398,36 +362,6 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             // if not end the play
 
 
-        }
-
-        private PlayResolution HandleSackFumble(AbilityQueueElement failEvent)
-        {
-            int sackYards = game_data.current_offensive_player.SelectedPlay == PlayType.LongPass ? -8 : -4;
-
-            var recoveryCard = game_data.current_offensive_player.cards_board
-                .FirstOrDefault(c => c.GetTraitValue("fumble_recovery") > 0
-                                  && c.GetTraitValue("fumble_recovery_used") == 0);
-            if (recoveryCard != null)
-            {
-                int chance = recoveryCard.GetTraitValue("fumble_recovery");
-                recoveryCard.SetTrait("fumble_recovery_used", 1);
-                if (UnityEngine.Random.Range(0, 100) < chance)
-                {
-                    Debug.Log("[FumbleRecovery] SackFumble recovered. Sack yardage applied, no turnover.");
-                    return new PlayResolution { BallIsLive = false, YardageGained = sackYards,
-                        Turnover = false, ContributingAbilities = new List<AbilityQueueElement> { failEvent } };
-                }
-                Debug.Log("[FumbleRecovery] SackFumble recovery attempted but failed.");
-            }
-
-            Debug.Log($"[SackFumble] Ball live at sack position ({sackYards} yds). Live ball resolves turnover.");
-            return new PlayResolution
-            {
-                BallIsLive = true,
-                Turnover = false,
-                YardageGained = sackYards,
-                ContributingAbilities = new List<AbilityQueueElement> { failEvent }
-            };
         }
 
         protected virtual PlayResolution HandleQbFumble(AbilityQueueElement fumble)
