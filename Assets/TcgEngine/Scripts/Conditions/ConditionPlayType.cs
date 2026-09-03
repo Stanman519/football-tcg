@@ -5,8 +5,8 @@ using System.Text;
 using System.Threading.Tasks;
 using TcgEngine;
 using UnityEngine;
-using Assets.TcgEngine.Scripts.Gameplay;
-namespace Assets.TcgEngine.Scripts.Conditions
+using TcgEngine.Gameplay;
+namespace TcgEngine.Conditions
 {
     [CreateAssetMenu(fileName = "condition", menuName = "TcgEngine/Condition/GamePhase/PlayType", order = 10)]
     public class ConditionPlayType : ConditionData

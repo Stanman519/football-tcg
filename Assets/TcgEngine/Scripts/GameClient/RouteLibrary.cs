@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 using TcgEngine;
 using UnityEngine;
 
@@ -54,8 +54,11 @@ namespace TcgEngine.Client
         /// Pick a random matching route, or null if none found.
         /// olSlotIndex: 0-4 for OL, -1 for non-OL positions.
         /// lateralDir: -1=left, 1=right, 0=any.
+        /// netYardage: if provided, only return routes where vertexDepth &lt;= netYardage
+        ///   (catch happens after the route's direction change).
         /// </summary>
-        public static RouteData Pick(PlayerPositionGrp pos, int olSlotIndex, RouteContext ctx, int lateralDir)
+        public static RouteData Pick(PlayerPositionGrp pos, int olSlotIndex, RouteContext ctx, int lateralDir,
+            float? netYardage = null)
         {
             if (!initialized) Initialize();
 
@@ -64,25 +67,46 @@ namespace TcgEngine.Client
             // Try exact direction match first
             if (lateralDir != 0)
             {
-                var exact = Lookup(pos, olSub, ctx, lateralDir);
-                if (exact != null && exact.Count > 0)
-                    return exact[Random.Range(0, exact.Count)];
+                var result = PickFromList(Lookup(pos, olSub, ctx, lateralDir), netYardage);
+                if (result != null) return result;
             }
 
             // Try direction-agnostic (0)
-            var any = Lookup(pos, olSub, ctx, 0);
-            if (any != null && any.Count > 0)
-                return any[Random.Range(0, any.Count)];
+            var anyResult = PickFromList(Lookup(pos, olSub, ctx, 0), netYardage);
+            if (anyResult != null) return anyResult;
 
             // Try opposite direction as last resort
             if (lateralDir != 0)
             {
-                var opp = Lookup(pos, olSub, ctx, -lateralDir);
-                if (opp != null && opp.Count > 0)
-                    return opp[Random.Range(0, opp.Count)];
+                var oppResult = PickFromList(Lookup(pos, olSub, ctx, -lateralDir), netYardage);
+                if (oppResult != null) return oppResult;
             }
 
             return null;
+        }
+
+        /// <summary>Pick a random route from list, optionally filtering by vertex depth vs net yardage.</summary>
+        private static RouteData PickFromList(List<RouteData> candidates, float? netYardage)
+        {
+            if (candidates == null || candidates.Count == 0) return null;
+
+            if (!netYardage.HasValue)
+            {
+                // No yardage filter — pick any
+                return candidates[Random.Range(0, candidates.Count)];
+            }
+
+            // Filter: vertex must be <= net yardage (catch happens after the break)
+            var valid = new List<RouteData>();
+            foreach (var r in candidates)
+            {
+                float vertex = r.GetVertexDepth();
+                if (vertex <= netYardage.Value)
+                    valid.Add(r);
+            }
+
+            if (valid.Count == 0) return null;
+            return valid[Random.Range(0, valid.Count)];
         }
 
         private static List<RouteData> Lookup(PlayerPositionGrp pos, int olSub, RouteContext ctx, int dir)

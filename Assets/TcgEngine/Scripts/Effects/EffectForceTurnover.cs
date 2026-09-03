@@ -1,9 +1,9 @@
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 using System.Linq;
 using TcgEngine;
 using UnityEngine;
 
-namespace Assets.TcgEngine.Scripts.Effects
+namespace TcgEngine.Effects
 {
     /// <summary>
     /// Forces a fumble during live ball resolution. Grit-based resolution:

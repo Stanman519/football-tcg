@@ -1,4 +1,4 @@
-﻿using Assets.TcgEngine.Scripts.Gameplay;
+﻿using TcgEngine.Gameplay;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -16,13 +16,7 @@ namespace TcgEngine.UI
 
         public UnityAction<CardMulligan> onClick;
 
-        private void Awake()
-        {
-            if (x_img != null)
-                x_img.enabled = false;
 
-            card_ui.onClick += OnClick;
-        }
 
         public void SetCard(Card card)
         {

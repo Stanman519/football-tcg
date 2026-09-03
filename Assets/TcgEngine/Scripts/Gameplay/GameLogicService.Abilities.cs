@@ -1,10 +1,10 @@
-using Assets.TcgEngine.Scripts.Effects;
+using TcgEngine.Effects;
 using System.Collections.Generic;
 using System.Linq;
 using TcgEngine;
 using UnityEngine;
 
-namespace Assets.TcgEngine.Scripts.Gameplay
+namespace TcgEngine.Gameplay
 {
     public partial class GameLogicService
     {
@@ -261,7 +261,6 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
             //Recalculate and clear
             UpdateOngoing();
-            CheckForWinner();
 
             //Chain ability
             if (iability.target != AbilityTarget.ChoiceSelector && game_data.state != GameState.GameEnded)

@@ -1,64 +1,83 @@
-﻿using Assets.TcgEngine.Scripts.Gameplay;
-using System;
+﻿using TcgEngine.Gameplay;
 using System.Collections.Generic;
-
 using UnityEngine;
 using UnityEngine.EventSystems;
 using TcgEngine.Client;
 
-namespace Assets.TcgEngine.Scripts.UI
+namespace TcgEngine.UI
 {
     public class PlayCardDropZone : MonoBehaviour, IDropHandler
     {
+        static PlayCardDropZone _instance;
+        public static PlayCardDropZone Get()
+        {
+            if (_instance == null)
+            {
+                var go = new GameObject("PlayCardDropZone");
+                _instance = go.AddComponent<PlayCardDropZone>();
+            }
+            return _instance;
+        }
+
+        void Awake() { _instance = this; }
+        void OnDestroy() { if (_instance == this) _instance = null; }
+
         public void OnDrop(PointerEventData eventData)
         {
-            Debug.Log($"PlayCardDropZone.OnDrop pointerDrag: {eventData.pointerDrag?.name}");
-
             HandCard handCard = eventData.pointerDrag?.GetComponent<HandCard>();
-            if (handCard == null)
-            {
-                Debug.Log("PlayCardDropZone.OnDrop: pointerDrag has no HandCard component or pointerDrag is null");
-                return;
-            }
+            if (handCard == null) return;
 
             Card card = handCard.GetCard();
-            if (card == null || card.Data == null)
+            if (card == null || card.Data == null) { handCard.EndDrag(); return; }
+
+            Game g = GameClient.Get()?.GetGameData();
+            if (g == null) { handCard.EndDrag(); return; }
+
+            // --- Player cards → board slot ---
+            if (card.Data.IsPlayer() && g.phase == GamePhase.ChoosePlayers)
             {
-                Debug.Log("PlayCardDropZone.OnDrop: card or card.Data null");
-                // Still end the drag even if card is invalid
+                PlayerPositionGrp position = card.Data.playerPosition;
+                int playerId = GameClient.Get().GetPlayerID();
+                List<BoardSlot> slots = FieldSlotManager.Instance.GetSlotsForPosition(position, playerId);
+
+                foreach (BoardSlot slot in slots)
+                {
+                    if (slot.IsEmpty())
+                    {
+                        GameClient.Get().PlayCard(card, slot.assignedSlot);
+                        break;
+                    }
+                }
                 handCard.EndDrag();
-                return;
             }
-
-            PlayerPositionGrp position = card.Data.playerPosition;
-            int playerId = GameClient.Get().GetPlayerID();
-            List<BoardSlot> slots = FieldSlotManager.Instance.GetSlotsForPosition(position, playerId);
-
-            Debug.Log($"PlayCardDropZone.OnDrop: Found slots for position {position}: {string.Join(", ", slots)}");
-
-            bool cardPlayed = false;
-            foreach (BoardSlot slot in slots)
+            // --- Enhancers → PlayEnhancerSlot ---
+            else if (card.Data.IsPlayEnhancer() && g.phase == GamePhase.ChoosePlay)
             {
-                if (slot.IsEmpty())
-                {
-                    Debug.Log($"PlayCardDropZone: dropping card {card.uid} to slot {slot.assignedSlot.posGroupType}-{slot.assignedSlot.p}");
-                    GameClient.Get().PlayCard(card, slot.assignedSlot);
-                    cardPlayed = true;
-                    break;
-                }
+                var enhSlot = FindFirstObjectByType<PlayEnhancerSlot>();
+                if (enhSlot != null)
+                    enhSlot.OnDrop(eventData);
                 else
-                {
-                    Debug.Log($"PlayCardDropZone: slot {slot.assignedSlot.posGroupType}-{slot.assignedSlot.p} is not empty");
-                }
+                    handCard.EndDrag();
             }
-
-            if (!cardPlayed)
+            // --- Live ball → play card + auto-commit ready ---
+            else if (card.Data.IsLiveBall() && g.phase == GamePhase.LiveBall)
             {
-                Debug.Log("No open slot for position: " + position);
+                Player player = GameClient.Get().GetPlayer();
+                if (player == null || player.IsReadyForPhase(GamePhase.LiveBall))
+                {
+                    handCard.EndDrag();
+                    return;
+                }
+                GameClient.Get().PlayCard(card, new CardPositionSlot());
+                player.SetReadyForPhase(g.phase, true);
+                GameClient.Get().SendAction(GameAction.PlayerReadyPhase);
+                handCard.EndDrag();
             }
-
-            // Always end the drag after processing the drop
-            handCard.EndDrag();
+            // --- Wrong phase/type → return to hand ---
+            else
+            {
+                handCard.EndDrag();
+            }
         }
     }
 }

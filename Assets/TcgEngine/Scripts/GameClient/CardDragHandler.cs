@@ -3,7 +3,8 @@ using UnityEngine.EventSystems;
 using System.Collections.Generic;
 using TcgEngine.Client;
 using TcgEngine;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
+using TcgEngine.UI;
 
 public class CardDragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
@@ -41,9 +42,17 @@ public class CardDragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, I
                 return;
             }
         }
-        
+
+        // Block drag if card isn't eligible for current phase
+        HandCard hc = draggingCard?.GetComponent<HandCard>();
+        if (hc != null && !hc.IsPhaseEligible())
+        {
+            draggingCard = null;
+            return;
+        }
+
         // Mark HandCard as dragging so IsDrag() stays true while event is active
-        draggingHandCard = draggingCard?.GetComponent<HandCard>();
+        draggingHandCard = hc;
         if (draggingHandCard != null)
         {
             draggingHandCard.StartDrag();
@@ -74,8 +83,46 @@ public class CardDragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, I
 
     public void OnEndDrag(PointerEventData eventData)
     {
-        if (validSlot != null)
+        bool handled = false;
+
+        if (draggingHandCard == null)
+        {
+            Debug.LogWarning("[DragDrop] OnEndDrag: draggingHandCard is null — drag was cancelled?");
+        }
+        else
+        {
+            Card card = draggingHandCard.GetCard();
+            GameClient client = GameClient.Get();
+            Game g = client?.GetGameData();
+
+            if (card?.CardData == null)
+            {
+                Debug.LogWarning($"[DragDrop] OnEndDrag: card or CardData is null (card={card != null})");
+            }
+            else if (g == null)
+            {
+                Debug.LogWarning("[DragDrop] OnEndDrag: game data is null");
+            }
+            else
+            {
+                Debug.LogWarning($"[DragDrop] OnEndDrag: card={card.CardData.title} type={card.CardData.type} phase={g.phase}");
+
+                // Player cards during ChoosePlayers still snap to BoardSlot (handled below via validSlot).
+                // All other drops route through PlayCardDropZone — phase-aware, self-instantiating.
+                bool routeToBoardSlot = card.CardData.IsPlayer() && g.phase == GamePhase.ChoosePlayers;
+                if (!routeToBoardSlot)
+                {
+                    PlayCardDropZone.Get().OnDrop(eventData);
+                    handled = true;
+                    validSlot = null;
+                }
+            }
+        }
+
+        if (!handled && validSlot != null)
+        {
             SnapToSlot(validSlot, eventData);
+        }
         // If no valid slot, HandCard.Update will animate the card back to deck_position automatically
 
         ResetSlotHighlights();

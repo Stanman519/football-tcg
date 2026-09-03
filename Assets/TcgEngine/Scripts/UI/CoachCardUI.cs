@@ -1,25 +1,26 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 using TcgEngine;
 using TcgEngine.Client;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 
 /// <summary>
 /// Displays a coach card in the play call panel.
-/// Wire fields in Inspector on a CoachCard prefab (duplicated from player card prefab).
+/// Wire fields in Inspector or via PlayCallPanelBuilder.
 /// </summary>
 public class CoachCardUI : MonoBehaviour
 {
     [Header("Card Fields")]
     public Image  card_image;
     public Image  frame_image;
-    public Text   card_title;
-    public Text   card_text;
-    public Text   run_bonus_text;
-    public Text   short_pass_bonus_text;
-    public Text   long_pass_bonus_text;
-    public Text   position_label;   // "OFF COACH" / "DEF COACH"
-    public Text   scheme_text;      // "1 QB  2 WR  2 OL ..."
+    public TextMeshProUGUI card_title;
+    public TextMeshProUGUI card_text;
+    public TextMeshProUGUI run_bonus_text;
+    public TextMeshProUGUI short_pass_bonus_text;
+    public TextMeshProUGUI long_pass_bonus_text;
+    public TextMeshProUGUI position_label;   // "MY COACH" / "DEF COACH"
+    public TextMeshProUGUI scheme_text;      // "1 QB  2 WR  2 OL ..."
 
     public void SetCoach(HeadCoachCard runtime, CoachCardData asset, bool isOffense)
     {
@@ -28,7 +29,7 @@ public class CoachCardUI : MonoBehaviour
         if (card_title  != null) card_title.text  = asset.title;
         if (card_text   != null) card_text.text   = asset.ability_text;
         if (card_image  != null && asset.card_image != null) card_image.sprite = asset.card_image;
-        if (position_label != null) position_label.text = isOffense ? "OFF COACH" : "DEF COACH";
+        if (position_label != null) position_label.text = isOffense ? "MY COACH" : "DEF COACH";
 
         if (isOffense)
         {
@@ -59,7 +60,7 @@ public class CoachCardUI : MonoBehaviour
         SetCoach(p.head_coach, asset, isOffense);
     }
 
-    private void SetStat(Text field, string label, int val, string sign, string unit)
+    private void SetStat(TextMeshProUGUI field, string label, int val, string sign, string unit)
     {
         if (field != null)
             field.text = $"{label} {sign}{val} {unit}";

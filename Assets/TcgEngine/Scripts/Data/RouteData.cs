@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 
 namespace TcgEngine
 {
@@ -24,6 +24,64 @@ namespace TcgEngine
     public class RouteData : ScriptableObject
     {
         public List<RouteKeyframe> keyframes = new List<RouteKeyframe>();
+
+        [Tooltip("Depth in yards where the route changes direction (the 'break'). -1 = auto-compute from keyframes.")]
+        public float vertexDepthYards = -1f;
+
+        [Tooltip("Total downfield depth of the route in yards. -1 = auto-compute from keyframes.")]
+        public float totalDepthYards = -1f;
+
+        /// <summary>
+        /// Get vertex depth: manual override or auto-detect from keyframes.
+        /// Vertex = the keyframe where forward (deltaYards) direction reverses or lateral changes sharply.
+        /// </summary>
+        public float GetVertexDepth()
+        {
+            if (vertexDepthYards >= 0f) return vertexDepthYards;
+            return ComputeVertexDepth();
+        }
+
+        /// <summary>Get total downfield depth: manual override or max deltaYards from keyframes.</summary>
+        public float GetTotalDepth()
+        {
+            if (totalDepthYards >= 0f) return totalDepthYards;
+            return ComputeTotalDepth();
+        }
+
+        private float ComputeVertexDepth()
+        {
+            if (keyframes == null || keyframes.Count < 2) return 0f;
+
+            // Find the keyframe where forward movement stops or reverses
+            float prevDeltaY = 0f;
+            float vertexY = 0f;
+            for (int i = 0; i < keyframes.Count; i++)
+            {
+                foreach (var wp in keyframes[i].waypoints)
+                {
+                    float curDeltaY = wp.deltaYards;
+                    if (i > 0 && prevDeltaY > 0f && curDeltaY <= prevDeltaY)
+                    {
+                        // Forward movement stopped or reversed — this is the vertex
+                        vertexY = prevDeltaY;
+                        return Mathf.Abs(vertexY);
+                    }
+                    prevDeltaY = curDeltaY;
+                }
+            }
+            // No direction change found — vertex is at the end (straight route)
+            return ComputeTotalDepth();
+        }
+
+        private float ComputeTotalDepth()
+        {
+            if (keyframes == null || keyframes.Count == 0) return 0f;
+            float maxY = 0f;
+            foreach (var kf in keyframes)
+                foreach (var wp in kf.waypoints)
+                    maxY = Mathf.Max(maxY, Mathf.Abs(wp.deltaYards));
+            return maxY;
+        }
     }
 
     /// <summary>

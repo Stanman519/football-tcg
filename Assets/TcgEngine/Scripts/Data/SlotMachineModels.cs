@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System;
+using TcgEngine;
 using UnityEngine;
 
 [Serializable]
@@ -31,10 +32,6 @@ public class SlotIconData
 
     private Sprite LoadSprite(SlotMachineIconType iconID)
     {
-        // Map enum name to filename (WildCard → wild, others lowercase as-is)
-        string fileName = iconID == SlotMachineIconType.WildCard
-            ? "wild"
-            : Enum.GetName(typeof(SlotMachineIconType), iconID).ToLower();
-        return Resources.Load<Sprite>($"SlotMachine/slot-{fileName}-icon");
+        return SlotIconRegistry.GetSprite(iconID);
     }
 }

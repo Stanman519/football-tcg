@@ -1,10 +1,10 @@
-﻿using Assets.TcgEngine.Scripts.Effects;
+﻿using TcgEngine.Effects;
 using System.Collections.Generic;
 using System.Linq;
 using TcgEngine;
 using UnityEngine;
 
-namespace Assets.TcgEngine.Scripts.Gameplay
+namespace TcgEngine.Gameplay
 {
     /// <summary>
     /// Type of offensive play called
@@ -31,6 +31,39 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         Sack = 6,           // QB sacked
         Fumble = 7,         // Fumble occurred
         Interception = 8    // Pass intercepted
+    }
+
+    public enum LiveBallEventType
+    {
+        BothPass = 0,
+        NegateOffense = 1,
+        NegateDefense = 2,
+        FumbleTurnover = 3,
+        FumbleRecovery = 4,
+        BallSecurity = 5,
+        Reveal = 6,
+        YardageDelta = 7,    // payload: offGrit=delta, defGrit=newTotal, offCard=source
+        PostLBResolved = 8   // payload: offGrit=preLB, defGrit=finalLB, turnover flag in game state
+    }
+
+    /// <summary>
+    /// Breakdown of yardage calculation for UI display.
+    /// Populated during ResolveRunOutcome / ResolvePassOutcome.
+    /// </summary>
+    [System.Serializable]
+    public class YardageBreakdown
+    {
+        public int offCoachBase;        // coach base offense yards
+        public int offPlayerBase;       // player card base stat (run_bonus or receiver pass bonus)
+        public int offStatusBonuses;    // ability/slot status bonuses
+        public int offOtherPositions;   // QB/OL pass bonuses (pass only)
+        public int defCoverageBase;     // defensive card coverage
+        public int defCoachBase;        // coach base defense
+        public int defCoverageMod;      // coverage guess modifier
+        public int defStatusBonuses;    // defensive status bonuses
+        public int netYardage;          // final result
+        public string receiverName;     // target receiver card title (pass) or ball carrier (run)
+        public string ctrDefenderName;  // who CTR covered (pass only)
     }
 
     //Contains all gameplay state data that is sync across network
@@ -68,6 +101,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         //Game state
         public int turn_count = 0;
         public float turn_timer = 0f;
+        public float phase_timer = 0f;  // Countdown for timed phases (ChoosePlay etc.)
         public int current_down = 1;
         public int current_half = 1;
         public int first_half_offense_player_id = 0; // who started half 1 on offense; opponent gets ball in half 2
@@ -81,6 +115,10 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         public int live_ball_return_yards = 0;  // return yards from live-ball fumble; set in HandleLiveBallTurnover; applied in EndPlayPhase turnover path
         public string ball_carrier_uid;          // uid of card carrying the ball (RB for runs, receiver for passes) — drives client animation
         public string target_receiver_uid;       // uid of receiver who caught the pass — drives client animation
+        public FailPlayEventType last_fail_event = FailPlayEventType.None; // which fail event occurred this play (Sack/INT/Fumble/etc) — drives ball animation
+        public YardageBreakdown yardage_breakdown; // populated during ResolveRunOutcome/ResolvePassOutcome for UI display
+        public string interceptor_uid;           // uid of defensive card that intercepted — drives ball animation
+        public string fumble_recoverer_uid;      // uid of card that recovered fumble — drives ball animation
 
         // Slot machine modifiers (from abilities)
         public List<SlotModifier> temp_slot_modifiers;
@@ -94,6 +132,8 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         public Dictionary<int, bool> playerPhaseReady = new Dictionary<int, bool>();
 
         public Player current_offensive_player;
+
+        public int winner_id = -2; // -2=undecided, -1=tie, 0/1=player
 
         public GameState state = GameState.Connecting;
         public GamePhase phase = GamePhase.None;
@@ -959,6 +999,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             dest.current_down = source.current_down;
             dest.plays_left_in_half = source.plays_left_in_half;
             dest.yardage_this_play = source.yardage_this_play;
+            dest.yardage_breakdown = source.yardage_breakdown;
             dest.current_half = source.current_half;
             dest.play_count_this_drive = source.play_count_this_drive;
             dest.after_field_goal = source.after_field_goal;

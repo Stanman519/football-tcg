@@ -1,7 +1,7 @@
 ﻿using System.Collections;
 using UnityEngine;
 using System.Linq;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 
 namespace TcgEngine.AI
 {
@@ -63,28 +63,47 @@ namespace TcgEngine.AI
             Game game_data = gameplay.GetGameData();
             GamePhase startPhase = game_data.phase;
 
-            ai_logic.RunAI(game_data);
-
-            while (ai_logic.IsRunning())
+            if (startPhase == GamePhase.ChoosePlayers)
             {
-                yield return new WaitForSeconds(0.1f);
-            }
+                // Loop: play as many player cards as Minimax wants
+                while (game_data.phase == GamePhase.ChoosePlayers)
+                {
+                    ai_logic.RunAI(game_data);
+                    while (ai_logic.IsRunning())
+                        yield return new WaitForSeconds(0.1f);
 
-            AIAction best = ai_logic.GetBestAction();
+                    AIAction best = ai_logic.GetBestAction();
+                    if (best == null || best.type != GameAction.PlayCard)
+                        break;
 
-            if (best != null)
-            {
-                Debug.Log("Execute AI Action: " + best.GetText(game_data) + "\n" + ai_logic.GetNodePath());
-                ExecuteAction(best);
+                    Debug.Log("AI ChoosePlayers: " + best.GetText(game_data));
+                    ExecuteAction(best);
+                    ai_logic.ClearMemory();
+                    game_data = gameplay.GetGameData();
+                    yield return new WaitForSeconds(0.3f);
+                }
             }
             else
             {
-                Debug.Log($"AI Player {player_id}: No action found for {startPhase}");
+                // Single action for ChoosePlay / LiveBall
+                ai_logic.RunAI(game_data);
+                while (ai_logic.IsRunning())
+                    yield return new WaitForSeconds(0.1f);
+
+                AIAction best = ai_logic.GetBestAction();
+                if (best != null)
+                {
+                    Debug.Log("Execute AI Action: " + best.GetText(game_data) + "\n" + ai_logic.GetNodePath());
+                    ExecuteAction(best);
+                }
+                else
+                {
+                    Debug.Log($"AI Player {player_id}: No action found for {startPhase}");
+                }
+                ai_logic.ClearMemory();
             }
 
-            ai_logic.ClearMemory();
-
-            // Immediately signal ready after executing action
+            // Signal ready after all actions
             game_data = gameplay.GetGameData();
             if (startPhase == GamePhase.ChoosePlayers || startPhase == GamePhase.ChoosePlay || startPhase == GamePhase.LiveBall)
             {
@@ -192,14 +211,12 @@ namespace TcgEngine.AI
 
         private void SelectPlay(PlayType playType, string play_enhancer_card_uid)
         {
-            Card card = null;
             Game game_data = gameplay.GetGameData();
-            if (!string.IsNullOrEmpty(play_enhancer_card_uid))
-            {
-                card = game_data.GetCard(play_enhancer_card_uid);
-                game_data.GetPlayer(player_id).PlayEnhancer = card;
-            }
-            game_data.GetPlayer(player_id).SelectedPlay = playType;
+            Player player = game_data.GetPlayer(player_id);
+            Card enhancer = !string.IsNullOrEmpty(play_enhancer_card_uid)
+                ? game_data.GetCard(play_enhancer_card_uid)
+                : null;
+            gameplay.SelectPlay(player, playType, enhancer);
         }
 
         private void CastAbility(string caster_uid, string ability_id)

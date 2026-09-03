@@ -2,7 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TMPro;
+using TcgEngine.Gameplay;
 
 namespace TcgEngine.UI
 {
@@ -24,10 +25,10 @@ namespace TcgEngine.UI
     {
         [Header("UI References (optional — auto-built if null)")]
         public GameObject panelRoot;
-        public Text playTypeText;
-        public Text yardageText;
-        public Text downDistText;
-        public Text breakdownText;
+        public TextMeshProUGUI playTypeText;
+        public TextMeshProUGUI yardageText;
+        public TextMeshProUGUI downDistText;
+        public TextMeshProUGUI breakdownText;
 
         [Header("Settings")]
         public float displayDuration = 4f;
@@ -39,7 +40,7 @@ namespace TcgEngine.UI
 
         // Built refs
         private GameObject builtRoot;
-        private Text builtPlayType, builtYardage, builtDownDist, builtBreakdown;
+        private TextMeshProUGUI builtPlayType, builtYardage, builtDownDist, builtBreakdown;
         private CanvasGroup builtGroup;
 
         void Awake()
@@ -66,10 +67,10 @@ namespace TcgEngine.UI
         {
             // Resolve refs
             GameObject root = panelRoot ?? builtRoot;
-            Text ptText = playTypeText ?? builtPlayType;
-            Text ydText = yardageText ?? builtYardage;
-            Text ddText = downDistText ?? builtDownDist;
-            Text bdText = breakdownText ?? builtBreakdown;
+            TextMeshProUGUI ptText = playTypeText ?? builtPlayType;
+            TextMeshProUGUI ydText = yardageText ?? builtYardage;
+            TextMeshProUGUI ddText = downDistText ?? builtDownDist;
+            TextMeshProUGUI bdText = breakdownText ?? builtBreakdown;
             CanvasGroup cg = canvasGroup ?? builtGroup;
 
             if (root == null) yield break;
@@ -109,7 +110,8 @@ namespace TcgEngine.UI
         }
 
         private void PopulateContent(Game g, Player p0, Player p1,
-                                     Text ptText, Text ydText, Text ddText, Text bdText)
+                                     TextMeshProUGUI ptText, TextMeshProUGUI ydText,
+                                     TextMeshProUGUI ddText, TextMeshProUGUI bdText)
         {
             // --- Play type label ---
             string playLabel = g.last_play_type switch
@@ -215,7 +217,9 @@ namespace TcgEngine.UI
             Canvas c = gameObject.AddComponent<Canvas>();
             c.renderMode = RenderMode.ScreenSpaceOverlay;
             c.sortingOrder = 60;
-            gameObject.AddComponent<CanvasScaler>();
+            var scaler = gameObject.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920, 1080);
             gameObject.AddComponent<GraphicRaycaster>();
 
             // Panel card (center of screen, lower third)
@@ -230,29 +234,27 @@ namespace TcgEngine.UI
             rt.anchorMax = new Vector2(0.75f, 0.42f);
             rt.offsetMin = rt.offsetMax = Vector2.zero;
 
-            Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-
             // Play type (top)
-            builtPlayType = MakeText(builtRoot.transform, "PlayType", font, 18,
+            builtPlayType = MakeTmpText(builtRoot.transform, "PlayType", 18,
                 new Color(1f, 0.85f, 0.2f), new Vector2(0.05f, 0.75f), new Vector2(0.95f, 1f),
-                TextAnchor.MiddleCenter);
+                TextAlignmentOptions.Center, FontStyles.Bold);
 
             // Yardage headline
-            builtYardage = MakeText(builtRoot.transform, "Yardage", font, 26,
+            builtYardage = MakeTmpText(builtRoot.transform, "Yardage", 26,
                 Color.white, new Vector2(0.05f, 0.52f), new Vector2(0.95f, 0.78f),
-                TextAnchor.MiddleCenter);
+                TextAlignmentOptions.Center, FontStyles.Bold);
 
             // Down & distance
-            builtDownDist = MakeText(builtRoot.transform, "DownDist", font, 14,
+            builtDownDist = MakeTmpText(builtRoot.transform, "DownDist", 14,
                 new Color(0.7f, 0.7f, 0.7f), new Vector2(0.05f, 0.38f), new Vector2(0.95f, 0.55f),
-                TextAnchor.MiddleCenter);
+                TextAlignmentOptions.Center);
 
             // Breakdown body
-            builtBreakdown = MakeText(builtRoot.transform, "Breakdown", font, 13,
+            builtBreakdown = MakeTmpText(builtRoot.transform, "Breakdown", 13,
                 Color.white, new Vector2(0.02f, 0.0f), new Vector2(0.98f, 0.42f),
-                TextAnchor.UpperLeft);
+                TextAlignmentOptions.TopLeft);
 
-            // Separator line (thin image between yardage and breakdown)
+            // Separator line
             GameObject sep = new GameObject("Separator");
             sep.transform.SetParent(builtRoot.transform, false);
             Image sepImg = sep.AddComponent<Image>();
@@ -265,17 +267,18 @@ namespace TcgEngine.UI
             builtRoot.SetActive(false);
         }
 
-        private Text MakeText(Transform parent, string name, Font font, int size, Color color,
-                              Vector2 anchorMin, Vector2 anchorMax, TextAnchor anchor)
+        private TextMeshProUGUI MakeTmpText(Transform parent, string name, float size, Color color,
+                              Vector2 anchorMin, Vector2 anchorMax, TextAlignmentOptions alignment,
+                              FontStyles style = FontStyles.Normal)
         {
             GameObject go = new GameObject(name);
             go.transform.SetParent(parent, false);
-            Text t = go.AddComponent<Text>();
-            t.font = font;
+            TextMeshProUGUI t = go.AddComponent<TextMeshProUGUI>();
             t.fontSize = size;
             t.color = color;
-            t.alignment = anchor;
-            t.supportRichText = false;
+            t.alignment = alignment;
+            t.fontStyle = style;
+            t.richText = false;
             RectTransform rt = go.GetComponent<RectTransform>();
             rt.anchorMin = anchorMin;
             rt.anchorMax = anchorMax;

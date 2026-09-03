@@ -2,7 +2,7 @@
 using UnityEngine;
 using UnityEngine.Events;
 using Unity.Netcode;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 using System.Linq;
 using System.Collections;
 
@@ -65,6 +65,7 @@ namespace TcgEngine.Client
         public UnityAction<int, string> onChatMsg;  //player_id, msg
         public UnityAction< string> onServerMsg;  //msg
         public UnityAction onRefreshAll;
+        public System.Action<LiveBallEventType, string, string, int, int> onLiveBallEvent;
 
         private int player_id = 0; //Player playing on this device;
         private Game game_data;
@@ -119,6 +120,7 @@ namespace TcgEngine.Client
 
             RegisterRefresh(GameAction.ChatMessage, OnChat);
             RegisterRefresh(GameAction.ServerMessage, OnServerMsg);
+            RegisterRefresh(GameAction.LiveBallEvent, OnLiveBallEvent);
             RegisterRefresh(GameAction.RefreshAll, OnRefreshAll);
 
             TcgNetwork.Get().onConnect += OnConnectedServer;
@@ -863,6 +865,15 @@ namespace TcgEngine.Client
         {
             string msg = sdata.GetString();
             onServerMsg?.Invoke(msg);
+        }
+
+        private void OnLiveBallEvent(SerializedData sdata)
+        {
+            MsgLiveBallEvent msg = sdata.Get<MsgLiveBallEvent>();
+            onLiveBallEvent?.Invoke(
+                (LiveBallEventType)msg.event_type,
+                msg.off_card_id, msg.def_card_id,
+                msg.off_grit, msg.def_grit);
         }
 
         private void OnRefreshAll(SerializedData sdata)

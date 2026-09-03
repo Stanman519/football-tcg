@@ -3,7 +3,7 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 using TcgEngine;
-using Assets.TcgEngine.Scripts.Effects;
+using TcgEngine.Effects;
 using Object = UnityEngine.Object;
 
 /// <summary>
@@ -455,7 +455,7 @@ public static class LiveBallCardBuilder
         card.abilities         = abilities;
         card.text              = text;
         card.slotRequirements  = slotReqs;
-        card.required_plays    = new Assets.TcgEngine.Scripts.Gameplay.PlayType[0];
+        card.required_plays    = new TcgEngine.Gameplay.PlayType[0];
         card.mana              = 0;
 
         // Not player cards — zero out stats

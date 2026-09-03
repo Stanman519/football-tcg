@@ -83,7 +83,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using TcgEngine;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 
 /// <summary>
 /// Drag-and-drop editor for assigning RouteData assets to a coach's slots per play type.

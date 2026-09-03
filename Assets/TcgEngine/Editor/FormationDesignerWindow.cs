@@ -5,7 +5,7 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 using TcgEngine;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 
 /// <summary>
 /// Unity Editor Window: First&amp;Long → Formation Designer

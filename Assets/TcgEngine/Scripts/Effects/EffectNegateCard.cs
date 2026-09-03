@@ -1,8 +1,8 @@
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 using TcgEngine;
 using UnityEngine;
 
-namespace Assets.TcgEngine.Scripts.Effects
+namespace TcgEngine.Effects
 {
     /// <summary>
     /// Blanket Coverage — negates the opponent's live ball card entirely.

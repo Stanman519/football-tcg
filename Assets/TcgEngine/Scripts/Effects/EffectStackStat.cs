@@ -1,9 +1,9 @@
 using System;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 using TcgEngine;
 using UnityEngine;
 
-namespace Assets.TcgEngine.Scripts.Effects
+namespace TcgEngine.Effects
 {
     /// <summary>
     /// Applies a stat bonus that scales with the current consecutive-play streak.

@@ -1,42 +1,49 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 using TcgEngine.Client;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
+using DG.Tweening;
 
 namespace TcgEngine.UI
 {
     /// <summary>
     /// Shows per-card bonus labels floating above board cards during the Resolution phase.
-    /// Labels display each card's contribution to the current play (e.g. "+8 run", "-4 cov").
-    /// Fades out when phase leaves Resolution.
-    ///
-    /// No Inspector wiring required — builds label pool at runtime.
-    /// Attach to a GameObject in the Game scene (or to GameFeedbackUI's GameObject).
-    /// Called each frame via Update (needed for live WorldToScreenPoint tracking).
+    /// Supports both instant (legacy) and sequential reveal modes.
+    /// Sequential mode: cards revealed one-by-one in position-group order with camera nudge.
     /// </summary>
     public class BoardStatOverlay : MonoBehaviour
     {
         [Header("Settings")]
-        public float labelYOffset = 80f;        // px above card center
-        public float fadeDuration = 1.0f;
+        public float labelYOffset = 80f;
+        public float fadeDuration = 2.5f;
+
+        [Header("Sequential Reveal")]
+        public float perCardDuration = 1.3f;
+        public float fadeInDuration = 0.15f;
+        public float punchScale = 0.1f;
+        public float punchDuration = 0.2f;
+        public float holdAllDuration = 1.7f;
+        public float cameraFocusDuration = 1.3f;
 
         private Canvas overlayCanvas;
         private readonly List<StatLabel> labelPool = new List<StatLabel>();
 
-        // Per-label data pairing
         private class StatLabel
         {
             public GameObject root;
             public Text text;
             public CanvasGroup group;
-            public BoardCard trackedCard;       // null when free in pool
+            public BoardCard trackedCard;
         }
 
         private GamePhase prevPhase = GamePhase.None;
         private Coroutine fadeCoroutine;
+        private Coroutine sequentialCoroutine;
         private bool labelsVisible = false;
+        private bool sequentialMode = false;
 
         void Awake()
         {
@@ -47,6 +54,9 @@ namespace TcgEngine.UI
         public void Refresh(Game g, Player p0, Player p1)
         {
             if (g == null) return;
+
+            // Skip auto-show if sequential mode is active (PlayAnimationController drives it)
+            if (sequentialMode) { prevPhase = g.phase; return; }
 
             bool inResolution = g.phase == GamePhase.Resolution;
             bool justEnteredResolution = inResolution && prevPhase != GamePhase.Resolution;
@@ -63,7 +73,6 @@ namespace TcgEngine.UI
 
         void Update()
         {
-            // Track card positions every frame while labels are showing
             if (!labelsVisible) return;
             if (Camera.main == null) return;
 
@@ -76,7 +85,117 @@ namespace TcgEngine.UI
             }
         }
 
-        // -----------------------------------------------------------------------
+        // ── Sequential Reveal (Phase A) ──────────────────────
+
+        /// <summary>
+        /// Coroutine: reveal labels one-by-one sorted by position group.
+        /// Offense: OL→QB→RB_TE→WR, then defense: DL→LB→DB.
+        /// Camera nudges toward each card briefly.
+        /// </summary>
+        public IEnumerator ShowLabelsSequential(Game g, Player p0, Player p1)
+        {
+            if (fadeCoroutine != null) { StopCoroutine(fadeCoroutine); fadeCoroutine = null; }
+            ReturnAllToPool();
+            sequentialMode = true;
+            labelsVisible = true;
+
+            bool p0isOff = g.current_offensive_player?.player_id == 0;
+
+            // Build sorted card entries
+            var entries = new List<(BoardCard bc, string text, bool isOff, int sortKey)>();
+            foreach (var bc in BoardCard.GetAll())
+            {
+                Card card = bc.GetCard();
+                if (card == null || card.Data == null) continue;
+
+                bool isOffCard = p0isOff ? card.player_id == 0 : card.player_id == 1;
+                string labelText = BuildLabel(card.Data, isOffCard, g.last_play_type);
+                if (string.IsNullOrEmpty(labelText)) continue;
+
+                int sortKey = PositionGroupSortKey(card.Data.playerPosition, isOffCard);
+                entries.Add((bc, labelText, isOffCard, sortKey));
+            }
+
+            entries.Sort((a, b) => a.sortKey.CompareTo(b.sortKey));
+
+            GameCamera cam = GameCamera.Get();
+
+            foreach (var entry in entries)
+            {
+                StatLabel lbl = GetOrCreateLabel();
+                lbl.trackedCard = entry.bc;
+                lbl.text.text = entry.text;
+                lbl.text.color = entry.isOff
+                    ? new Color(0.3f, 1f, 0.4f)
+                    : new Color(1f, 0.4f, 0.4f);
+                lbl.group.alpha = 0f;
+                lbl.root.SetActive(true);
+
+                // Fade in
+                lbl.group.DOKill();
+                lbl.group.DOFade(1f, fadeInDuration).SetLink(lbl.root);
+
+                // Scale punch on board card
+                entry.bc.transform.DOKill();
+                entry.bc.transform.DOPunchScale(Vector3.one * punchScale, punchDuration, 6, 0.5f)
+                    .SetLink(entry.bc.gameObject);
+
+                // Camera nudge
+                if (cam != null)
+                    cam.FocusOn(entry.bc.transform.position, 0.95f, cameraFocusDuration);
+
+                yield return TimeController.Instance != null
+                    ? TimeController.Instance.ScaledWait(perCardDuration)
+                    : new WaitForSeconds(perCardDuration);
+            }
+
+            // Release camera after all shown
+            if (cam != null)
+                cam.ReleaseFocus(0.3f);
+
+            // Hold all labels visible
+            yield return TimeController.Instance != null
+                ? TimeController.Instance.ScaledWait(holdAllDuration)
+                : new WaitForSeconds(holdAllDuration);
+
+            sequentialMode = false;
+        }
+
+        /// <summary>Fade out all labels (called externally or on phase exit).</summary>
+        public void StartFadeOut()
+        {
+            if (fadeCoroutine != null) StopCoroutine(fadeCoroutine);
+            fadeCoroutine = StartCoroutine(FadeOutLabels());
+        }
+
+        // ── Position Group Sort ──────────────────────────────
+
+        private static int PositionGroupSortKey(PlayerPositionGrp grp, bool isOffense)
+        {
+            if (isOffense)
+            {
+                return grp switch
+                {
+                    PlayerPositionGrp.OL => 0,
+                    PlayerPositionGrp.QB => 1,
+                    PlayerPositionGrp.RB_TE => 2,
+                    PlayerPositionGrp.WR => 3,
+                    _ => 4
+                };
+            }
+            else
+            {
+                return grp switch
+                {
+                    PlayerPositionGrp.DL => 10,
+                    PlayerPositionGrp.LB => 11,
+                    PlayerPositionGrp.DB => 12,
+                    _ => 13
+                };
+            }
+        }
+
+        // ── Legacy Instant Show ──────────────────────────────
 
         private void ShowLabels(Game g, Player p0, Player p1)
         {
@@ -90,9 +209,7 @@ namespace TcgEngine.UI
                 Card card = bc.GetCard();
                 if (card == null || card.Data == null) continue;
 
-                // Determine which player owns this card
                 bool isOffCard = p0isOff ? card.player_id == 0 : card.player_id == 1;
-
                 string labelText = BuildLabel(card.Data, isOffCard, g.last_play_type);
                 if (string.IsNullOrEmpty(labelText)) continue;
 
@@ -100,8 +217,8 @@ namespace TcgEngine.UI
                 lbl.trackedCard = bc;
                 lbl.text.text = labelText;
                 lbl.text.color = isOffCard
-                    ? new Color(0.3f, 1f, 0.4f)    // green for offense
-                    : new Color(1f, 0.4f, 0.4f);    // red for defense
+                    ? new Color(0.3f, 1f, 0.4f)
+                    : new Color(1f, 0.4f, 0.4f);
                 lbl.group.alpha = 1f;
                 lbl.root.SetActive(true);
             }
@@ -149,16 +266,11 @@ namespace TcgEngine.UI
             }
         }
 
-        private void StartFadeOut()
-        {
-            if (fadeCoroutine != null) StopCoroutine(fadeCoroutine);
-            fadeCoroutine = StartCoroutine(FadeOutLabels());
-        }
+        // ── Fade ─────────────────────────────────────────────
 
         private IEnumerator FadeOutLabels()
         {
             float elapsed = 0f;
-            // Snapshot current alphas (all 1f)
             while (elapsed < fadeDuration)
             {
                 float a = 1f - (elapsed / fadeDuration);
@@ -181,19 +293,15 @@ namespace TcgEngine.UI
             }
         }
 
-        // -----------------------------------------------------------------------
-        // Label pool
-        // -----------------------------------------------------------------------
+        // ── Label Pool ───────────────────────────────────────
 
         private StatLabel GetOrCreateLabel()
         {
-            // Find a free (inactive) label in pool
             foreach (var lbl in labelPool)
             {
                 if (lbl.trackedCard == null)
                     return lbl;
             }
-            // Create new
             return CreateLabel();
         }
 
@@ -206,7 +314,6 @@ namespace TcgEngine.UI
             cg.blocksRaycasts = false;
             cg.interactable = false;
 
-            // Background pill
             Image bg = root.AddComponent<Image>();
             bg.color = new Color(0f, 0f, 0f, 0.72f);
 
@@ -214,7 +321,6 @@ namespace TcgEngine.UI
             rt.sizeDelta = new Vector2(110f, 28f);
             rt.pivot = new Vector2(0.5f, 0.5f);
 
-            // Text child
             GameObject textGo = new GameObject("Label");
             textGo.transform.SetParent(root.transform, false);
             Text t = textGo.AddComponent<Text>();
@@ -244,7 +350,6 @@ namespace TcgEngine.UI
                 overlayCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
                 overlayCanvas.sortingOrder = 55;
                 gameObject.AddComponent<CanvasScaler>();
-                // No raycaster — labels don't need interaction
             }
         }
     }

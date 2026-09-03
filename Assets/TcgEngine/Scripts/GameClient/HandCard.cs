@@ -2,10 +2,11 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using TcgEngine.UI;
 using System.Linq;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 
 namespace TcgEngine.Client
 {
@@ -54,6 +55,23 @@ namespace TcgEngine.Client
             card_transform = transform.GetComponent<RectTransform>();
             hand_transform = transform.parent.GetComponent<RectTransform>();
             start_scale = transform.localScale;
+
+            // Wire EventTrigger for hover/click (new prefab doesn't bake these)
+            var trigger = gameObject.GetComponent<EventTrigger>();
+            if (trigger == null) trigger = gameObject.AddComponent<EventTrigger>();
+            trigger.triggers ??= new List<EventTrigger.Entry>();
+
+            var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+            enter.callback.AddListener((data) => OnMouseEnterCard());
+            trigger.triggers.Add(enter);
+
+            var exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
+            exit.callback.AddListener((data) => OnMouseExitCard());
+            trigger.triggers.Add(exit);
+
+            var down = new EventTrigger.Entry { eventID = EventTriggerType.PointerDown };
+            down.callback.AddListener((data) => OnMouseDownCard());
+            trigger.triggers.Add(down);
         }
 
         private void Start()
@@ -150,7 +168,7 @@ namespace TcgEngine.Client
             }
         }
 
-        private bool IsPhaseEligible()
+        public bool IsPhaseEligible()
         {
             Game g = GameClient.Get()?.GetGameData();
             Card card = GetCard();

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TcgEngine.Client;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 
 namespace TcgEngine.UI
 {
@@ -55,9 +55,11 @@ namespace TcgEngine.UI
         };
 
         private Canvas overlayCanvas;
+        public static StatChangePopup Instance { get; private set; }
 
         void Awake()
         {
+            Instance = this;
             // Ensure we have a screen-space canvas for the labels
             overlayCanvas = gameObject.GetComponent<Canvas>();
             if (overlayCanvas == null)
@@ -69,6 +71,15 @@ namespace TcgEngine.UI
             }
         }
 
+        /// <summary>Spawn a custom floating popup at a world position. Used by non-stat systems (e.g. live ball deltas).</summary>
+        public void ShowCustom(Vector3 worldPos, string label, Color color)
+        {
+            if (Camera.main == null || overlayCanvas == null) return;
+            Vector3 screenPos = Camera.main.WorldToScreenPoint(worldPos);
+            if (screenPos.z < 0) return;
+            StartCoroutine(AnimatePopup(screenPos, label, color));
+        }
+
         void Start()
         {
             GameClient.Get().onRefreshAll += OnRefreshAll;
@@ -76,6 +87,7 @@ namespace TcgEngine.UI
 
         void OnDestroy()
         {
+            if (Instance == this) Instance = null;
             if (GameClient.Get() != null)
                 GameClient.Get().onRefreshAll -= OnRefreshAll;
         }

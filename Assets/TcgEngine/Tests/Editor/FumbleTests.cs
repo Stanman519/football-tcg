@@ -1,7 +1,7 @@
 using NUnit.Framework;
 using TcgEngine;
-using Assets.TcgEngine.Scripts.Gameplay;
-using Assets.TcgEngine.Scripts.Effects;
+using TcgEngine.Gameplay;
+using TcgEngine.Effects;
 using System.Collections.Generic;
 using UnityEngine;
 

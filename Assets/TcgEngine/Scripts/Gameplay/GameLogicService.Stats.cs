@@ -2,7 +2,7 @@ using TcgEngine;
 using UnityEngine;
 using UnityEngine.Profiling;
 
-namespace Assets.TcgEngine.Scripts.Gameplay
+namespace TcgEngine.Gameplay
 {
     public partial class GameLogicService
     {

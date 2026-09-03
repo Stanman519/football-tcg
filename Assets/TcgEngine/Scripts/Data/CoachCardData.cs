@@ -1,6 +1,6 @@
 using System;
 using TcgEngine;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 using UnityEngine;
 
 [Serializable]
@@ -15,6 +15,7 @@ public struct CoachSchemeEntry
 {
     public PlayerPositionGrp position;
     public int maxCards;
+    public int fieldSlots;
 }
 
 [Serializable]

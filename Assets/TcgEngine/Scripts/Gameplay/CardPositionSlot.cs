@@ -2,7 +2,7 @@
 using UnityEngine;
 using Unity.Netcode;
 
-namespace Assets.TcgEngine.Scripts.Gameplay
+namespace TcgEngine.Gameplay
 {
 
     /// <summary>

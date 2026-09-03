@@ -4,7 +4,7 @@ using TcgEngine;
 using TcgEngine.Client;
 using UnityEngine;
 
-namespace Assets.TcgEngine.Scripts.Gameplay
+namespace TcgEngine.Gameplay
 {
     public partial class GameLogicService
     {
@@ -13,6 +13,23 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         public virtual void SelectPlayerCardForBoard(Card card)
         {
             // check l
+        }
+
+        public virtual void SelectPlay(Player player, PlayType playType, Card enhancer)
+        {
+            if (player == null || game_data.phase != GamePhase.ChoosePlay)
+                return;
+
+            player.SelectedPlay = playType;
+            if (enhancer != null)
+                player.PlayEnhancer = enhancer;
+
+            RefreshData();
+
+            bool bothSelected = game_data.players[0].SelectedPlay != PlayType.Huddle
+                             && game_data.players[1].SelectedPlay != PlayType.Huddle;
+            if (bothSelected)
+                NextStep();
         }
 
         public virtual void PlayCard(Card card, CardPositionSlot slot, bool skip_cost = false)
@@ -187,7 +204,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
             onAttackEnd?.Invoke(attacker, target);
             RefreshData();
-            CheckForWinner();
+
 
             resolve_queue.ResolveAll(0.2f);
         }
@@ -241,7 +258,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
             onAttackPlayerEnd?.Invoke(attacker, target);
             RefreshData();
-            CheckForWinner();
+
 
             resolve_queue.ResolveAll(0.2f);
         }

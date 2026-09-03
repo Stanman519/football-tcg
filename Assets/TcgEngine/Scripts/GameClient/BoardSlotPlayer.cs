@@ -3,7 +3,7 @@
 //using UnityEngine;
 //using TcgEngine.UI;
 //using TcgEngine.FX;
-//using Assets.TcgEngine.Scripts.Gameplay;
+//using TcgEngine.Gameplay;
 
 //namespace TcgEngine.Client
 //{

@@ -1,8 +1,9 @@
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 namespace TcgEngine.UI
 {
@@ -14,7 +15,7 @@ namespace TcgEngine.UI
     {
         public TraitData trait;
         public Image bg;
-        public Text text;
+        public TMP_Text text;
 
         void Start()
         {

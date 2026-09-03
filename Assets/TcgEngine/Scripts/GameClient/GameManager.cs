@@ -1,0 +1,220 @@
+using UnityEngine;
+using System.Collections;
+using TMPro;
+using TcgEngine.Gameplay;
+using TcgEngine.Client;
+using System;
+
+namespace TcgEngine.Client
+{
+public class GameManager : MonoBehaviour
+{
+    // Singleton reference (if you choose to do so)
+    public static GameManager Instance;
+
+    // Current game state
+    [SerializeField] private GameState currentGameState = GameState.TitleScreen;
+
+    // References to other managers
+    [Header("Core Managers")]
+    /*    public DeckManager deckManagerOffense;
+        public DeckManager deckManagerDefense;
+        public FieldManager fieldManager;
+        public SlotMachineManager slotMachineManager;
+        public PlayCallUIScript playcallUIManager;*/
+    public PlayCallManager playCallManager;
+    // Example: track downs, halves, possessions
+    private int currentDown = 1;
+    private int half = 1;
+    private int teamOnOffense = 1;
+    private string offensivePlayCall = "";
+    private string defensiveCoverage = "";
+    public TextMeshProUGUI displayPlayCall;
+
+    private void Awake()
+    {
+        // Simple Singleton pattern
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        // Optionally preserve this between scene loads
+        DontDestroyOnLoad(gameObject);
+
+        // Initialize other systems if needed
+    }
+
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    void Start()
+    {
+        GameClient.Get().onBothPlaysSelected += OnPlaysReady;
+
+        // You might begin with a TitleScreen or directly start the game
+        TransitionToPhase(GamePhase.StartTurn);
+
+    }
+    private void OnPlaysReady()
+    {
+        TransitionToPhase(GamePhase.RevealPlayCalls);
+    }
+
+    /// <summary>
+    /// Call this to transition from one GameState to another.
+    /// </summary>
+    public void TransitionToPhase(GamePhase newState)
+    {
+        switch (newState)
+        {
+
+            case GamePhase.StartTurn:
+                StartCoroutine(HandleResolution());
+                break;
+            case GamePhase.ChoosePlayers:
+                HandleChoosePlayers();
+                break;
+            case GamePhase.RevealPlayers:
+                HandlePlayerReveal();
+                break;
+            case GamePhase.ChoosePlay:
+                HandlePlayCall();
+                break;
+            case GamePhase.RevealPlayCalls:
+                HandleRevealPlayCalls();
+                break;
+            case GamePhase.SlotSpin:
+                HandleSlotSpin();
+                break;
+            case GamePhase.Resolution:
+                HandleResolution(); 
+                break;
+            case GamePhase.LiveBall:
+                HandleLiveBallPhase();
+                break;
+            case GamePhase.EndTurn:
+                HandleEndOfPlay();
+                break;
+        }
+    }
+
+    private void HandleLiveBallPhase()
+    {
+        throw new NotImplementedException();
+    }
+
+    private void HandleRevealPlayCalls()
+    {
+        // PlayCallRevealPanel handles the visual reveal via GameFeedbackUI.
+        // After the reveal animation, the server advances to SlotSpin automatically.
+        Debug.Log("[GameManager] RevealPlayCalls — reveal panel triggered via GameFeedbackUI.");
+    }
+
+    private void HandleChoosePlayers()
+    {
+        throw new NotImplementedException();
+    }
+
+    public void OnAllPlayersPlaced()
+    {
+        Debug.Log("Both players confirmed lineup. Moving to reveal.");
+        TransitionToPhase(GamePhase.RevealPlayers);
+    }
+    private void HandlePlayerReveal()
+    {
+        foreach (Player p in GameClient.Get().GetGameData().players)
+            p.ready = false;
+
+        // TODO: figure out how to trigger any bonuses that would be triggered here.
+        TransitionToPhase(GamePhase.ChoosePlay);
+    }
+
+    private void HandleTitleScreen()
+    {
+        // Show UI for title or let player press start
+        
+    }
+
+    public void OnOffensePlaySelected(string selection)
+    {
+        offensivePlayCall = selection;
+        displayPlayCall.text = selection;
+    }
+
+    private void HandlePlayCall()
+    {
+        playCallManager.ShowPlayCallMenu();
+        // Offense chooses run/short pass/long pass
+        // Defense chooses coverage
+        // Possibly place "enhancer" cards
+        //playcallUIManager.ShowPlayCallUI();
+
+        // The UI calls back when the selection is made
+        // Then we go to slot spin:
+        // TransitionToState(GameState.SlotSpin);
+    }
+
+    private void HandleSlotSpin()
+    {
+        // Let the slotMachineManager do the spin
+        //slotMachineManager.SpinSlots();
+
+        // When spin is done, slotMachineManager calls OnSlotsResult
+    }
+
+    // Called from SlotMachineManager when spin is complete
+    public void OnSlotsResult()
+    {
+        // Possibly store spin result, then proceed to resolution
+        TransitionToPhase(GamePhase.Resolution);
+        
+    }
+
+    private IEnumerator HandleResolution()
+    {
+        // Step 1: Evaluate cards that trigger after slot spin
+        // Step 2: Check coverage correctness, yardage modifications, fumbles, etc.
+        // Step 3: Move the ball on FieldManager
+        // Step 4: Check if there's a turnover or if next down is set
+
+        yield return null; // do your logic, possibly yield between steps if you want animations
+
+        // Once resolution is done, transition to EndOfPlay
+        TransitionToPhase(GamePhase.LiveBall);
+    }
+
+    private void HandleEndOfPlay()
+    {
+        // Update the down, check if it's 4th down over or next down, etc.
+        // Possibly check if half ended or if there's a turnover to switch offense/defense
+
+        // If half ended:
+        //    TransitionToState(GameState.Halftime);
+        // else 
+        //    TransitionToState(GameState.PlayCall);
+    }
+
+    private void HandleHalftime()
+    {
+        // Maybe some UI or stats screens
+        // Then resume the second half
+        // half = 2;
+        // TransitionToState(GameState.PlayCall);
+    }
+
+    private void HandleGameOver()
+    {
+        // Show final score, etc.
+        /*uiManager.ShowGameOver();*/
+    }
+    void OnDestroy()
+    {
+        if (GameClient.Get() != null)
+            GameClient.Get().onBothPlaysSelected -= OnPlaysReady;
+    }
+}
+}

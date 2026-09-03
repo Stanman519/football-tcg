@@ -3,31 +3,53 @@ using TcgEngine;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TMPro;
+using TcgEngine.Gameplay;
 
 public class PlayEnhancerSlot : MonoBehaviour, IDropHandler
 {
-    [HideInInspector] public Text displayText; // wired by PlayCallPanelBuilder
+    [HideInInspector] public TextMeshProUGUI displayText;
 
-    private static readonly Color C_HINT     = new Color(0.55f, 0.65f, 0.55f, 1f); // empty prompt
-    private static readonly Color C_OCCUPIED = new Color(0.91f, 0.39f, 0.10f, 1f); // orange = card placed
+    private static readonly Color C_HINT     = new Color(0.55f, 0.65f, 0.55f, 1f);
+    private static readonly Color C_OCCUPIED = new Color(0.91f, 0.39f, 0.10f, 1f);
 
     private Card storedCard = null;
 
+    public Card GetCard() => storedCard;
+
     public void OnDrop(PointerEventData eventData)
     {
-        HandCard draggedCard = HandCard.GetDrag();
-        if (draggedCard == null) return;
+        HandCard handCard = eventData.pointerDrag?.GetComponent<HandCard>();
+        if (handCard == null) return;
 
-        storedCard = draggedCard.GetCard();
-        if (storedCard == null) return;
+        Card card = handCard.GetCard();
+        if (card == null) return;
 
-        // Notify game logic
+        // Notify PlayCallUIScript — it may reject if incompatible
         var uiScript = FindFirstObjectByType<PlayCallUIScript>();
         if (uiScript != null)
-            uiScript.SetEnhancerCard(storedCard);
+        {
+            storedCard = card;
+            uiScript.SetEnhancerCard(card);
+            // If UI script cleared us (rejected), storedCard will be null via Clear()
+            if (storedCard == null)
+            {
+                // Rejected — don't consume the drag
+                return;
+            }
+        }
+        else
+        {
+            storedCard = card;
+        }
 
-        // Update display
+        RefreshDisplay();
+        handCard.EndDrag();
+    }
+
+    public void SetCard(Card card)
+    {
+        storedCard = card;
         RefreshDisplay();
     }
 
@@ -43,7 +65,7 @@ public class PlayEnhancerSlot : MonoBehaviour, IDropHandler
 
         if (storedCard == null)
         {
-            displayText.text  = "\u2295  Drop play enhancer card here";
+            displayText.text  = "\u2295  Drop enhancer here";
             displayText.color = C_HINT;
         }
         else

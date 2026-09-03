@@ -5,7 +5,7 @@ using UnityEngine.UI;
 using TcgEngine.Client;
 using TcgEngine;
 using UnityEngine.Rendering.Universal;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 
 public class PlayCallManager : MonoBehaviour
 {

@@ -1,8 +1,8 @@
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 using System.Collections.Generic;
 using TcgEngine;
 
-namespace Assets.TcgEngine.Scripts.Effects
+namespace TcgEngine.Effects
 {
     /// <summary>
     /// Adds slot machine symbols to the reel (for Risk-Taker coach ability)

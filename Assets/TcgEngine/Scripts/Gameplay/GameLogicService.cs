@@ -1,5 +1,5 @@
-using Assets.TcgEngine.Scripts.Effects;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Effects;
+using TcgEngine.Gameplay;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,7 +9,7 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Profiling;
 
-namespace Assets.TcgEngine.Scripts.Gameplay
+namespace TcgEngine.Gameplay
 {
     /// <summary>
     /// Execute and resolves game rules and logic.
@@ -63,6 +63,8 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
         public UnityAction<Card, Card> onSecretTrigger;    //Secret, Triggerer
         public UnityAction<Card, Card> onSecretResolve;    //Secret, Triggerer
+
+        public System.Action<LiveBallEventType, Card, Card, int, int> onLiveBallEvent;
 
         public UnityAction onRefresh;
 

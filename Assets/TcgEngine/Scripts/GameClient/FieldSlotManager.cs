@@ -3,7 +3,7 @@ using System.Linq;
 using UnityEngine;
 using TcgEngine;
 using TcgEngine.Client;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 
 /// <summary>
 /// Which visual formation to use for the slots and board cards.
@@ -145,14 +145,16 @@ public class FieldSlotManager : MonoBehaviour
             PlayerPositionGrp posGroup = entry.Key;
             int posMax = entry.Value.pos_max;
 
-            if (posGroup == PlayerPositionGrp.NONE || posMax <= 0) continue;
+            int slotCount = entry.Value.field_slots > 0 ? entry.Value.field_slots : posMax;
+
+            if (posGroup == PlayerPositionGrp.NONE || slotCount <= 0) continue;
 
             bool isDefense = IsDefenseGroup(posGroup);
 
             if (!slotMap[player.player_id].ContainsKey(posGroup))
                 slotMap[player.player_id][posGroup] = new List<BoardSlot>();
 
-            for (int i = 0; i < posMax; i++)
+            for (int i = 0; i < slotCount; i++)
             {
                 Vector3 initialPos = GetFormationLocalPos(FieldFormation.Huddle, posGroup, i);
 
@@ -355,7 +357,7 @@ public class FieldSlotManager : MonoBehaviour
         {
             // ── HUDDLE ──────────────────────────────────────────────────────
             // Everyone clusters 10–13 yards into their own backfield.
-            // Slots: QB×1  WR×3  RB_TE×2  OL×5  K×1  DL×2  LB×2  DB×3
+            // Slots: QB×1  WR×3  RB_TE×2  OL×5  K×1  DL×4  LB×3  DB×4
             [FieldFormation.Huddle] = new Dictionary<PlayerPositionGrp, Vector2[]>
             {
                 [PlayerPositionGrp.QB]    = new[] { F( 0.00f, -11f) },
@@ -363,9 +365,9 @@ public class FieldSlotManager : MonoBehaviour
                 [PlayerPositionGrp.RB_TE] = new[] { F(-0.08f, -13f), F( 0.08f, -13f) },
                 [PlayerPositionGrp.OL]    = new[] { F(-0.20f, -12f), F(-0.10f, -12f), F( 0.00f, -12f), F( 0.10f, -12f), F( 0.20f, -12f) },
                 [PlayerPositionGrp.K]     = new[] { F( 0.00f, -13f) },
-                [PlayerPositionGrp.DL]    = new[] { F(-0.10f,  11f), F( 0.10f,  11f) },
-                [PlayerPositionGrp.LB]    = new[] { F(-0.08f,  12f), F( 0.08f,  12f) },
-                [PlayerPositionGrp.DB]    = new[] { F(-0.18f,  13f), F( 0.00f,  13.5f), F( 0.18f,  13f) },
+                [PlayerPositionGrp.DL]    = new[] { F(-0.15f,  11f), F(-0.05f,  11f), F( 0.05f,  11f), F( 0.15f,  11f) },
+                [PlayerPositionGrp.LB]    = new[] { F(-0.12f,  12f), F( 0.00f,  12f), F( 0.12f,  12f) },
+                [PlayerPositionGrp.DB]    = new[] { F(-0.22f,  13f), F(-0.08f,  13.5f), F( 0.08f,  13.5f), F( 0.22f,  13f) },
             },
 
             // ── OFFENSE: RUN  (I-formation / Power) ─────────────────────────
@@ -405,9 +407,9 @@ public class FieldSlotManager : MonoBehaviour
             // 2 DL tight, 2 LB shallow, 3 DB: 2 CBs wide + 1 safety deep center.
             [FieldFormation.Defense_vs_Run] = new Dictionary<PlayerPositionGrp, Vector2[]>
             {
-                [PlayerPositionGrp.DL] = new[] { F(-0.15f, 1.0f), F( 0.15f, 1.0f) },
-                [PlayerPositionGrp.LB] = new[] { F(-0.18f, 4.0f), F( 0.18f, 4.0f) },
-                [PlayerPositionGrp.DB] = new[] { F(-0.38f, 6.0f), F( 0.38f, 6.0f), F( 0.00f, 9.0f) },
+                [PlayerPositionGrp.DL] = new[] { F(-0.18f, 1.0f), F(-0.06f, 1.0f), F( 0.06f, 1.0f), F( 0.18f, 1.0f) },
+                [PlayerPositionGrp.LB] = new[] { F(-0.20f, 4.0f), F( 0.00f, 4.0f), F( 0.20f, 4.0f) },
+                [PlayerPositionGrp.DB] = new[] { F(-0.38f, 6.0f), F(-0.12f, 8.0f), F( 0.12f, 8.0f), F( 0.38f, 6.0f) },
             },
 
             // ── DEFENSE: vs PASS  (Cover 2 Nickel) ──────────────────────────
@@ -415,13 +417,13 @@ public class FieldSlotManager : MonoBehaviour
             // CBs press wide, 2 safeties split deep, LBs drop into zones.
             [FieldFormation.Defense_vs_Pass] = new Dictionary<PlayerPositionGrp, Vector2[]>
             {
-                [PlayerPositionGrp.DL] = new[] { F(-0.18f, 1.0f), F( 0.18f, 1.0f) },
-                [PlayerPositionGrp.LB] = new[] { F(-0.15f, 3.0f), F( 0.15f, 3.0f) },
-                [PlayerPositionGrp.DB] = new[] { F(-0.42f, 5.0f), F( 0.42f, 5.0f), F( 0.00f, 9.0f) }, // 2 CBs + safety
+                [PlayerPositionGrp.DL] = new[] { F(-0.18f, 1.0f), F(-0.06f, 1.0f), F( 0.06f, 1.0f), F( 0.18f, 1.0f) },
+                [PlayerPositionGrp.LB] = new[] { F(-0.15f, 3.0f), F( 0.00f, 4.0f), F( 0.15f, 3.0f) },
+                [PlayerPositionGrp.DB] = new[] { F(-0.42f, 5.0f), F(-0.14f, 9.0f), F( 0.14f, 9.0f), F( 0.42f, 5.0f) },
             },
 
             // ── LIVE BALL  (routes running, pursuit angles) ──────────────────
-            // Slots: QB×1  WR×3  RB_TE×2  OL×5  DL×2  LB×2  DB×3
+            // Slots: QB×1  WR×3  RB_TE×2  OL×5  DL×4  LB×3  DB×4
             [FieldFormation.LiveBall] = new Dictionary<PlayerPositionGrp, Vector2[]>
             {
                 [PlayerPositionGrp.QB]    = new[] { F( 0.00f, -12f) },
@@ -429,9 +431,9 @@ public class FieldSlotManager : MonoBehaviour
                 [PlayerPositionGrp.RB_TE] = new[] { F(-0.08f, -1.0f), F( 0.28f,  3.0f) },
                 [PlayerPositionGrp.OL]    = new[] { F(-0.20f,  0.0f), F(-0.10f,  0.0f), F( 0.00f,  0.0f), F( 0.10f,  0.0f), F( 0.20f,  0.0f) },
                 [PlayerPositionGrp.K]     = new[] { F( 0.00f, -13f) },
-                [PlayerPositionGrp.DL]    = new[] { F(-0.15f,  2.0f), F( 0.15f,  2.0f) },
-                [PlayerPositionGrp.LB]    = new[] { F(-0.22f,  7.0f), F( 0.22f,  7.0f) },
-                [PlayerPositionGrp.DB]    = new[] { F(-0.42f, 10.0f), F( 0.42f, 10.0f), F( 0.00f, 13.0f) },
+                [PlayerPositionGrp.DL]    = new[] { F(-0.18f,  2.0f), F(-0.06f,  2.0f), F( 0.06f,  2.0f), F( 0.18f,  2.0f) },
+                [PlayerPositionGrp.LB]    = new[] { F(-0.22f,  7.0f), F( 0.00f,  7.0f), F( 0.22f,  7.0f) },
+                [PlayerPositionGrp.DB]    = new[] { F(-0.42f, 10.0f), F(-0.14f, 13.0f), F( 0.14f, 13.0f), F( 0.42f, 10.0f) },
             },
 
             // ── SIDELINES  (bench — just off the edge of the field) ──────────
@@ -446,9 +448,9 @@ public class FieldSlotManager : MonoBehaviour
                 [PlayerPositionGrp.OL]    = new[] { F(-1.1f, -3.0f), F(-1.1f, -1.5f), F(-1.1f,  0.0f), F(-1.1f,  1.5f), F(-1.1f,  3.0f) },
                 [PlayerPositionGrp.K]     = new[] { F(-1.1f,  2.5f) },
                 // Defensive groups → right sideline
-                [PlayerPositionGrp.DL]    = new[] { F( 1.1f, -1.0f), F( 1.1f,  1.0f) },
-                [PlayerPositionGrp.LB]    = new[] { F( 1.1f, -1.0f), F( 1.1f,  1.0f) },
-                [PlayerPositionGrp.DB]    = new[] { F( 1.1f, -1.5f), F( 1.1f,  0.0f), F( 1.1f,  1.5f) },
+                [PlayerPositionGrp.DL]    = new[] { F( 1.1f, -2.0f), F( 1.1f, -0.5f), F( 1.1f,  0.5f), F( 1.1f,  2.0f) },
+                [PlayerPositionGrp.LB]    = new[] { F( 1.1f, -1.5f), F( 1.1f,  0.0f), F( 1.1f,  1.5f) },
+                [PlayerPositionGrp.DB]    = new[] { F( 1.1f, -2.5f), F( 1.1f, -0.8f), F( 1.1f,  0.8f), F( 1.1f,  2.5f) },
             },
         };
     }
@@ -467,5 +469,14 @@ public class FieldSlotManager : MonoBehaviour
         if (slotMap.ContainsKey(playerId) && slotMap[playerId].ContainsKey(position))
             return slotMap[playerId][position];
         return new List<BoardSlot>();
+    }
+
+    public List<BoardSlot> GetAllSlotsForPlayer(int playerId)
+    {
+        var result = new List<BoardSlot>();
+        if (slotMap.ContainsKey(playerId))
+            foreach (var kvp in slotMap[playerId])
+                result.AddRange(kvp.Value);
+        return result;
     }
 }

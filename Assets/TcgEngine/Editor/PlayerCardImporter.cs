@@ -6,9 +6,9 @@ using UnityEditor;
 using UnityEngine;
 using TcgEngine;
 using TcgEngine.Conditions;
-using Assets.TcgEngine.Scripts.Conditions;
-using Assets.TcgEngine.Scripts.Effects;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Conditions;
+using TcgEngine.Effects;
+using TcgEngine.Gameplay;
 using System;
 
 /// <summary>

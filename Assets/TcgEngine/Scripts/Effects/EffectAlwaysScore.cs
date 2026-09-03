@@ -1,7 +1,7 @@
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 using TcgEngine;
 
-namespace Assets.TcgEngine.Scripts.Effects
+namespace TcgEngine.Effects
 {
     /// <summary>
     /// Guarantees a score (touchdown) when in certain position

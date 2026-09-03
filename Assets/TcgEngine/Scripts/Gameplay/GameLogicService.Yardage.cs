@@ -1,11 +1,11 @@
-using Assets.TcgEngine.Scripts.Effects;
+using TcgEngine.Effects;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using TcgEngine;
 using UnityEngine;
 
-namespace Assets.TcgEngine.Scripts.Gameplay
+namespace TcgEngine.Gameplay
 {
     public partial class GameLogicService
     {
@@ -16,6 +16,11 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         private void ResolvePlayOutcome()
         {
             var playResolution = new PlayResolution();
+
+            // Reset fail event / turnover actor fields for this play
+            game_data.last_fail_event = FailPlayEventType.None;
+            game_data.interceptor_uid = null;
+            game_data.fumble_recoverer_uid = null;
 
             // Fail events are resolved in chronological football order via
             // OrderBy(FailPlayEventType enum value), first-match-wins.
@@ -200,6 +205,21 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 Debug.Log($"[PreventLoss] Pass yardage clamped to {passTotal}");
             }
 
+            // Stash breakdown for UI
+            game_data.yardage_breakdown = new YardageBreakdown
+            {
+                offCoachBase = coachYardage,
+                offPlayerBase = baseYardage,
+                offStatusBonuses = statusYardage,
+                offOtherPositions = otherOffPlayerYardage,
+                defCoverageBase = otherDefPlayerYardage,
+                defCoachBase = defCoachPassBase,
+                defCoverageMod = passCoverageMod,
+                defStatusBonuses = 0,
+                netYardage = passTotal,
+                receiverName = targetReceiver?.CardData?.title ?? "",
+            };
+
             // Set receiver uids for client animation
             game_data.target_receiver_uid = targetReceiver?.uid;
             game_data.ball_carrier_uid = targetReceiver?.uid;
@@ -322,6 +342,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
         private PlayResolution HandleTackleForLoss(AbilityQueueElement failEvent)
         {
+            game_data.last_fail_event = FailPlayEventType.TackleForLoss;
             var casterGrit = failEvent.caster.Data.grit;
             return new PlayResolution
             {
@@ -339,6 +360,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
         private PlayResolution HandleSack(AbilityQueueElement failEvent, List<AbilityQueueElement> otherEvents)
         {
+            game_data.last_fail_event = FailPlayEventType.Sack;
             var fumble = otherEvents.FirstOrDefault(e => e.ability.failEventType == FailPlayEventType.QBFumble);
 
             if (fumble != null)
@@ -366,6 +388,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
         protected virtual PlayResolution HandleQbFumble(AbilityQueueElement fumble)
         {
+            game_data.last_fail_event = FailPlayEventType.QBFumble;
             var recoveryCard = game_data.current_offensive_player.cards_board
                 .FirstOrDefault(c => c.GetTraitValue("fumble_recovery") > 0
                                   && c.GetTraitValue("fumble_recovery_used") == 0);
@@ -396,6 +419,9 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
         private PlayResolution HandleInterception(AbilityQueueElement failEvent)
         {
+            game_data.last_fail_event = FailPlayEventType.Interception;
+            game_data.interceptor_uid = failEvent.caster?.uid;
+
             var offGrit = game_data.current_offensive_player.GetCurrentBoardCardGrit();
             var defGrit = game_data.GetCurrentDefensivePlayer().GetCurrentBoardCardGrit();
 
@@ -422,6 +448,8 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
             if (defGrit + 3 >= offGrit && defGrit >= offGrit * 2) // interception!
             {
+                game_data.last_fail_event = FailPlayEventType.TippedPass;
+                game_data.interceptor_uid = failEvent.caster?.uid;
                 return new PlayResolution
                 {
                     BallIsLive = true,
@@ -431,6 +459,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 };
             } else // incomplete!
             {
+                game_data.last_fail_event = FailPlayEventType.TippedPass;
                 return new PlayResolution
                 {
                     BallIsLive = false,
@@ -443,6 +472,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
         private PlayResolution HandleBattedPass(AbilityQueueElement failEvent)
         {
+            game_data.last_fail_event = FailPlayEventType.BattedPass;
             return new PlayResolution
             {
                 BallIsLive = false,
@@ -454,6 +484,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
         protected virtual PlayResolution HandleFumble(AbilityQueueElement failEvent)
         {
+            game_data.last_fail_event = FailPlayEventType.RunnerFumble;
             var recoveryCard = game_data.current_offensive_player.cards_board
                 .FirstOrDefault(c => c.GetTraitValue("fumble_recovery") > 0
                                   && c.GetTraitValue("fumble_recovery_used") == 0);
@@ -464,6 +495,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 if (UnityEngine.Random.Range(0, 100) < chance)
                 {
                     Debug.Log("[FumbleRecovery] Fumble recovered! Offense keeps the ball.");
+                    game_data.fumble_recoverer_uid = recoveryCard.uid;
                     return new PlayResolution { BallIsLive = false, YardageGained = 0,
                         Turnover = false, ContributingAbilities = new List<AbilityQueueElement> { failEvent } };
                 }
@@ -484,6 +516,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
         private PlayResolution HandleIncompletePass(AbilityQueueElement failEvent)
         {
+            game_data.last_fail_event = FailPlayEventType.IncompletePass;
             return new PlayResolution
             {
                 BallIsLive = false,
@@ -529,6 +562,21 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 .OrderByDescending(c => c.Data.run_bonus)
                 .FirstOrDefault();
             game_data.ball_carrier_uid = ballCarrier?.uid;
+
+            // Stash breakdown for UI
+            game_data.yardage_breakdown = new YardageBreakdown
+            {
+                offCoachBase = baseYardage,
+                offPlayerBase = playerRunBase,
+                offStatusBonuses = playerAddedBonuses,
+                offOtherPositions = 0,
+                defCoverageBase = defPlayerCoverageBase,
+                defCoachBase = defCoachBase,
+                defCoverageMod = coverageMod,
+                defStatusBonuses = defAddedBonuses,
+                netYardage = totalYardage,
+                receiverName = ballCarrier?.CardData?.title ?? "",
+            };
             game_data.target_receiver_uid = null;
 
             var failEvent = ResolveRunFailEvents();

@@ -1,4 +1,4 @@
-using Assets.TcgEngine.Scripts.Effects;
+using TcgEngine.Effects;
 using System;
 using System.Collections;
 using System.Collections.Generic;

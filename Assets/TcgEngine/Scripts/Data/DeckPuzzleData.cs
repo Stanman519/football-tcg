@@ -1,6 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 using UnityEngine;
 
 namespace TcgEngine

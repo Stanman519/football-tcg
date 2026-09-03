@@ -46,8 +46,7 @@ namespace TcgEngine.UI
             bool hasRef = overlayBackground != null || eventText != null;
             if (!hasRef)
                 BuildSelfContainedOverlay();
-            else
-                SetVisible(false);
+            SetVisible(false);
         }
 
         /// <summary>Show a big-play event with retro typewriter animation.</summary>
@@ -122,7 +121,9 @@ namespace TcgEngine.UI
             overlayCanvas = gameObject.AddComponent<Canvas>();
             overlayCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
             overlayCanvas.sortingOrder = 100;
-            gameObject.AddComponent<CanvasScaler>();
+            var scaler = gameObject.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920, 1080);
             gameObject.AddComponent<GraphicRaycaster>();
 
             // Full-screen dark background

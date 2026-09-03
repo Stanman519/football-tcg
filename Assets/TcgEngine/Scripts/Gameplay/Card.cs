@@ -3,7 +3,7 @@ using System.Linq;
 using TcgEngine;
 using UnityEngine;
 
-namespace Assets.TcgEngine.Scripts.Gameplay
+namespace TcgEngine.Gameplay
 {
     public static class PositionExtensions
     {

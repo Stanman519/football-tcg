@@ -3,9 +3,9 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 using TcgEngine;
-using Assets.TcgEngine.Scripts.Effects;
+using TcgEngine.Effects;
 using Object = UnityEngine.Object;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 
 /// <summary>
 /// Creates all play enhancer card, ability, and effect assets.

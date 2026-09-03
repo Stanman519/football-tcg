@@ -1,8 +1,8 @@
-﻿using Assets.TcgEngine.Scripts.Gameplay;
+﻿using TcgEngine.Gameplay;
 using TcgEngine;
 using UnityEngine;
 
-namespace Assets.TcgEngine.Scripts.Conditions
+namespace TcgEngine.Conditions
 {
     [CreateAssetMenu(fileName = "condition", menuName = "TcgEngine/Condition/Slot/IconCount", order = 10)]
     public class ConditionSlotIconCountTrigger : ConditionData

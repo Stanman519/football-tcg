@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 using DG.Tweening;
 using TcgEngine;
 using UnityEngine;
@@ -25,9 +25,20 @@ namespace TcgEngine.Client
         public bool IsActive => !IsIdle && !paused;
         public int Count => segments.Count;
 
+        /// <summary>Current speed multiplier from TimeController (1/FieldTimeScale). Longer = slower.</summary>
+        private float SpeedMultiplier =>
+            TimeController.Instance != null ? TimeController.Instance.Scale(1f) : 1f;
+
         public SlotMovementQueue(BoardSlot owner)
         {
             this.owner = owner;
+        }
+
+        /// <summary>Legacy convenience: set speed via TimeController. Use TimeController.Instance.SetBulletTime() instead.</summary>
+        public static void SetAllSpeed(float multiplier)
+        {
+            if (TimeController.Instance != null)
+                TimeController.Instance.SetBulletTime(1f / Mathf.Max(0.01f, multiplier), 0f);
         }
 
         // ── Queue manipulation ──────────────────────────────
@@ -226,6 +237,8 @@ namespace TcgEngine.Client
                 dur = PlayerSpeed.Duration(dist, seg.speedTier.Value);
             }
 
+            dur *= SpeedMultiplier;
+
             if (dur <= 0f)
             {
                 owner.transform.localPosition = target;
@@ -253,6 +266,8 @@ namespace TcgEngine.Client
             {
                 dur = PlayerSpeed.Duration(delta.magnitude, seg.speedTier.Value);
             }
+
+            dur *= SpeedMultiplier;
 
             if (dur <= 0f)
             {

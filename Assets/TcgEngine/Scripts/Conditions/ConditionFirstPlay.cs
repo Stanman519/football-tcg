@@ -1,8 +1,8 @@
-﻿using Assets.TcgEngine.Scripts.Gameplay;
+﻿using TcgEngine.Gameplay;
 using TcgEngine;
 using UnityEngine;
 
-namespace Assets.TcgEngine.Scripts.Conditions
+namespace TcgEngine.Conditions
 {
     /// <summary>
     /// True on the first play a card participates in after being placed on the field.

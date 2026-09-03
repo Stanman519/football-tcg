@@ -2,12 +2,13 @@ using System;
 using System.Collections.Generic;
 using TcgEngine;
 
-namespace Assets.TcgEngine.Scripts.Gameplay
+namespace TcgEngine.Gameplay
 {
     [Serializable]
     public class HCPlayerSchemeData
     {
         public int pos_max { get; set; }
+        public int field_slots { get; set; }
     }
     [Serializable]
     public struct CompletionRequirement
@@ -42,16 +43,16 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             positional_Scheme = new Dictionary<PlayerPositionGrp, HCPlayerSchemeData>();
             
             // Use TryAdd to avoid issues with duplicate enum values
-            TryAddPosition(PlayerPositionGrp.NONE, 0);
-            TryAddPosition(PlayerPositionGrp.WR, 2);
-            TryAddPosition(PlayerPositionGrp.RB_TE, 2);
-            TryAddPosition(PlayerPositionGrp.QB, 1);
-            TryAddPosition(PlayerPositionGrp.OL, 2);
-            TryAddPosition(PlayerPositionGrp.DL, 2);
-            TryAddPosition(PlayerPositionGrp.DB, 2);
-            TryAddPosition(PlayerPositionGrp.LB, 2);
-            TryAddPosition(PlayerPositionGrp.P, 1);
-            TryAddPosition(PlayerPositionGrp.K, 1);
+            TryAddPosition(PlayerPositionGrp.NONE, 0, 0);
+            TryAddPosition(PlayerPositionGrp.QB, 1, 1);
+            TryAddPosition(PlayerPositionGrp.WR, 2, 3);
+            TryAddPosition(PlayerPositionGrp.RB_TE, 2, 2);
+            TryAddPosition(PlayerPositionGrp.OL, 2, 5);
+            TryAddPosition(PlayerPositionGrp.DL, 2, 4);
+            TryAddPosition(PlayerPositionGrp.LB, 2, 3);
+            TryAddPosition(PlayerPositionGrp.DB, 2, 4);
+            TryAddPosition(PlayerPositionGrp.K, 1, 1);
+            TryAddPosition(PlayerPositionGrp.P, 1, 1);
 
             baseOffenseYardage = new Dictionary<PlayType, int>
             {
@@ -70,11 +71,11 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             completionRequirements = new Dictionary<PlayType, List<CompletionRequirement>>();
         }
 
-        private void TryAddPosition(PlayerPositionGrp pos, int max)
+        private void TryAddPosition(PlayerPositionGrp pos, int max, int slots)
         {
             if (!positional_Scheme.ContainsKey(pos))
             {
-                positional_Scheme[pos] = new HCPlayerSchemeData { pos_max = max };
+                positional_Scheme[pos] = new HCPlayerSchemeData { pos_max = max, field_slots = slots };
             }
         }
 
@@ -101,7 +102,10 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
             if (data.positionalScheme != null)
                 foreach (var e in data.positionalScheme)
-                    positional_Scheme[e.position] = new HCPlayerSchemeData { pos_max = e.maxCards };
+                {
+                    int slots = e.fieldSlots > 0 ? e.fieldSlots : e.maxCards;
+                    positional_Scheme[e.position] = new HCPlayerSchemeData { pos_max = e.maxCards, field_slots = slots };
+                }
 
             coachData = data.coachProfile;
             coachType = data.coachProfile != null ? data.coachProfile.coachType : CoachType.Balanced;

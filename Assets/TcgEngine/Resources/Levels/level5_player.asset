@@ -16,15 +16,28 @@ MonoBehaviour:
   title: 
   hero: {fileID: 0}
   cards:
-  - {fileID: 11400000, guid: 2302f11d23015254dbb067255d70e738, type: 2}
-  - {fileID: 11400000, guid: d564bc13a3f2c2a459cfe492217d8d98, type: 2}
-  - {fileID: 11400000, guid: 2ee7b7313b6d8154c8a1a3d2dc1c301d, type: 2}
-  - {fileID: 11400000, guid: 4fc52d01f2883134ea1e6ea0d9ba82f2, type: 2}
-  - {fileID: 11400000, guid: fa7053162e690c948a100b6cbcde7266, type: 2}
-  - {fileID: 11400000, guid: 4a0f93237a2ae53468e29927c1b7c1ec, type: 2}
-  - {fileID: 11400000, guid: 1cec19f2b6532b246a5ed43c9ea966d1, type: 2}
+  - {fileID: 11400000, guid: d9e570a9d4256a349a8d3221ee50a70e, type: 2}
+  - {fileID: 11400000, guid: 64112bf713e0aa24ba55ee8087097c72, type: 2}
+  - {fileID: 11400000, guid: feb73629202cdc24292188ab14304c37, type: 2}
+  - {fileID: 11400000, guid: da64fe17fc40e394f895a641902fd639, type: 2}
+  - {fileID: 11400000, guid: 735868516366e784fa0fc1e872b929f2, type: 2}
+  - {fileID: 11400000, guid: 3adc4632d094ce34bb569ef0f29d8a80, type: 2}
+  - {fileID: 11400000, guid: e089718bb4436fb4a8148dcfc103e1ae, type: 2}
+  - {fileID: 11400000, guid: d0f4076a0dca5c84ea4062047eca3707, type: 2}
+  - {fileID: 11400000, guid: 1860fbb4ac195044eb3ad28e54ff86a9, type: 2}
+  - {fileID: 11400000, guid: 1d91309983a9ebf40857c9ddad2e20df, type: 2}
+  - {fileID: 11400000, guid: f3a19d6db453a0e4da71928fef2713fa, type: 2}
+  - {fileID: 11400000, guid: 2f7e44183690bf0498bc79c1ca6b1622, type: 2}
+  - {fileID: 11400000, guid: 8fc3abbe24839f345a54873f71dfa8b4, type: 2}
+  - {fileID: 11400000, guid: 27e3ec676f7160f40bcfb78c735151cb, type: 2}
+  - {fileID: 11400000, guid: ab015b99eac68fe4099d96df3af621e7, type: 2}
+  - {fileID: 11400000, guid: affc7ef22a9607241ab08ec932c8f8eb, type: 2}
+  - {fileID: 11400000, guid: edaa49878ebc44a47993e0149cb82bab, type: 2}
+  - {fileID: 11400000, guid: 610cd1f0a96a4574591f1f79ea57f161, type: 2}
+  - {fileID: 11400000, guid: 127f43410fa37344ca4bff0e526494cc, type: 2}
+  - {fileID: 11400000, guid: 3932036b5250bd9408e5058637a0b51d, type: 2}
   board_cards:
-  - card: {fileID: 11400000, guid: 67c9ea5ccee610f4fa1681382134bb7a, type: 2}
+  - card: {fileID: 0}
     slot:
       x: 3
       y: 1

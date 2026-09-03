@@ -1,5 +1,5 @@
 
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 using UnityEngine;
 
 namespace TcgEngine

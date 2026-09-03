@@ -105,6 +105,32 @@ One card per suit per turn (player cards). `CardSuit` enum: None/Clubs/Diamonds/
 - **Enhancer builder**: `Assets/TcgEngine/Editor/PlayEnhancerCardBuilder.cs`
 - **Project bible**: `documentation/PROJECT_BIBLE.md` (design rules, full enum reference, probabilities, edit when appropriate to correct or add)
 
+## Canvas Architecture (IMPORTANT)
+- `GameUI/GameCanvas` = **World Space** canvas for in-game 3D elements (board cards, slots, field UI)
+- `GameUI/PanelCanvas` = **World Space** canvas (scale ~0.028) with CanvasScaler 1920×1080 ref. Contains CardPreview, SelectTarget, etc. Font sizes are in canvas-reference coordinates (not pixels).
+- All HUD/overlay panels MUST self-build a **ScreenSpaceOverlay** canvas — NEVER parent under GameCanvas
+- Pattern: `Awake()` → `AddComponent<Canvas>(renderMode=ScreenSpaceOverlay)` + `CanvasScaler(ScaleWithScreenSize, 1920×1080)`
+- Use `CanvasGroup` for show/hide (not `SetActive`) if `Update()` needs to keep running
+- Correct parent for overlay panels: `Scene` root or `Scene/GameFeedbackUI`
+- Panels following this pattern: PlaySummaryPanel, BoardStatOverlay, LiveBallResolutionUI, LiveBallCardZone, DebugHUD, DevTuningPanel, ScoreboardHUD, BigPlayOverlay, AbilitySpotlight, AudibleCalloutUI, StatChangePopup
+
+## UI Prefab Debugging (Lessons Learned)
+- **Invisible layout children**: If UI children render at wrong size or are invisible, check `HorizontalLayoutGroup`/`VerticalLayoutGroup` — `childControlWidth` and `childControlHeight` must be `true` or children keep 100x100 default `sizeDelta`
+- **TMP vs legacy Text**: Old TcgEngine template prefabs use `UnityEngine.UI.Text`. CardUI.cs fields are `TMP_Text`. References silently null if component type mismatches — rebuild prefab with TMP via Editor script (`CardPreviewRebuilder.cs`)
+- **Scene refs don't auto-wire**: Rebuilding a prefab (or re-dragging it) does NOT re-wire scene-level references (e.g., `CardPreviewUI.card_ui`). Always verify via MCP `find_gameobjects` + read components after prefab changes.
+- **Card prefabs**: HandCard = `Prefabs/Gameplay/HandCard.prefab` (252×360, world space). CardUI preview = `Prefabs/UI/CardUI.prefab` (480×680, in PanelCanvas). Both use `CardUI.cs` but at different scales/font sizes.
+- **Figma-to-Unity**: Figma MCP provides design context + screenshots but does NOT generate Unity prefabs. Translate manually: extract colors, dimensions, spacing from Figma, then apply via prefab YAML edits or Editor rebuild scripts.
+
+## Drag & Drop System (Phase-Routing)
+- **CardDragHandler.cs**: central `IBeginDrag/IDrag/IEndDrag`. Phase-routes in `OnEndDrag`:
+  - `ChoosePlayers` + `IsPlayer()` → `BoardSlot.OnDrop()` (snaps to position slot)
+  - `ChoosePlay` + `IsPlayEnhancer()` → `PlayEnhancerSlot.OnDrop()`
+  - `LiveBall` + `IsLiveBall()` → `LiveBallCardZone.Get().OnDrop()` (**direct call**, not EventSystem drop)
+- **PlayCardDropZone.cs**: fallback `IDropHandler` with same phase routing logic
+- **HandCard.IsPhaseEligible()**: gold glow highlights eligible cards per phase
+- **LiveBallCardZone**: drop zone `blocksRaycasts = false` globally (so game board stays interactive); only the HUD bar child CanvasGroup sets `blocksRaycasts = true` when visible so buttons receive clicks
+- `LiveBallCardZone.OnDrop()`: plays card via `GameClient.PlayCard()` + calls `ConfirmReady()` (auto-commits)
+
 ## Conventions
 
 - Be extremely concise in commit messages and communication. Sacrifice grammar for concision.

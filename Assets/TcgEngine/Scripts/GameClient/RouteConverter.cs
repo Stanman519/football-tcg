@@ -7,7 +7,13 @@ namespace TcgEngine.Client
 {
     public static class RouteConverter
     {
-        public static List<SlotMovementSegment> ToSegments(RouteData route, BoardSlot slot, string sourceTag = "route")
+        /// <summary>
+        /// Convert RouteData keyframes to SlotMovementSegments.
+        /// If appendYacToYards is provided, appends a sprint segment for yards-after-catch
+        /// when net yardage exceeds the route's total depth.
+        /// </summary>
+        public static List<SlotMovementSegment> ToSegments(RouteData route, BoardSlot slot,
+            string sourceTag = "route", float? appendYacToYards = null)
         {
             var segments = new List<SlotMovementSegment>();
             if (route == null || slot == null || route.keyframes.Count == 0) return segments;
@@ -88,6 +94,24 @@ namespace TcgEngine.Client
                 prevPos = cumDelta;
                 prevDir = curDir;
                 prevTime = legs[i].timeOffset;
+            }
+
+            // Append YAC sprint if net yardage exceeds route's total depth
+            if (appendYacToYards.HasValue && route != null)
+            {
+                float totalDepth = route.GetTotalDepth();
+                float yac = appendYacToYards.Value - totalDepth;
+                if (yac > 0.5f)
+                {
+                    segments.Add(new SlotMovementSegment
+                    {
+                        type = SegmentType.MoveBy,
+                        deltaFootballCoord = new Vector2(0, yac),
+                        speedTier = SpeedTier.Sprint,
+                        ease = Ease.InOutQuad,
+                        sourceTag = "yac"
+                    });
+                }
             }
 
             return segments;

@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using DG.Tweening;
 
 namespace TcgEngine.Client
 {
@@ -21,6 +22,11 @@ namespace TcgEngine.Client
         private Vector3 shake_vector = Vector3.zero;
         private Vector3 start_pos;
 
+        // Focus/zoom system
+        private float baseOrthoSize;
+        private Tween focusTween;
+        private bool isFocused;
+
         private static GameCamera instance;
 
         void Awake()
@@ -28,6 +34,8 @@ namespace TcgEngine.Client
             instance = this;
             start_pos = transform.position;
             cam = GetComponent<Camera>();
+            if (cam != null && cam.orthographic)
+                baseOrthoSize = cam.orthographicSize;
         }
 
         void Update()
@@ -39,6 +47,9 @@ namespace TcgEngine.Client
                     LOSMarker.Instance.transform.position.y,
                     cameraFollowSpeed * Time.deltaTime);
             }
+
+            // While focused, DOTween controls position/size — skip manual updates
+            if (isFocused) return;
 
             //Shake FX
             if (shake_timer > 0f)
@@ -83,6 +94,49 @@ namespace TcgEngine.Client
                 return instance.cam;
             return null;
         }
+
+        // ── Focus/Zoom ─────────────────────────────────────
+
+        /// <summary>Zoom camera toward a world target. zoomPct=0.85 means 85% of base ortho size.</summary>
+        public void FocusOn(Vector3 worldTarget, float zoomPct = 0.85f, float dur = 0.3f)
+        {
+            if (cam == null || !cam.orthographic || baseOrthoSize <= 0f) return;
+
+            focusTween?.Kill();
+            isFocused = true;
+
+            // Nudge position ~30% toward target
+            Vector3 nudge = Vector3.Lerp(start_pos, worldTarget, 0.3f);
+            nudge.z = start_pos.z; // preserve Z
+
+            float targetSize = baseOrthoSize * zoomPct;
+            float d = TimeController.Instance != null ? TimeController.Instance.Scale(dur) : dur;
+
+            Sequence seq = DOTween.Sequence();
+            seq.Join(cam.DOOrthoSize(targetSize, d).SetEase(Ease.OutQuad));
+            seq.Join(transform.DOMove(nudge, d).SetEase(Ease.OutQuad));
+            seq.SetLink(gameObject);
+            focusTween = seq;
+        }
+
+        /// <summary>Return camera to base position and ortho size.</summary>
+        public void ReleaseFocus(float dur = 0.3f)
+        {
+            if (!isFocused) return;
+
+            focusTween?.Kill();
+            isFocused = false;
+
+            float d = TimeController.Instance != null ? TimeController.Instance.Scale(dur) : dur;
+
+            Sequence seq = DOTween.Sequence();
+            seq.Join(cam.DOOrthoSize(baseOrthoSize, d).SetEase(Ease.OutQuad));
+            seq.Join(transform.DOMove(start_pos, d).SetEase(Ease.OutQuad));
+            seq.SetLink(gameObject);
+            focusTween = seq;
+        }
+
+        public bool IsFocused => isFocused;
 
         public static GameCamera Get()
         {

@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TcgEngine.Client;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 
 namespace TcgEngine
 {
@@ -17,12 +17,14 @@ namespace TcgEngine
         public Text debugText;  // Assign a UI Text in the Inspector, or leave null to auto-create
 
         private Canvas canvas;
-        private bool visible = true;
+        private bool visible = false;
 
         void Awake()
         {
             if (debugText == null)
                 CreateFallbackText();
+            if (debugText != null)
+                debugText.transform.parent.gameObject.SetActive(visible);
         }
 
         void Start()

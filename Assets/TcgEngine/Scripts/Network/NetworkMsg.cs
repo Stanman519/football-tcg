@@ -1,5 +1,5 @@
 ﻿
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 using TcgEngine.UI;
 using Unity.Netcode;
 using UnityEngine.Events;
@@ -324,6 +324,24 @@ namespace TcgEngine
             serializer.SerializeValue(ref selectedPlay);
             serializer.SerializeValue(ref enhancerUid);
             serializer.SerializeValue(ref playerId);
+        }
+    }
+
+    public class MsgLiveBallEvent : INetworkSerializable
+    {
+        public int event_type;
+        public string off_card_id;
+        public string def_card_id;
+        public int off_grit;
+        public int def_grit;
+
+        public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
+        {
+            serializer.SerializeValue(ref event_type);
+            serializer.SerializeValue(ref off_card_id);
+            serializer.SerializeValue(ref def_card_id);
+            serializer.SerializeValue(ref off_grit);
+            serializer.SerializeValue(ref def_grit);
         }
     }
 

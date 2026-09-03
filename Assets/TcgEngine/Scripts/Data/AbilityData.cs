@@ -1,5 +1,5 @@
-﻿using Assets.TcgEngine.Scripts.Gameplay;
-using Assets.TcgEngine.Scripts.Gameplay;
+﻿using TcgEngine.Gameplay;
+using TcgEngine.Gameplay;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;

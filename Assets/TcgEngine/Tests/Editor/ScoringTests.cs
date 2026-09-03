@@ -1,6 +1,6 @@
 using NUnit.Framework;
 using TcgEngine;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 
 namespace TcgEngine.Tests
 {

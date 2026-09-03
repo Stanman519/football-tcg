@@ -1,6 +1,6 @@
 ﻿
 
-namespace Assets.TcgEngine.Scripts.Gameplay
+namespace TcgEngine.Gameplay
 {
     /// <summary>
     /// List of game actions and refreshes, that can be performed by the player or received
@@ -67,6 +67,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         public const ushort SecretTriggered = 2060;
         public const ushort SecretResolved = 2061;
         public const ushort ValueRolled = 2070;
+        public const ushort LiveBallEvent = 2080;
 
         public const ushort ServerMessage = 2190; //Server warning msg
         public const ushort RefreshAll = 2100;

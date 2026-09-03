@@ -4,7 +4,7 @@ using UnityEngine;
 using TcgEngine.Client;
 using UnityEngine.Events;
 using TcgEngine.UI;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 
 namespace TcgEngine.Client
 {
@@ -105,8 +105,8 @@ namespace TcgEngine.Client
         private IEnumerator EndGameRun()
         {
             Game data = GameClient.Get().GetGameData();
-            Player pwinner = data.current_offensive_player;
             Player player = GameClient.Get().GetPlayer();
+            Player pwinner = data.winner_id >= 0 ? data.GetPlayer(data.winner_id) : null;
             bool win = pwinner != null && player.player_id == pwinner.player_id;
             bool tied = pwinner == null;
 
@@ -138,8 +138,7 @@ namespace TcgEngine.Client
 
             yield return new WaitForSeconds(2f);
 
-
-            EndGamePanel.Get().ShowEnd(data.current_offensive_player.player_id);
+            EndGamePanel.Get().ShowEnd(data.winner_id);
         }
 
         //Raycast mouse position to board position

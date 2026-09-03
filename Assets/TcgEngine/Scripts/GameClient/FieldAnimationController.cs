@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using TcgEngine;
 using TcgEngine.Client;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 
 /// <summary>
 /// Subscribes to GameClient ability events and drives animated slot movement

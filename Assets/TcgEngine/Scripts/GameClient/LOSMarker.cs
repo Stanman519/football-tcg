@@ -1,6 +1,6 @@
 using UnityEngine;
 using TcgEngine.Client;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 
 /// <summary>
 /// LOSMarker sits at the current line of scrimmage in world space.

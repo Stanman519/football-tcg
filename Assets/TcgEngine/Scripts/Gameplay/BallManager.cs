@@ -1,4 +1,4 @@
-﻿namespace Assets.TcgEngine.Scripts.Gameplay
+﻿namespace TcgEngine.Gameplay
 {
     public class BallManager
     {

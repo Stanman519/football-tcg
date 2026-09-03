@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 
-namespace Assets.TcgEngine.Scripts.Data
+namespace TcgEngine
 {
     public class FieldUI : MonoBehaviour
     {

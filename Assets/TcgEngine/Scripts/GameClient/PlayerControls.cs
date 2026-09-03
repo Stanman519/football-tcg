@@ -5,7 +5,7 @@ using TcgEngine.Client;
 using UnityEngine.Events;
 using TcgEngine.UI;
 using System.Linq;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 
 namespace TcgEngine.Client
 {

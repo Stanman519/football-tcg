@@ -1,6 +1,6 @@
 using UnityEngine;
 using TcgEngine.Client;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 
 namespace TcgEngine.UI
 {
@@ -18,9 +18,12 @@ namespace TcgEngine.UI
         public BoardStatOverlay boardStatOverlay;
         public StatChangePopup statChangePopup;
         public AbilitySpotlight abilitySpotlight;
+        public PlayCallRevealPanel playCallRevealPanel;
+        public LiveBallRevealPanel liveBallRevealPanel;
 
         // Cached previous state for change detection
         private GamePhase prevPhase = GamePhase.None;
+        private bool liveBallRevealShown; // reset each time we enter LiveBall
         private int prevP0Points = 0;
         private int prevP1Points = 0;
         private int prevOffensivePlayerId = -1;
@@ -76,6 +79,37 @@ namespace TcgEngine.UI
 
             // --- Detect events for BigPlayOverlay ---
             DetectAndFireBigPlayEvents(g, p0, p1);
+
+            // --- PlayCallRevealPanel: show when phase transitions TO RevealPlayCalls ---
+            bool justEnteredReveal = prevPhase != GamePhase.RevealPlayCalls && g.phase == GamePhase.RevealPlayCalls;
+            if (justEnteredReveal && playCallRevealPanel != null)
+            {
+                int localId = GameClient.Get().GetPlayerID();
+                Player localP = localId == 0 ? p0 : p1;
+                Player oppP = localId == 0 ? p1 : p0;
+                playCallRevealPanel.ShowReveal(g, localP, oppP);
+            }
+
+            // --- LiveBallRevealPanel: show when both players' LiveBallCards become visible ---
+            if (g.phase == GamePhase.LiveBall && prevPhase != GamePhase.LiveBall)
+                liveBallRevealShown = false; // reset on fresh entry
+
+            if (g.phase == GamePhase.LiveBall && !liveBallRevealShown && liveBallRevealPanel != null)
+            {
+                Player offP = g.current_offensive_player;
+                Player defP = g.GetCurrentDefensivePlayer();
+                // Both cards visible = resolution about to start (server sent refresh with cards)
+                if (offP != null && defP != null &&
+                    (offP.LiveBallCard != null || defP.LiveBallCard != null))
+                {
+                    liveBallRevealShown = true;
+                    int localId = GameClient.Get().GetPlayerID();
+                    Player localP = localId == 0 ? p0 : p1;
+                    Player oppP = localId == 0 ? p1 : p0;
+                    bool localIsOff = localP?.player_id == offP.player_id;
+                    liveBallRevealPanel.ShowReveal(localP?.LiveBallCard, oppP?.LiveBallCard, localIsOff);
+                }
+            }
 
             // --- PlaySummaryPanel: show when phase transitions TO StartTurn after a play ---
             bool justFinishedPlay = prevPhase != GamePhase.StartTurn && g.phase == GamePhase.StartTurn

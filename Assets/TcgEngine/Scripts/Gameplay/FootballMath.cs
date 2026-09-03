@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace Assets.TcgEngine.Scripts.Gameplay
+namespace TcgEngine.Gameplay
 {
     /// <summary>
     /// Pure arithmetic helpers for football yardage calculations.

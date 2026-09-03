@@ -2,8 +2,8 @@
 using UnityEditor;
 using UnityEngine;
 using TcgEngine;
-using Assets.TcgEngine.Scripts.Effects;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Effects;
+using TcgEngine.Gameplay;
 
 /// <summary>
 /// Creates the "Iron Will" test player card demonstrating OnKnockout + LowestStaminaAlly.

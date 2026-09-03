@@ -4,7 +4,7 @@
 //using TcgEngine.Client;
 //using TcgEngine.UI;
 //using System.Linq;
-//using Assets.TcgEngine.Scripts.Gameplay;
+//using TcgEngine.Gameplay;
 
 //namespace TcgEngine.Client
 //{

@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Assets.TcgEngine.Scripts.Gameplay
+namespace TcgEngine.Gameplay
 {
     [System.Serializable]
     public class SlotHistory

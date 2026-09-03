@@ -5,7 +5,7 @@ using UnityEngine.UI;
 using TcgEngine.Client;
 using UnityEngine.SceneManagement;
 using UnityEngine.EventSystems;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 
 namespace TcgEngine.UI
 {
@@ -153,6 +153,13 @@ namespace TcgEngine.UI
                 Player player = GameClient.Get().GetPlayer();
                 if (player != null)
                 {
+                    // Require at least 1 card on board during ChoosePlayers
+                    if (game.phase == GamePhase.ChoosePlayers && player.cards_board.Count < 1)
+                    {
+                        WarningText.ShowText("Place at least 1 player card first!");
+                        return;
+                    }
+
                     player.SetReadyForPhase(game.phase, true);
                     GameClient.Get().SendAction(GameAction.PlayerReadyPhase);
                     Debug.Log($"Player {player.player_id} confirmed ready for {game.phase}");

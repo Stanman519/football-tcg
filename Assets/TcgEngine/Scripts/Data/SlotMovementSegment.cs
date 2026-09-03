@@ -1,5 +1,5 @@
 using System;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 using DG.Tweening;
 using TcgEngine.Client;
 using UnityEngine;

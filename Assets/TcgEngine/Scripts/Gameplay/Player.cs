@@ -1,10 +1,10 @@
-﻿using Assets.TcgEngine.Scripts.Gameplay;
+﻿using TcgEngine.Gameplay;
 using System.Collections.Generic;
 using System.Linq;
 using TcgEngine;
 using UnityEngine;
 
-namespace Assets.TcgEngine.Scripts.Gameplay
+namespace TcgEngine.Gameplay
 {
     //Represent the current state of a player during the game (data only)
 

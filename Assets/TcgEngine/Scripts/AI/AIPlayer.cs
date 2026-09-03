@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 
 namespace TcgEngine.AI
 {
@@ -24,6 +24,9 @@ namespace TcgEngine.AI
 
         public bool CanPlay()
         {
+#if UNITY_EDITOR
+            if (TcgEngine.Dev.DevState.AIPaused) return false;
+#endif
             Game game_data = gameplay.GetGameData();
             Player player = game_data.GetPlayer(player_id);
             bool can_play = game_data.IsPlayerTurn(player) || game_data.IsPlayerMulliganTurn(player);

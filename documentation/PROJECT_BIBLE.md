@@ -341,7 +341,6 @@ Wild only appears on the center reel.
 | `PlayerPositionGrp.P = 2` | Card.cs:47 | P and RB_TE both equal 2, enum conflict |
 | Test coach hard-coded | Game.cs:InitializeTestGame | Hard-coded HeadCoachCard data; no real coach asset system yet |
 | `WaitForPlayerSelection` | GameLogicService.cs:692 | Progresses if either player placed a card (should be both) |
-| `CheckForWinner` placeholder | GameLogicService.cs:596 | Wins awarded to current offensive player; no real score comparison |
 | Pass completion reads middle only | GameLogicService.cs:2327 | Only `.Middle.IconId` checked, not top/bottom rows |
 
 ---

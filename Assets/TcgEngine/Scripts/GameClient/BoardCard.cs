@@ -6,7 +6,7 @@ using TcgEngine.Client;
 using UnityEngine.Events;
 using TcgEngine.UI;
 using TcgEngine.FX;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 
 namespace TcgEngine.Client
 {
@@ -131,7 +131,8 @@ namespace TcgEngine.Client
             }
             card_shadow.enabled = !destroyed && timer > 0.4f;
             card_sprite.color = card.HasStatus(StatusType.Stealth) ? Color.gray : Color.white;
-            card_ui.grit.color = (destroyed || card.damage > 0) ? Color.yellow : Color.white;
+            if (card_ui.grit != null)
+                card_ui.grit.color = (destroyed || card.damage > 0) ? Color.yellow : Color.white;
 
             //armor
             int armor_val = card.GetStatusValue(StatusType.Armor);

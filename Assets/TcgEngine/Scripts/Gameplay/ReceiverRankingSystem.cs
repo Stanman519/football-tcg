@@ -2,7 +2,7 @@
 using System.Linq;
 using TcgEngine;
 
-namespace Assets.TcgEngine.Scripts.Gameplay
+namespace TcgEngine.Gameplay
 {
     public class ReceiverRankingSystem
     {

@@ -6,7 +6,7 @@ using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
 using TcgEngine.Client;
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ReelUI  — kept for backwards compatibility; updated after each reel stops

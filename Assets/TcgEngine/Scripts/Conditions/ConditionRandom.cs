@@ -1,8 +1,8 @@
-using Assets.TcgEngine.Scripts.Gameplay;
+using TcgEngine.Gameplay;
 using TcgEngine;
 using UnityEngine;
 
-namespace Assets.TcgEngine.Scripts.Conditions
+namespace TcgEngine.Conditions
 {
     /// <summary>
     /// Passes with the given percentage chance (0-100).

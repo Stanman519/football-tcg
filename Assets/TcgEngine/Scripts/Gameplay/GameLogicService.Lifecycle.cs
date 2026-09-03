@@ -1,10 +1,10 @@
-using Assets.TcgEngine.Scripts.Effects;
+using TcgEngine.Effects;
 using System.Collections.Generic;
 using System.Linq;
 using TcgEngine;
 using UnityEngine;
 
-namespace Assets.TcgEngine.Scripts.Gameplay
+namespace TcgEngine.Gameplay
 {
     public partial class GameLogicService
     {
@@ -32,6 +32,11 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 //Draw starting cards
                 int dcards = GameplayData.Get().cards_start;
                 DrawCard(player, dcards);
+
+#if UNITY_EDITOR
+                // DEBUG: Seed hand with enhancer + live ball cards for drag-drop testing
+                SeedDebugCards(player);
+#endif
             }
 
             //Start state
@@ -43,6 +48,36 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             else
                 StartPreGameSpin();
         }
+
+#if UNITY_EDITOR
+        private void SeedDebugCards(Player player)
+        {
+            int enhancers = 0, liveBalls = 0;
+            for (int i = player.cards_deck.Count - 1; i >= 0 && enhancers < 2; i--)
+            {
+                Card c = player.cards_deck[i];
+                if (c.CardData != null && c.CardData.IsPlayEnhancer())
+                {
+                    player.cards_deck.RemoveAt(i);
+                    player.cards_hand.Add(c);
+                    enhancers++;
+                }
+            }
+            for (int i = player.cards_deck.Count - 1; i >= 0 && liveBalls < 2; i--)
+            {
+                Card c = player.cards_deck[i];
+                if (c.CardData != null && c.CardData.IsLiveBall())
+                {
+                    player.cards_deck.RemoveAt(i);
+                    player.cards_hand.Add(c);
+                    liveBalls++;
+                }
+            }
+            Debug.LogWarning($"[DEBUG] Seeded {enhancers} enhancers + {liveBalls} live ball cards into hand for {player.player_id}");
+            if (enhancers == 0) Debug.LogWarning($"[DEBUG] No play enhancers found in deck for {player.player_id}");
+            if (liveBalls == 0) Debug.LogWarning($"[DEBUG] No live ball cards found in deck for {player.player_id}");
+        }
+#endif
 
         public virtual void StartTurn()
         {
@@ -104,14 +139,9 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         {
             game_data.phase = GamePhase.ChoosePlayers;
             RefreshData();
-        }
-
-        private void TransitionToPlaycall()
-        {
-            resolve_queue.AddCallback(RevealNewPlayers);
-            resolve_queue.ResolveAll(0.2f);
-
-            resolve_queue.AddCallback(StartPlayCallPhase);
+#if UNITY_EDITOR
+            TcgEngine.Dev.DevBootstrap.ApplyScenario(this);
+#endif
         }
 
         public virtual void StartNextTurn()
@@ -120,7 +150,6 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 return;
 
             game_data.turn_count++;
-            CheckForWinner();
             EndPlayPhase();
         }
 
@@ -157,41 +186,6 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             RefreshData();
 
             onChoosePlay?.Invoke();
-        }
-
-        private void WaitForPlayCallSelection()
-        {
-            if (game_data.AreAllPlayersPhaseReady())
-            {
-                Debug.Log("All players ready for ChoosePlay, transitioning to RevealPlayCalls");
-                RevealPlayCalls();
-                resolve_queue.AddCallback(StartSlotSpinPhase);
-                resolve_queue.ResolveAll(FormationTransitionDelay);
-            }
-            else
-            {
-                bool bothSelectedPlay = false;
-                if (game_data.players != null && game_data.players.Length >= 2)
-                {
-                    bool p0Selected = game_data.players[0]?.SelectedPlay != PlayType.Huddle;
-                    bool p1Selected = game_data.players[1]?.SelectedPlay != PlayType.Huddle;
-                    bothSelectedPlay = p0Selected && p1Selected;
-                }
-
-                if (bothSelectedPlay)
-                {
-                    Debug.Log("Both players selected plays, progressing from ChoosePlay");
-                    RevealPlayCalls();
-                    resolve_queue.AddCallback(StartSlotSpinPhase);
-                    resolve_queue.ResolveAll(FormationTransitionDelay);
-                }
-                else
-                {
-                    Debug.Log("Waiting for play selections. P0: " + game_data.players[0]?.SelectedPlay + ", P1: " + game_data.players[1]?.SelectedPlay);
-                    resolve_queue.AddCallback(WaitForPlayCallSelection);
-                    resolve_queue.ResolveAll(0.5f);
-                }
-            }
         }
 
         public virtual void RevealPlayCalls()
@@ -413,16 +407,6 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 StartTurn();
         }
 
-        private void WaitForLiveBallSelection()
-        {
-            if (game_data.AreAllPlayersPhaseReady())
-            {
-                ResolveLiveBallEffects();
-                resolve_queue.AddCallback(EndPlayPhase);
-                resolve_queue.ResolveAll();
-            }
-        }
-
         private bool AllPlayersReadyForPhase(GamePhase phase)
         {
             return game_data.AreAllPlayersPhaseReady();
@@ -463,6 +447,7 @@ namespace Assets.TcgEngine.Scripts.Gameplay
         {
             if (game_data.state != GameState.GameEnded)
             {
+                game_data.winner_id = winner;
                 game_data.state = GameState.GameEnded;
                 game_data.phase = GamePhase.None;
                 game_data.selector = SelectorType.None;
@@ -523,8 +508,6 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             }
         }
 
-        // No-op: First & Long has no HP win condition. Real end-of-game logic is in HandleHalfOrGameEnd().
-        protected virtual void CheckForWinner() { }
 
         protected virtual void ClearTurnData()
         {
@@ -578,40 +561,6 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
             if (puzzle == null || !puzzle.dont_shuffle_deck)
                 ShuffleDeck(player.cards_deck);
-        }
-
-        private void WaitForPlayerSelection()
-        {
-            if (game_data.AreAllPlayersPhaseReady())
-            {
-                Debug.Log("All players ready for ChoosePlayers, transitioning to RevealPlayers");
-                RevealNewPlayers();
-                resolve_queue.AddCallback(StartPlayCallPhase);
-                resolve_queue.ResolveAll();
-            }
-            else
-            {
-                bool bothPlacedCards = false;
-                if (game_data.players != null && game_data.players.Length >= 2)
-                {
-                    int p0Cards = game_data.players[0]?.cards_board?.Count ?? 0;
-                    int p1Cards = game_data.players[1]?.cards_board?.Count ?? 0;
-                    bothPlacedCards = (p0Cards > 0 && p1Cards > 0);
-                }
-
-                if (bothPlacedCards)
-                {
-                    Debug.Log("Players have placed cards, progressing from ChoosePlayers");
-                    RevealNewPlayers();
-                    resolve_queue.AddCallback(StartPlayCallPhase);
-                    resolve_queue.ResolveAll();
-                }
-                else
-                {
-                    resolve_queue.AddCallback(WaitForPlayerSelection);
-                    resolve_queue.ResolveAll(0.5f);
-                }
-            }
         }
 
         //Set deck using custom deck in save file or database
@@ -682,6 +631,18 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
             SwitchPossession();
 
+            // Sudden death: in OT, any score that creates a lead ends the game
+            if (game_data.current_half > 2)
+            {
+                Player p0 = game_data.players[0];
+                Player p1 = game_data.players[1];
+                if (p0.points != p1.points)
+                {
+                    EndGame(p0.points > p1.points ? 0 : 1);
+                    return;
+                }
+            }
+
             if (game_data.plays_left_in_half <= 0)
             {
                 HandleHalfOrGameEnd();
@@ -698,6 +659,19 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             defense.points += 2;
             defense.coachManager?.OnCoachTrigger(CoachTrigger.OnScore);
             SwitchPossession();
+
+            // Sudden death: in OT, any score that creates a lead ends the game
+            if (game_data.current_half > 2)
+            {
+                Player p0 = game_data.players[0];
+                Player p1 = game_data.players[1];
+                if (p0.points != p1.points)
+                {
+                    EndGame(p0.points > p1.points ? 0 : 1);
+                    return;
+                }
+            }
+
             if (game_data.plays_left_in_half <= 0) { HandleHalfOrGameEnd(); return; }
             ResetDrive(ballOn: 40);
         }
@@ -716,9 +690,9 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             {
                 Player p0 = game_data.players[0];
                 Player p1 = game_data.players[1];
-                if (p0.points > p1.points)      EndGame(0);
-                else if (p1.points > p0.points) EndGame(1);
-                else                            EndGame(-1);
+                if (p0.points > p1.points)        EndGame(0);
+                else if (p1.points > p0.points)   EndGame(1);
+                else                               StartOvertime();
             }
             else
             {
@@ -727,6 +701,18 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 game_data.current_offensive_player = game_data.GetOpponentPlayer(game_data.first_half_offense_player_id);
                 ResetDrive();
             }
+        }
+
+        private void StartOvertime()
+        {
+            game_data.current_half++;
+            game_data.plays_left_in_half = 6;
+            bool oddOT = (game_data.current_half % 2 == 1);
+            game_data.current_offensive_player = oddOT
+                ? game_data.GetPlayer(game_data.first_half_offense_player_id)
+                : game_data.GetOpponentPlayer(game_data.first_half_offense_player_id);
+            ResetDrive();
+            Debug.Log($"[OT] Overtime period {game_data.current_half - 2} starting. {game_data.plays_left_in_half} plays.");
         }
 
         /// <summary>
@@ -772,7 +758,6 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             StartTurn();
         }
 
-        private void CheckGameOver() { HandleHalfOrGameEnd(); }
 
         public virtual void ResolveLiveBallEffects()
         {
@@ -781,10 +766,17 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
             Debug.Log($"[LiveBall] Resolving — OFF: {offCard?.card_id ?? "pass"} | DEF: {defCard?.card_id ?? "pass"}");
 
+            int preLBYardage = game_data.yardage_this_play;
+
+            // Fire reveal event (shows both cards or "PASS" placeholders)
+            FireLiveBallEvent(LiveBallEventType.Reveal, offCard, defCard, 0, 0);
+
             // Both passed — subtotal stands
             if (offCard == null && defCard == null)
             {
                 Debug.Log("[LiveBall] Both players passed. Subtotal stands.");
+                FireLiveBallEvent(LiveBallEventType.BothPass, null, null, 0, 0);
+                FireLiveBallEvent(LiveBallEventType.PostLBResolved, null, null, preLBYardage, game_data.yardage_this_play);
                 ClearLiveBallCards();
                 resolve_queue.AddCallback(EndTurn);
                 return;
@@ -801,12 +793,12 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 {
                     Debug.Log($"[LiveBall] Blanket Coverage! {defCard.card_id} negates {offCard.card_id}");
                     offNegated = true;
+                    FireLiveBallEvent(LiveBallEventType.NegateOffense, offCard, defCard, 0, 0);
                 }
                 else
                 {
                     Debug.Log($"[LiveBall] Blanket Coverage by {defCard.card_id} but offense passed — wasted.");
                 }
-                // Negate card consumed its effect; skip def's other abilities too
                 defNegated = true;
             }
 
@@ -814,8 +806,8 @@ namespace Assets.TcgEngine.Scripts.Gameplay
             if (!offNegated && offCard != null && HasLiveBallEffect<EffectImmunity>(offCard))
             {
                 Debug.Log($"[LiveBall] In the Zone! {offCard.card_id} — immune to all defensive effects.");
+                FireLiveBallEvent(LiveBallEventType.NegateDefense, offCard, defCard, 0, 0);
                 defNegated = true;
-                // Immunity card consumed; offense still gets no other effects from this card
                 offNegated = true;
             }
 
@@ -829,6 +821,8 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                     if (!offNegated && offCard != null && HasLiveBallEffect<EffectPreventTurnover>(offCard))
                     {
                         Debug.Log($"[LiveBall] Ball Security! {offCard.card_id} auto-prevents fumble. Subtotal stands.");
+                        FireLiveBallEvent(LiveBallEventType.BallSecurity, offCard, defCard, 0, 0);
+                        FireLiveBallEvent(LiveBallEventType.PostLBResolved, offCard, defCard, preLBYardage, game_data.yardage_this_play);
                         ClearLiveBallCards();
                         resolve_queue.AddCallback(EndTurn);
                         return;
@@ -841,20 +835,20 @@ namespace Assets.TcgEngine.Scripts.Gameplay
 
                     if (defGrit > offGrit)
                     {
-                        // B1 fix: store bonus so EffectForceTurnover.DoEffect reads correct offGrit for return yards
                         game_data.live_ball_grit_bonus = offGritBonus;
-                        // FUMBLE — defense recovers, turnover
                         Debug.Log($"[LiveBall] Fumble! defGrit({defGrit}) > offGrit({offGrit}). Turnover.");
+                        FireLiveBallEvent(LiveBallEventType.FumbleTurnover, offCard, defCard, offGrit, defGrit);
                         ResolveCardAbility(fumbleAbility, defCard, defCard);
+                        FireLiveBallEvent(LiveBallEventType.PostLBResolved, offCard, defCard, preLBYardage, game_data.yardage_this_play);
                         ClearLiveBallCards();
-                        // B4 fix: ensure EndTurn fires after EffectForceTurnover resolves; without this the queue is empty and game hangs in LiveBall
                         resolve_queue.AddCallback(EndTurn);
                         return;
                     }
                     else
                     {
-                        // RECOVERY — offense keeps ball, play ends at subtotal
                         Debug.Log($"[LiveBall] Fumble recovered! offGrit({offGrit}) >= defGrit({defGrit}). Subtotal stands.");
+                        FireLiveBallEvent(LiveBallEventType.FumbleRecovery, offCard, defCard, offGrit, defGrit);
+                        FireLiveBallEvent(LiveBallEventType.PostLBResolved, offCard, defCard, preLBYardage, game_data.yardage_this_play);
                         ClearLiveBallCards();
                         resolve_queue.AddCallback(EndTurn);
                         return;
@@ -868,10 +862,14 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 foreach (var ability in defCard.GetAbilities())
                 {
                     if (ability == null) continue;
-                    if (ability.HasEffect<EffectForceTurnover>()) continue; // Already handled
-                    if (ability.HasEffect<EffectNegateCard>()) continue;     // Already handled
+                    if (ability.HasEffect<EffectForceTurnover>()) continue;
+                    if (ability.HasEffect<EffectNegateCard>()) continue;
                     if (!ability.AreTriggerConditionsMet(game_data, defCard)) continue;
+                    int beforeY = game_data.yardage_this_play;
                     ResolveCardAbility(ability, defCard, defCard);
+                    int afterY = game_data.yardage_this_play;
+                    if (afterY != beforeY)
+                        FireLiveBallEvent(LiveBallEventType.YardageDelta, defCard, null, afterY - beforeY, afterY);
                 }
             }
 
@@ -881,16 +879,28 @@ namespace Assets.TcgEngine.Scripts.Gameplay
                 foreach (var ability in offCard.GetAbilities())
                 {
                     if (ability == null) continue;
-                    if (ability.HasEffect<EffectImmunity>()) continue;         // Already handled
-                    if (ability.HasEffect<EffectPreventTurnover>()) continue;   // Already handled
+                    if (ability.HasEffect<EffectImmunity>()) continue;
+                    if (ability.HasEffect<EffectPreventTurnover>()) continue;
                     if (!ability.AreTriggerConditionsMet(game_data, offCard)) continue;
+                    int beforeY = game_data.yardage_this_play;
                     ResolveCardAbility(ability, offCard, offCard);
+                    int afterY = game_data.yardage_this_play;
+                    if (afterY != beforeY)
+                        FireLiveBallEvent(LiveBallEventType.YardageDelta, offCard, null, afterY - beforeY, afterY);
                 }
             }
 
             // --- STEP 6: Cleanup ---
+            FireLiveBallEvent(LiveBallEventType.PostLBResolved, offCard, defCard, preLBYardage, game_data.yardage_this_play);
             ClearLiveBallCards();
             resolve_queue.AddCallback(EndTurn);
+        }
+
+        private void FireLiveBallEvent(LiveBallEventType eventType, Card offCard, Card defCard, int offGrit, int defGrit)
+        {
+            if (is_ai_predict) return;
+            onLiveBallEvent?.Invoke(eventType, offCard, defCard, offGrit, defGrit);
+            resolve_queue.SetDelay(1.5f);
         }
 
         /// <summary>

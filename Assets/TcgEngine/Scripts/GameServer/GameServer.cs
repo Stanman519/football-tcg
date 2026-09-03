@@ -1,4 +1,4 @@
-﻿using Assets.TcgEngine.Scripts.Gameplay;
+﻿using TcgEngine.Gameplay;
 using System.Collections.Generic;
 using TcgEngine.AI;
 using Unity.Netcode;
@@ -106,6 +106,7 @@ namespace TcgEngine.Server
 
             gameplay.onSecretTrigger += OnSecretTriggered;
             gameplay.onSecretResolve += OnSecretResolved;
+            gameplay.onLiveBallEvent += OnLiveBallEvent;
         }
 
         protected virtual void Clear()
@@ -138,6 +139,7 @@ namespace TcgEngine.Server
 
             gameplay.onSecretTrigger -= OnSecretTriggered;
             gameplay.onSecretResolve -= OnSecretResolved;
+            gameplay.onLiveBallEvent -= OnLiveBallEvent;
         }
 
         public virtual void Update()
@@ -347,19 +349,10 @@ namespace TcgEngine.Server
             if (player == null || msg == null)
                 return;
 
-            if (game_data.phase != GamePhase.ChoosePlay)
-                return;
-
-            player.SelectedPlay = msg.selectedPlay;
-            if (!string.IsNullOrEmpty(msg.enhancerUid))
-                player.PlayEnhancer = game_data.GetCard(msg.enhancerUid);
-
-            RefreshAll();
-
-            bool bothSelected = game_data.players[0].SelectedPlay != PlayType.Huddle
-                             && game_data.players[1].SelectedPlay != PlayType.Huddle;
-            if (bothSelected)
-                gameplay.NextStep();
+            Card enhancer = !string.IsNullOrEmpty(msg.enhancerUid)
+                ? game_data.GetCard(msg.enhancerUid)
+                : null;
+            gameplay.SelectPlay(player, msg.selectedPlay, enhancer);
         }
 
         public void ReceivePlayCard(ClientData iclient, SerializedData sdata)
@@ -970,6 +963,17 @@ namespace TcgEngine.Server
             mdata.secret_uid = secret.uid;
             mdata.triggerer_uid = trigger != null ? trigger.uid : "";
             SendToAll(GameAction.SecretResolved, mdata, NetworkDelivery.Reliable);
+        }
+
+        protected virtual void OnLiveBallEvent(LiveBallEventType eventType, Card offCard, Card defCard, int offGrit, int defGrit)
+        {
+            MsgLiveBallEvent mdata = new MsgLiveBallEvent();
+            mdata.event_type = (int)eventType;
+            mdata.off_card_id = offCard?.card_id ?? "";
+            mdata.def_card_id = defCard?.card_id ?? "";
+            mdata.off_grit = offGrit;
+            mdata.def_grit = defGrit;
+            SendToAll(GameAction.LiveBallEvent, mdata, NetworkDelivery.Reliable);
         }
 
         protected virtual void SendPlayerReady(Player player)
