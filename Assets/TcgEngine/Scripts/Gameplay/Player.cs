@@ -278,10 +278,42 @@ namespace TcgEngine.Gameplay
             return CardPositionSlot.None;
         }
 
+        /// <summary>
+        /// Enumerate this player's field slots from the head coach scheme. Mirrors FieldSlotManager:
+        /// slot id = (player_id, index 1..N, posGroup) where N = field_slots (fallback pos_max).
+        /// CardPositionSlot.GetAll() is a legacy registry that is never populated — don't use it.
+        /// </summary>
+        public List<CardPositionSlot> GetFieldSlots(List<CardPositionSlot> list_mem = null)
+        {
+            List<CardPositionSlot> slots = list_mem != null ? list_mem : new List<CardPositionSlot>();
+            var scheme = head_coach?.positional_Scheme;
+            if (scheme == null) return slots;
+            int p = CardPositionSlot.GetP(player_id);
+            foreach (var entry in scheme)
+            {
+                if (entry.Key == PlayerPositionGrp.NONE) continue;
+                int count = entry.Value.field_slots > 0 ? entry.Value.field_slots : entry.Value.pos_max;
+                for (int i = 0; i < count; i++)
+                    slots.Add(new CardPositionSlot(p, i + 1, entry.Key));
+            }
+            return slots;
+        }
+
+        public List<CardPositionSlot> GetEmptySlotsForPosition(PlayerPositionGrp pos)
+        {
+            List<CardPositionSlot> valid = new List<CardPositionSlot>();
+            foreach (CardPositionSlot slot in GetFieldSlots())
+            {
+                if (slot.posGroupType == pos && GetSlotCard(slot) == null)
+                    valid.Add(slot);
+            }
+            return valid;
+        }
+
         public List<CardPositionSlot> GetEmptySlots(List<CardPositionSlot> list_mem = null)
         {
             List<CardPositionSlot> valid = list_mem != null ? list_mem : new List<CardPositionSlot>();
-            foreach (CardPositionSlot slot in CardPositionSlot.GetAll(player_id))
+            foreach (CardPositionSlot slot in GetFieldSlots())
             {
                 Card slot_card = GetSlotCard(slot);
                 if (slot_card == null)
@@ -293,7 +325,7 @@ namespace TcgEngine.Gameplay
         public List<CardPositionSlot> GetOccupiedSlots(List<CardPositionSlot> list_mem = null)
         {
             List<CardPositionSlot> valid = list_mem != null ? list_mem : new List<CardPositionSlot>();
-            foreach (CardPositionSlot slot in CardPositionSlot.GetAll(player_id))
+            foreach (CardPositionSlot slot in GetFieldSlots())
             {
                 Card slot_card = GetSlotCard(slot);
                 if (slot_card != null)

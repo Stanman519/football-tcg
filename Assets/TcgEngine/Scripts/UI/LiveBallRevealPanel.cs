@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -136,7 +136,7 @@ namespace TcgEngine.UI
 
             if (card == null || card.Data == null)
             {
-                nameTmp.text = "PASS";
+                nameTmp.text = "NO CARD";
                 nameTmp.color = COL_DIM_WHITE;
                 abilityTmp.text = "No card played";
                 abilityTmp.color = COL_DIM_WHITE;

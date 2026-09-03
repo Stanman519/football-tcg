@@ -339,9 +339,12 @@ namespace TcgEngine.Server
             Player player = GetPlayer(iclient);
             if (player == null || msg == null)
                 return;
+            if (!game_data.IsPlayerActionTurn(player) || gameplay.IsResolving())
+                return;
 
+            // Ownership: only resolve enhancer from the sender's own cards
             Card enhancer = !string.IsNullOrEmpty(msg.enhancerUid)
-                ? game_data.GetCard(msg.enhancerUid)
+                ? player.GetCard(msg.enhancerUid)
                 : null;
             gameplay.SelectPlay(player, msg.selectedPlay, enhancer);
         }

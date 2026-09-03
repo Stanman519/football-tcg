@@ -170,16 +170,45 @@ namespace TcgEngine.Client
 
         public bool IsPhaseEligible()
         {
-            Game g = GameClient.Get()?.GetGameData();
+            return GetPlayError() == CardPlayError.None;
+        }
+
+        /// <summary>
+        /// Client-side mirror of Game.GetCardPlayError. Player cards are checked against
+        /// any open slot for their position; enhancers ignore the play call until one is picked.
+        /// </summary>
+        public CardPlayError GetPlayError()
+        {
+            GameClient client = GameClient.Get();
+            Game g = client?.GetGameData();
             Card card = GetCard();
-            if (g == null || card?.CardData == null) return false;
-            switch (g.phase)
+            if (g == null || card?.CardData == null) return CardPlayError.NullCard;
+
+            if (card.CardData.IsPlayer())
             {
-                case GamePhase.ChoosePlayers: return card.CardData.IsPlayer();
-                case GamePhase.ChoosePlay:    return card.CardData.IsPlayEnhancer();
-                case GamePhase.LiveBall:      return card.CardData.IsLiveBall();
-                default:                      return false;
+                Player p = g.GetPlayer(card.player_id);
+                if (p == null) return CardPlayError.NoPlayer;
+                var open = p.GetEmptySlotsForPosition(card.CardData.playerPosition);
+                if (open.Count == 0)
+                {
+                    // Distinguish "wrong phase/side" from "no slot" for feedback
+                    CardPlayError baseErr = g.GetCardPlayError(card, CardPositionSlot.None);
+                    return baseErr == CardPlayError.InvalidSlot ? CardPlayError.PositionFull : baseErr;
+                }
+                return g.GetCardPlayError(card, open[0]);
             }
+
+            if (card.CardData.IsPlayEnhancer())
+            {
+                Player p = g.GetPlayer(card.player_id);
+                PlayType? play = (p != null && p.SelectedPlay != PlayType.Huddle) ? p.SelectedPlay : (PlayType?)null;
+                CardPlayError err = g.GetCardPlayError(card, CardPositionSlot.None, play);
+                // No play picked yet: don't grey out for play mismatch
+                if (err == CardPlayError.PlayMismatch && play == null) return CardPlayError.None;
+                return err;
+            }
+
+            return g.GetCardPlayError(card, CardPositionSlot.None);
         }
 
         public bool IsFocus()

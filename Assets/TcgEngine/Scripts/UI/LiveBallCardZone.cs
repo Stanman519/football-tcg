@@ -1,3 +1,4 @@
+using TcgEngine.UI;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -162,6 +163,14 @@ public class LiveBallCardZone : MonoBehaviour, IDropHandler
 
         Card card = handCard.GetCard();
         if (card == null || !card.CardData.IsLiveBall()) return;
+
+        CardPlayError err = g.GetCardPlayError(card, CardPositionSlot.None);
+        if (err != CardPlayError.None)
+        {
+            StatChangePopup.Instance?.ShowCustom(handCard.transform.position, Game.GetCardPlayErrorText(err), Color.red);
+            handCard.EndDrag();
+            return;
+        }
 
         client.PlayCard(card, new CardPositionSlot());
         ConfirmReady(client, player, g);

@@ -33,6 +33,8 @@ namespace TcgEngine.AI
             // Don't start a new turn if already playing, or if we're not in a relevant phase
             if (is_playing)
                 return;
+            if (!CanPlay())
+                return;
 
             // Only start if in a relevant action phase AND player is not yet ready
             if (relevantPhases.Contains(game_data.phase))
@@ -102,6 +104,10 @@ namespace TcgEngine.AI
                 }
                 ai_logic.ClearMemory();
             }
+
+            // Don't ready while resolve queue is busy (ExecuteAction may have been skipped)
+            while (gameplay.IsResolving())
+                yield return new WaitForSeconds(0.1f);
 
             // Signal ready through the canonical path (advances phase if both ready)
             game_data = gameplay.GetGameData();
@@ -213,7 +219,7 @@ namespace TcgEngine.AI
             Game game_data = gameplay.GetGameData();
             Player player = game_data.GetPlayer(player_id);
             Card enhancer = !string.IsNullOrEmpty(play_enhancer_card_uid)
-                ? game_data.GetCard(play_enhancer_card_uid)
+                ? player.GetCard(play_enhancer_card_uid)
                 : null;
             gameplay.SelectPlay(player, playType, enhancer);
         }

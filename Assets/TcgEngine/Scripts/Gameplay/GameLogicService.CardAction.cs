@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using TcgEngine;
 using TcgEngine.Client;
@@ -21,8 +21,23 @@ namespace TcgEngine.Gameplay
                 return;
 
             player.SelectedPlay = playType;
+
+            // Defense's call doubles as its coverage guess (drives reveal UI + guess stats)
+            if (game_data.current_offensive_player == null || player.player_id != game_data.current_offensive_player.player_id)
+                game_data.SetDefenseGuess(playType);
+
+            // Enhancer goes through the normal PlayCard path: validated, removed from hand, discarded.
+            // Illegal enhancer is dropped but the play selection stands.
             if (enhancer != null)
-                player.PlayEnhancer = enhancer;
+            {
+                CardPlayError err = enhancer.player_id != player.player_id
+                    ? CardPlayError.NotInHand
+                    : game_data.GetCardPlayError(enhancer, CardPositionSlot.None);
+                if (err == CardPlayError.None)
+                    PlayCard(enhancer, CardPositionSlot.None);
+                else
+                    Debug.LogWarning($"[SelectPlay] P{player.player_id} enhancer {enhancer.card_id} rejected: {err}");
+            }
 
             RefreshData();
 

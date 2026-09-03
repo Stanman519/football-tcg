@@ -1,4 +1,4 @@
-using TcgEngine.Gameplay;
+﻿using TcgEngine.Gameplay;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -95,6 +95,10 @@ namespace TcgEngine.AI
                 for (int i = 0; i < 3; i++)
                 {
                     yield return new WaitForSeconds(0.3f);
+                    while (gameplay.IsResolving())
+                        yield return new WaitForSeconds(0.1f);
+                    if (gameplay.GetGameData().phase != GamePhase.ChoosePlayers)
+                        break;
                     PlayRandomPlayerCard(player, isOffense);
                 }
             }
@@ -107,7 +111,10 @@ namespace TcgEngine.AI
                 // Optionally play a random enhancer
                 Card enh = null;
                 CardType enhType = isOffense ? CardType.OffensivePlayEnhancer : CardType.DefensivePlayEnhancer;
-                var enhancers = player.cards_hand.Where(c => c.Data.type == enhType).ToList();
+                var enhancers = player.cards_hand
+                    .Where(c => c.Data.type == enhType
+                             && game_data.GetCardPlayError(c, CardPositionSlot.None, play) == CardPlayError.None)
+                    .ToList();
                 if (enhancers.Count > 0 && rand.Next(2) == 0) // 50% chance to use enhancer
                     enh = enhancers[rand.Next(enhancers.Count)];
 
@@ -126,6 +133,12 @@ namespace TcgEngine.AI
                     Card card = liveCards[rand.Next(liveCards.Count)];
                     gameplay.PlayCard(card, CardPositionSlot.None);
                 }
+                else
+                {
+                    int held = player.cards_hand.Count(c => c.Data.type == liveType);
+                    if (held > 0)
+                        Debug.Log($"[AI] P{player_id} holds {held} live-ball card(s) but none playable (slot reqs / side)");
+                }
             }
 
             yield return new WaitForSeconds(0.3f);
@@ -141,7 +154,6 @@ namespace TcgEngine.AI
 
         private void PlayRandomPlayerCard(Player player, bool isOffense)
         {
-            if (!CanPlay()) return;
             Game game_data = gameplay.GetGameData();
 
             var playerCards = player.cards_hand
@@ -158,10 +170,8 @@ namespace TcgEngine.AI
 
             Card card = playerCards[rand.Next(playerCards.Count)];
 
-            // Find a valid slot
-            var slots = CardPositionSlot.GetAll(player.player_id)
-                .Where(s => s.posGroupType == card.CardData.playerPosition)
-                .ToList();
+            // Find a valid slot (from coach scheme; CardPositionSlot.GetAll registry is never populated)
+            var slots = player.GetEmptySlotsForPosition(card.CardData.playerPosition);
             foreach (var slot in slots)
             {
                 if (game_data.CanPlayCard(card, slot))

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.EventSystems;
 using System.Collections.Generic;
 using TcgEngine.Client;
@@ -25,8 +25,9 @@ public class CardDragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, I
             Player current_player = game.GetPlayer(GameClient.Get().GetPlayerID());
             bool is_offensive_player = (current_player.player_id == game.current_offensive_player.player_id);
             
-            bool card_is_offensive = System.Array.Exists(game.offensive_pos_grps, pos => pos == cardComp.Data.playerPosition);
-            bool card_is_defensive = System.Array.Exists(game.defensive_pos_grps, pos => pos == cardComp.Data.playerPosition);
+            // Side from CardType (enhancers/live-ball cards have playerPosition NONE)
+            bool card_is_offensive = Game.IsOffenseCardType(cardComp.Data.type);
+            bool card_is_defensive = Game.IsDefenseCardType(cardComp.Data.type);
             
             // If card type doesn't match player role, don't allow drag
             if (is_offensive_player && card_is_defensive)
@@ -45,10 +46,16 @@ public class CardDragHandler : MonoBehaviour, IBeginDragHandler, IDragHandler, I
 
         // Block drag if card isn't eligible for current phase
         HandCard hc = draggingCard?.GetComponent<HandCard>();
-        if (hc != null && !hc.IsPhaseEligible())
+        if (hc != null)
         {
-            draggingCard = null;
-            return;
+            CardPlayError err = hc.GetPlayError();
+            if (err != CardPlayError.None)
+            {
+                Debug.Log($"[DragDrop] {hc.GetCard()?.card_id} not draggable: {err}");
+                StatChangePopup.Instance?.ShowCustom(hc.transform.position, Game.GetCardPlayErrorText(err), Color.red);
+                draggingCard = null;
+                return;
+            }
         }
 
         // Mark HandCard as dragging so IsDrag() stays true while event is active

@@ -68,6 +68,13 @@ namespace TcgEngine.UI
                     handCard.EndDrag();
                     return;
                 }
+                CardPlayError err = g.GetCardPlayError(card, CardPositionSlot.None);
+                if (err != CardPlayError.None)
+                {
+                    StatChangePopup.Instance?.ShowCustom(handCard.transform.position, Game.GetCardPlayErrorText(err), Color.red);
+                    handCard.EndDrag();
+                    return;
+                }
                 GameClient.Get().PlayCard(card, new CardPositionSlot());
                 player.SetReadyForPhase(g.phase, true);
                 GameClient.Get().SendAction(GameAction.PlayerReadyPhase);

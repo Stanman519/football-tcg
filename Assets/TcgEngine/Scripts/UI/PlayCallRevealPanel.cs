@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -112,7 +112,7 @@ namespace TcgEngine.UI
             Player defP = localIsOffense ? opponentPlayer : localPlayer;
 
             PlayType offPlay = offP?.SelectedPlay ?? PlayType.Huddle;
-            PlayType defGuess = g.defense_guess;
+            PlayType defGuess = defP?.SelectedPlay ?? g.defense_guess;
             bool guessCorrect = defGuess == offPlay && defGuess != PlayType.Huddle;
 
             Card localEnhancer = localPlayer?.PlayEnhancer;

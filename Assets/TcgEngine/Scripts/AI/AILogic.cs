@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
 using UnityEngine.Profiling;
@@ -347,9 +347,11 @@ namespace TcgEngine.AI
             {
                 if (card.CardData.IsPlayer())
                 {
-                    var slotsForPosition = slot_array.Get()
-                        .Where(s => s.posGroupType == card.CardData.playerPosition).ToList();
-                    CardPositionSlot slot = player.GetRandomEmptySlotForPosition(random_gen, slotsForPosition);
+                    // Slot ids come from the coach scheme (CardPositionSlot.GetAll registry is never populated)
+                    var slotsForPosition = player.GetEmptySlotsForPosition(card.CardData.playerPosition);
+                    if (slotsForPosition.Count == 0)
+                        return;
+                    CardPositionSlot slot = slotsForPosition[random_gen.Next(0, slotsForPosition.Count)];
 
                     if (data.CanPlayCard(card, slot))
                     {
@@ -379,26 +381,15 @@ namespace TcgEngine.AI
                 }
                 else
                 {
-                    // Enhancer — generate one action per required play
-                    if (card.Data.required_plays != null && card.Data.required_plays.Length > 0)
+                    // Enhancer — one action per play it's legal with (side/phase/slot-reqs/one-per-turn via engine)
+                    PlayType[] validPlays = { PlayType.Run, PlayType.ShortPass, PlayType.LongPass };
+                    foreach (var play in validPlays)
                     {
-                        foreach (var play in card.Data.required_plays)
-                        {
-                            AIAction action = CreateAction(type, card);
-                            action.selectedPlay = play;
-                            actions.Add(action);
-                        }
-                    }
-                    else
-                    {
-                        // Enhancer with no play restriction — pair with each play type
-                        PlayType[] validPlays = { PlayType.Run, PlayType.ShortPass, PlayType.LongPass };
-                        foreach (var play in validPlays)
-                        {
-                            AIAction action = CreateAction(type, card);
-                            action.selectedPlay = play;
-                            actions.Add(action);
-                        }
+                        if (data.GetCardPlayError(card, CardPositionSlot.None, play) != CardPlayError.None)
+                            continue;
+                        AIAction action = CreateAction(type, card);
+                        action.selectedPlay = play;
+                        actions.Add(action);
                     }
                 }
             }
@@ -561,8 +552,11 @@ namespace TcgEngine.AI
 
             if (action.type == GameAction.SelectPlay)
             {
+                // Mirror GameLogicService.SelectPlay: play first, then enhancer via PlayCard (validated + discarded)
                 player.SelectedPlay = action.selectedPlay;
-                player.PlayEnhancer = action.card_uid != null ? player.GetHandCard(action.card_uid) : null;
+                Card enh = action.card_uid != null ? player.GetHandCard(action.card_uid) : null;
+                if (enh != null && data.CanPlayCard(enh, CardPositionSlot.None))
+                    game_logic.PlayCard(enh, CardPositionSlot.None);
             }
 
             if (action.type == GameAction.EndTurn)

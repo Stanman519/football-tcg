@@ -17,6 +17,26 @@ namespace TcgEngine.Gameplay
         LongPass
     }
 
+    /// <summary>Why a card can't be played right now. None = playable.</summary>
+    public enum CardPlayError
+    {
+        None = 0,
+        NullCard,
+        NoPlayer,
+        NoOffense,
+        UnsupportedType,
+        WrongPhase,
+        WrongSide,
+        NotInHand,
+        SuitUsed,
+        PositionFull,
+        InvalidSlot,
+        SlotOccupied,
+        AlreadyPlayedOne,
+        PlayMismatch,
+        SlotRequirements,
+    }
+
     /// <summary>
     /// Result of a play for ability triggers
     /// </summary>
@@ -421,112 +441,145 @@ namespace TcgEngine.Gameplay
         //Check if a card is allowed to be played on slot
         public virtual bool CanPlayCard(Card card, CardPositionSlot slot, bool skip_cost = false)
         {
-            if (card == null) 
-                return false;
+            return GetCardPlayError(card, slot) == CardPlayError.None;
+        }
+
+        /// <summary>
+        /// True if this CardType belongs to the offense side of the ball. Enhancers/live-ball cards
+        /// have playerPosition NONE, so the side must come from CardType, not position group.
+        /// </summary>
+        public static bool IsOffenseCardType(CardType t)
+        {
+            return t == CardType.OffensivePlayer || t == CardType.OffensivePlayEnhancer || t == CardType.OffLiveBall;
+        }
+
+        public static bool IsDefenseCardType(CardType t)
+        {
+            return t == CardType.DefensivePlayer || t == CardType.DefensivePlayEnhancer || t == CardType.DefLiveBall;
+        }
+
+        /// <summary>
+        /// Single source of truth for card eligibility. Used by CanPlayCard (server), AI action generation,
+        /// and client-side glow/drag feedback. `playOverride` lets callers test an enhancer against a play
+        /// the player hasn't committed to yet (AI candidate generation, client hover).
+        /// </summary>
+        public virtual CardPlayError GetCardPlayError(Card card, CardPositionSlot slot, PlayType? playOverride = null)
+        {
+            if (card == null || card.CardData == null)
+                return CardPlayError.NullCard;
 
             Player player = GetPlayer(card.player_id);
             if (player == null)
-                return false;
+                return CardPlayError.NoPlayer;
 
-            // Phase-based card type restrictions
-            CardType cardType = card.CardData.type;
-            if (card.CardData.IsPlayer() && phase != GamePhase.ChoosePlayers)
-                return false;
+            CardData data = card.CardData;
+            CardType cardType = data.type;
 
-            // Suit restriction: only one player card per suit per turn
-            if (card.CardData.IsPlayer())
+            // Only football card types participate in the play loop
+            if (!IsOffenseCardType(cardType) && !IsDefenseCardType(cardType))
+                return CardPlayError.UnsupportedType;
+
+            // Phase lock per CardType
+            if (data.IsPlayer() && phase != GamePhase.ChoosePlayers)
+                return CardPlayError.WrongPhase;
+            if (data.IsPlayEnhancer() && phase != GamePhase.ChoosePlay)
+                return CardPlayError.WrongPhase;
+            if (data.IsLiveBall() && phase != GamePhase.LiveBall)
+                return CardPlayError.WrongPhase;
+
+            // Side of ball, from CardType
+            if (current_offensive_player == null)
+                return CardPlayError.NoOffense;
+            bool is_player_offensive = player.player_id == current_offensive_player.player_id;
+            if (is_player_offensive && IsDefenseCardType(cardType))
+                return CardPlayError.WrongSide;
+            if (!is_player_offensive && IsOffenseCardType(cardType))
+                return CardPlayError.WrongSide;
+
+            // Secondary side check via position group (catches mis-tagged assets)
+            PlayerPositionGrp pos = data.playerPosition;
+            if (pos != PlayerPositionGrp.NONE)
             {
-                CardSuit suit = card.CardData.suit;
+                if (is_player_offensive && defensive_pos_grps.Contains(pos))
+                    return CardPlayError.WrongSide;
+                if (!is_player_offensive && offensive_pos_grps.Contains(pos))
+                    return CardPlayError.WrongSide;
+            }
+
+            // Must own the card in hand or sideline
+            if (!player.HasCard(player.cards_hand, card) && !player.HasCard(player.cards_sideline, card))
+                return CardPlayError.NotInHand;
+
+            if (data.IsPlayer())
+            {
+                CardSuit suit = data.suit;
                 if (suit != CardSuit.None && player.suits_played_this_turn.Contains(suit))
-                    return false;
+                    return CardPlayError.SuitUsed;
+
+                if (pos == PlayerPositionGrp.NONE)
+                    return CardPlayError.InvalidSlot;
+
+                // Positional max from head coach scheme (skip if scheme missing the group)
+                var scheme = player.head_coach?.positional_Scheme;
+                if (scheme != null && scheme.TryGetValue(pos, out HCPlayerSchemeData schemeData))
+                {
+                    int onField = player.cards_board.Count(cd => cd.CardData != null && cd.CardData.playerPosition == pos);
+                    if (onField >= schemeData.pos_max)
+                        return CardPlayError.PositionFull;
+                }
+
+                if (!slot.IsValid() || slot.posGroupType != pos)
+                    return CardPlayError.InvalidSlot;
+                if (CardPositionSlot.GetP(card.player_id) != slot.p)
+                    return CardPlayError.InvalidSlot;
+                if (IsCardOnSlot(slot))
+                    return CardPlayError.SlotOccupied;
+                return CardPlayError.None;
             }
-            if (card.CardData.IsPlayEnhancer())
+
+            if (data.IsPlayEnhancer())
             {
-                if (phase != GamePhase.ChoosePlay)
-                    return false;
                 if (player.PlayEnhancer != null)
-                    return false; // Already played one enhancer this turn
-                if (card.CardData.required_plays != null && card.CardData.required_plays.Length > 0
-                    && System.Array.IndexOf(card.CardData.required_plays, player.SelectedPlay) < 0)
-                    return false; // Play type doesn't match enhancer requirement
-                if (!card.CardData.AreSlotRequirementsMet(current_slot_data))
-                    return false; // Slot icons don't meet the play cost
+                    return CardPlayError.AlreadyPlayedOne;
+                PlayType play = playOverride ?? player.SelectedPlay;
+                if (data.required_plays != null && data.required_plays.Length > 0
+                    && System.Array.IndexOf(data.required_plays, play) < 0)
+                    return CardPlayError.PlayMismatch;
+                if (!data.AreSlotRequirementsMet(current_slot_data))
+                    return CardPlayError.SlotRequirements;
+                return CardPlayError.None;
             }
-            if ((cardType == CardType.OffLiveBall || cardType == CardType.DefLiveBall) && phase != GamePhase.LiveBall)
-                return false;
-            if (card.CardData.IsLiveBall())
+
+            if (data.IsLiveBall())
             {
                 if (player.LiveBallCard != null)
-                    return false; // Already played a live ball card this turn
-                if (!card.CardData.AreSlotRequirementsMet(current_slot_data))
-                    return false; // Slot icons don't meet the play cost
+                    return CardPlayError.AlreadyPlayedOne;
+                if (!data.AreSlotRequirementsMet(current_slot_data))
+                    return CardPlayError.SlotRequirements;
+                return CardPlayError.None;
             }
 
-            // Check if player is trying to play a card for the wrong side of the ball
-            bool is_player_offensive = (player.player_id == current_offensive_player.player_id);
-            bool is_offensive_card = card.CardData.playerPosition != PlayerPositionGrp.NONE && 
-                                      offensive_pos_grps.Contains(card.CardData.playerPosition);
-            bool is_defensive_card = card.CardData.playerPosition != PlayerPositionGrp.NONE && 
-                                      defensive_pos_grps.Contains(card.CardData.playerPosition);
+            return CardPlayError.UnsupportedType;
+        }
 
-            // If player is on offense, they can't play defensive cards
-            if (is_player_offensive && is_defensive_card)
+        public static string GetCardPlayErrorText(CardPlayError err)
+        {
+            switch (err)
             {
-                Debug.LogWarning($"Offensive player tried to play defensive card: {card.card_id}");
-                return false;
+                case CardPlayError.None: return "";
+                case CardPlayError.WrongPhase: return "Not this phase";
+                case CardPlayError.WrongSide: return "Wrong side of ball";
+                case CardPlayError.SuitUsed: return "Suit already played";
+                case CardPlayError.AlreadyPlayedOne: return "Already played one";
+                case CardPlayError.PlayMismatch: return "Doesn't match play call";
+                case CardPlayError.SlotRequirements: return "Slot icons not met";
+                case CardPlayError.PositionFull: return "Position full";
+                case CardPlayError.SlotOccupied: return "Slot occupied";
+                case CardPlayError.InvalidSlot: return "Invalid slot";
+                case CardPlayError.NotInHand: return "Not in hand";
+                case CardPlayError.UnsupportedType: return "Unplayable card type";
+                default: return err.ToString();
             }
-
-            // If player is on defense, they can't play offensive cards
-            if (!is_player_offensive && is_offensive_card)
-            {
-                Debug.LogWarning($"Defensive player tried to play offensive card: {card.card_id}");
-                return false;
-            }
-
-            if (card.CardData.playerPosition != PlayerPositionGrp.NONE // is a player card and slot is maxed out for position OR is incorrect slot type
-                    && (slot.posGroupType != card.CardData.playerPosition
-                    ||
-                    player.cards_board
-                        .Where(cd => cd.CardData.playerPosition == card.CardData.playerPosition).Count() == player.head_coach.positional_Scheme[card.CardData.playerPosition].pos_max))
-            {
-                    return false;
-            }
-            if (!player.HasCard(player.cards_hand, card) && !player.HasCard(player.cards_sideline, card))
-                return false; // Card not in hand or on sideline
-
-
-
-
-            if (card.CardData.IsBoardCard())
-            {
-                if (!slot.IsValid() || IsCardOnSlot(slot))
-                    return false;   //Slot already occupied
-                if (CardPositionSlot.GetP(card.player_id) != slot.p)
-                    return false; //Cant play on opponent side
-                return true;
-            }
-
-            if (card.CardData.IsEquipment())
-            {
-                //TODO: removed to get it to work
-/*                if (!slot.IsValid())
-                    return false;
-
-                List<Card> targets = GetSlotCards(slot);
-                if (target == null || target.CardData.type != CardType.Character || target.player_id != card.player_id)
-                    return false; //Target must be an allied character
-
-                return true;*/
-            }
-            if (card.CardData.IsRequireTargetSpell())
-            {
-                return IsPlayTargetValid(card, slot); //Check play target on slot
-            }
-            if (card.CardData.type == CardType.DefensivePlayer)
-            {
-                return CanAnyPlayAbilityTrigger(card); //Check if spell will have abilities
-            }
-            return true;
         }
 
         //Check if a card is allowed to move to slot
@@ -970,6 +1023,7 @@ namespace TcgEngine.Gameplay
             dest.current_half = source.current_half;
             dest.play_count_this_drive = source.play_count_this_drive;
             dest.after_field_goal = source.after_field_goal;
+            dest.defense_guess = source.defense_guess;
 
             if (dest.players == null)
             {

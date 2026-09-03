@@ -366,6 +366,30 @@ Wild only appears on the center reel.
 
 ---
 
+## 10b. CARD ELIGIBILITY MATRIX (single source of truth: `Game.GetCardPlayError`)
+
+`Game.CanPlayCard` == `GetCardPlayError(card, slot) == CardPlayError.None`. AI action generation, `HandCard` glow/drag, drop zones and `SelectPlay` all call the same helper. Side of ball comes from **CardType** (enhancers/live-ball have `playerPosition = NONE`).
+
+| CardType | Phase | Side | Extra rules |
+|---|---|---|---|
+| OffensivePlayer (10) | ChoosePlayers | offense | suit once/turn, slot posGroup match, slot empty, coach `pos_max` |
+| DefensivePlayer (20) | ChoosePlayers | defense | same as above |
+| OffensivePlayEnhancer (60) | ChoosePlay | offense | 1/turn, `required_plays` ∋ SelectedPlay, slot icons met |
+| DefensivePlayEnhancer (70) | ChoosePlay | defense | same |
+| OffLiveBall (80) | LiveBall | offense | 1/turn, slot icons met |
+| DefLiveBall (90) | LiveBall | defense | same |
+| Hero/Artifact/Secret/Equipment | never | — | `UnsupportedType` (template leftovers) |
+
+Notes:
+- `PlayType.Huddle` is the "not selected yet" sentinel, never a callable play. AI only picks Run/ShortPass/LongPass.
+- Defense's play call == its coverage guess. `SelectPlay` writes `Game.defense_guess` for the defender; reset to Huddle in `StartTurn`.
+- Enhancers are submitted via `SelectPlay(player, play, enhancer)` → validated + `PlayCard` → discard. Illegal enhancer is dropped, play stands.
+- Field slots are enumerated from the coach scheme via `Player.GetFieldSlots()` / `GetEmptySlotsForPosition()`. `CardPositionSlot.GetAll()` is a dead registry.
+- `LiveBallRevealPanel` shows "NO CARD" when a side played nothing (was "PASS", confusable with a pass play).
+- Tests: `Assets/TcgEngine/Tests/Editor/CardEligibilityTests.cs`.
+
+---
+
 ## 11. ENUMS QUICK REFERENCE
 
 ```
@@ -376,8 +400,7 @@ GamePhase:      None=0, Mulligan=5, StartTurn=10, ChoosePlayers=11, RevealPlayer
                 ChoosePlay=13, RevealPlayCalls=14, SlotSpin=15, Resolution=20,
                 LiveBall=30, EndTurn=40
 
-PlayerPositionGrp: NONE=0, QB=1, RB_TE=2, WR=3, OL=5, DL=10, LB=11, DB=12, K=20, P=2
-                   WARNING: P and RB_TE both = 2 (enum conflict!)
+PlayerPositionGrp: NONE=0, QB=1, RB_TE=2, WR=3, OL=5, DL=10, LB=11, DB=12, K=20, P=21
 
 FailPlayEventType: None=0, TackleForLoss=1, Sack=2, QBFumble=3, BattedPass=4,
                    TippedPass=5, Interception=6, IncompletePass=7, RunnerFumble=8

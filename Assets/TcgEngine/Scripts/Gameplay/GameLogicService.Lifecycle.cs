@@ -1,4 +1,4 @@
-using TcgEngine.Effects;
+﻿using TcgEngine.Effects;
 using System.Collections.Generic;
 using System.Linq;
 using TcgEngine;
@@ -98,6 +98,8 @@ namespace TcgEngine.Gameplay
                 player.suits_played_this_turn.Clear();
                 player.coachManager?.ResetTurnState();
             }
+
+            game_data.SetDefenseGuess(PlayType.Huddle);
 
             // ALSO reset the shared readiness dictionary used by the server
             game_data.ResetPhaseReady();
