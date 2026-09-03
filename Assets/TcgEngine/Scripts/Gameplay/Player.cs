@@ -52,6 +52,16 @@ namespace TcgEngine.Gameplay
         {
             readyForPhase[phase] = isReady;
         }
+
+        /// <summary>
+        /// Copy phase-ready state from another player (readyForPhase is private, needed by Clone)
+        /// </summary>
+        public void CopyReadyFrom(Player source)
+        {
+            readyForPhase.Clear();
+            foreach (var kvp in source.readyForPhase)
+                readyForPhase[kvp.Key] = kvp.Value;
+        }
         public string coach_card_id = "";   // Resource path fragment under "Coaches/"
         public PlayType SelectedPlay;
         public Card PlayEnhancer;
@@ -670,6 +680,8 @@ namespace TcgEngine.Gameplay
 
             dest.suits_played_this_turn.Clear();
             dest.suits_played_this_turn.AddRange(source.suits_played_this_turn);
+
+            dest.CopyReadyFrom(source);
         }
 
         //------ Grit & Stamina ------

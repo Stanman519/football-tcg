@@ -330,16 +330,7 @@ namespace TcgEngine.Server
         {
             Player player = GetPlayer(iclient);
             if (player != null && !gameplay.IsResolving())
-            {
-                game_data.playerPhaseReady[player.player_id] = true;
-                RefreshAll();
-
-                if (game_data.AreAllPlayersPhaseReady())
-                {
-                    game_data.ResetPhaseReady();
-                    gameplay.NextStep();
-                }
-            }
+                gameplay.SetPlayerReadyPhase(player);
         }
 
         public void ReceiveSelectPlay(ClientData iclient, SerializedData sdata)

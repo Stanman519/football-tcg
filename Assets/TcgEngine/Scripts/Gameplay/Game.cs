@@ -152,22 +152,6 @@ namespace TcgEngine.Gameplay
                    playerPhaseReady[0] && playerPhaseReady[1];
         }
 
-        /// <summary>
-        /// Set a player's ready status
-        /// </summary>
-        public void SetPlayerReady(int playerId, bool ready)
-        {
-            playerPhaseReady[playerId] = ready;
-        }
-
-        /// <summary>
-        /// Clear all player ready states (for new phase)
-        /// </summary>
-        public void ClearPlayerReady()
-        {
-            playerPhaseReady.Clear();
-        }
-
         //SlotMaching
         public SlotMachineResultDTO current_slot_data;
         public List<SlotHistory> slot_history;
@@ -956,23 +940,6 @@ namespace TcgEngine.Gameplay
             return raw_ball_on <= 0;
         }
 
-        //public bool AreAllPlayersPhaseReady()
-        //{
-        //    foreach (Player p in players)
-        //    {
-        //        if (!playerPhaseReady.TryGetValue(p.player_id, out bool ready) || !ready)
-        //            return false;
-        //    }
-        //    return true;
-        //}
-
-/*        public void ResetPhaseReady()
-        {
-            foreach (Player p in players)
-            {
-                playerPhaseReady[p.player_id] = false;
-            }
-        }*/
         public bool AllPlayersReadyForPlay()
         {
             return players[0].SelectedPlay != PlayType.Huddle && players[1].SelectedPlay != PlayType.Huddle;
@@ -1181,17 +1148,6 @@ namespace TcgEngine.Gameplay
         public bool HasRespin(int playerId)
         {
             return respin_available.ContainsKey(playerId) && respin_available[playerId] > 0;
-        }
-
-        /// <summary>
-        /// Set player ready for current phase
-        /// </summary>
-        public void SetPhaseReady(int playerId, bool ready)
-        {
-            if (players != null && players.Length >= 2)
-            {
-                playerPhaseReady[playerId] = ready;
-            }
         }
 
         /// <summary>

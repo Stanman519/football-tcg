@@ -103,16 +103,15 @@ namespace TcgEngine.AI
                 ai_logic.ClearMemory();
             }
 
-            // Signal ready after all actions
+            // Signal ready through the canonical path (advances phase if both ready)
             game_data = gameplay.GetGameData();
-            if (startPhase == GamePhase.ChoosePlayers || startPhase == GamePhase.ChoosePlay || startPhase == GamePhase.LiveBall)
+            if (game_data.phase == startPhase)
             {
                 Player player = game_data.GetPlayer(player_id);
-                if (player != null && !player.IsReadyForPhase(startPhase))
+                if (player != null)
                 {
-                    player.SetReadyForPhase(startPhase, true);
-                    game_data.playerPhaseReady[player_id] = true;
                     Debug.Log($"AI Player {player_id} ready for {startPhase}");
+                    gameplay.SetPlayerReadyPhase(player);
                 }
             }
 
@@ -300,7 +299,7 @@ namespace TcgEngine.AI
         private void PlayerReadyPhase()
         {
             Game game_data = gameplay.GetGameData();
-            game_data.SetPlayerReady(player_id, true);
+            gameplay.SetPlayerReadyPhase(game_data.GetPlayer(player_id));
         }
 
         private void Resign()

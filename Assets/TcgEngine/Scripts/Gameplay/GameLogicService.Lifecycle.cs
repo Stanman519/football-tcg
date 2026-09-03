@@ -407,9 +407,25 @@ namespace TcgEngine.Gameplay
                 StartTurn();
         }
 
-        private bool AllPlayersReadyForPhase(GamePhase phase)
+        //Canonical ready path — used by GameServer (human) and AI players. Advances phase when both ready.
+        public virtual void SetPlayerReadyPhase(Player player)
         {
-            return game_data.AreAllPlayersPhaseReady();
+            if (player == null || game_data.state == GameState.GameEnded)
+                return;
+
+            GamePhase phase = game_data.phase;
+            if (phase != GamePhase.ChoosePlayers && phase != GamePhase.ChoosePlay && phase != GamePhase.LiveBall)
+                return; //only these phases wait on ready
+
+            if (player.IsReadyForPhase(phase))
+                return;
+
+            player.SetReadyForPhase(phase, true);
+            game_data.playerPhaseReady[player.player_id] = true;
+            RefreshData();
+
+            if (game_data.AreAllPlayersPhaseReady())
+                NextStep();
         }
 
         public virtual void EndTurn()
@@ -463,6 +479,8 @@ namespace TcgEngine.Gameplay
         {
             if (game_data.state == GameState.GameEnded)
                 return;
+
+            game_data.ResetPhaseReady(); //clear ready flags on every advance so they never leak into the next phase
 
             if (game_data.phase == GamePhase.Mulligan)
             {

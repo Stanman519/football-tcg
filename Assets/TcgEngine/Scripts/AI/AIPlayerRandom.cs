@@ -102,16 +102,17 @@ namespace TcgEngine.AI
             {
                 // Pick a random play type
                 PlayType[] plays = { PlayType.Run, PlayType.ShortPass, PlayType.LongPass };
-                player.SelectedPlay = plays[rand.Next(plays.Length)];
+                PlayType play = plays[rand.Next(plays.Length)];
 
                 // Optionally play a random enhancer
+                Card enh = null;
                 CardType enhType = isOffense ? CardType.OffensivePlayEnhancer : CardType.DefensivePlayEnhancer;
                 var enhancers = player.cards_hand.Where(c => c.Data.type == enhType).ToList();
                 if (enhancers.Count > 0 && rand.Next(2) == 0) // 50% chance to use enhancer
-                {
-                    Card enh = enhancers[rand.Next(enhancers.Count)];
-                    player.PlayEnhancer = enh;
-                }
+                    enh = enhancers[rand.Next(enhancers.Count)];
+
+                // Route through gameplay so the bothSelected -> NextStep check fires
+                gameplay.SelectPlay(player, play, enh);
             }
             else if (phase == GamePhase.LiveBall)
             {
@@ -129,14 +130,11 @@ namespace TcgEngine.AI
 
             yield return new WaitForSeconds(0.3f);
 
-            // Signal ready
+            // Signal ready through the canonical path (advances phase if both ready)
             game_data = gameplay.GetGameData();
             player = game_data.GetPlayer(player_id);
-            if (!player.IsReadyForPhase(phase))
-            {
-                player.SetReadyForPhase(phase, true);
-                game_data.playerPhaseReady[player_id] = true;
-            }
+            if (game_data.phase == phase)
+                gameplay.SetPlayerReadyPhase(player);
 
             is_playing = false;
         }
