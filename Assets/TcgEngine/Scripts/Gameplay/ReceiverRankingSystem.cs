@@ -1,9 +1,17 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using TcgEngine;
 
 namespace TcgEngine.Gameplay
 {
+    /// <summary>Result of coverage resolution: who catches, and who took the top receiver away.</summary>
+    public struct CoverageResult
+    {
+        public Card receiver;            // target receiver after coverage (null = all covered)
+        public Card ctrDefender;         // CTR card that caused the shift (null = no CTR)
+        public Card coveredTopReceiver;  // the top receiver that was taken away (null = no shift)
+    }
+
     public class ReceiverRankingSystem
     {
         private readonly List<Card> _eligibleReceivers;
@@ -25,37 +33,36 @@ namespace TcgEngine.Gameplay
                     .ToList();
             }
         }
-        public Card ApplyCoverage(Game game_data)
-        {
-            // method to determine the best receiver card after applying defensive coverages with the CTR/CNR system
 
-            // if there are not CTR/CNRs just return the top receiver card iguess
+        public CoverageResult ApplyCoverage(Game game_data)
+        {
+            // Determine the best receiver card after applying defensive coverages (CTR/CNR system)
             var coverageDawgs = game_data.GetCurrentDefensivePlayer()
                 .cards_board
                 .Where(c => c.HasAbility(AbilityTrigger.CoverNextReceiver) || c.HasAbility(AbilityTrigger.CoverTopReceiver));
 
-            //TODO: this needs to also return the defensive player
-
-
             if (!coverageDawgs.Any(c => c.HasAbility(AbilityTrigger.CoverTopReceiver)))
-                return _eligibleReceivers.FirstOrDefault();
+                return new CoverageResult { receiver = _eligibleReceivers.FirstOrDefault() };
 
             var orderedCoverage = coverageDawgs.OrderBy(c => c.HasAbility(AbilityTrigger.CoverTopReceiver) ? 0 : 1);
 
-            // i guess we dont even really need to order it? as long as there is 1 CTR...
-            // then the length of the covering players is how many bonuses you remove from the beginning of the list of receivers
-
+            // Length of the covering group = how many top receivers get nullified
             var topReceiversNullifiedNumber = orderedCoverage.Count();
+            Card ctr = orderedCoverage.First();
+            Card coveredTop = _eligibleReceivers.FirstOrDefault();
 
             if (topReceiversNullifiedNumber > _eligibleReceivers.Count - 1)
             {
-                return null;
+                // Everyone covered — no eligible receiver
+                return new CoverageResult { receiver = null, ctrDefender = ctr, coveredTopReceiver = coveredTop };
             }
-            return _eligibleReceivers[topReceiversNullifiedNumber]; //take the next best receiver.
-           
+
+            return new CoverageResult
+            {
+                receiver = _eligibleReceivers[topReceiversNullifiedNumber], // next best receiver
+                ctrDefender = ctr,
+                coveredTopReceiver = coveredTop,
+            };
         }
-
-
     }
-
 }

@@ -651,13 +651,18 @@ public class PlayAnimationController : MonoBehaviour
         Vector3 carrierLocal = targetSlot.transform.localPosition;
         float maxDur = 0f;
 
+        // Credited tackler goes all the way to the carrier; the rest close 60%
+        Game g = GameClient.Get()?.GetGameData();
+        BoardSlot tacklerSlot = FindSlotForCardUid(defPlayer, g?.tackler_uid);
+
         foreach (var grp in defGroups)
         {
             var slots = fieldSlotMgr.GetSlotsForPosition(grp, defPlayer.player_id);
             foreach (BoardSlot slot in slots)
             {
                 Vector3 current = slot.transform.localPosition;
-                Vector3 trackPos = Vector3.Lerp(current, carrierLocal, 0.6f);
+                float closeFraction = slot == tacklerSlot ? 1f : 0.6f;
+                Vector3 trackPos = Vector3.Lerp(current, carrierLocal, closeFraction);
                 float dist = Vector3.Distance(current, trackPos);
                 float dur = PlayerSpeed.Duration(dist, SpeedTier.Sprint);
                 if (dur > maxDur) maxDur = dur;

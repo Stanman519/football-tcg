@@ -223,6 +223,7 @@
     <Compile Include="Assets\TcgEngine\Scripts\FX\AimTargetFX.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\GameClient\BallSpriteSheet.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Gameplay\ReceiverRankingSystem.cs" />
+    <Compile Include="Assets\TcgEngine\Scripts\Gameplay\TacklerSelector.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\AI\AIPlayerMM.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\GameClient\RouteConverter.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Conditions\ConditionFieldPosition.cs" />
@@ -2057,3 +2058,4 @@
     <ProjectCapability Remove="ReferenceManagerAssemblies" />
   </ItemGroup>
 </Project>
+

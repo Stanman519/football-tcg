@@ -21,6 +21,10 @@ namespace TcgEngine.Gameplay
             game_data.last_fail_event = FailPlayEventType.None;
             game_data.interceptor_uid = null;
             game_data.fumble_recoverer_uid = null;
+            game_data.fail_event_caster_uid = null;
+            game_data.tackler_uid = null;
+            game_data.ctr_defender_uid = null;
+            game_data.ctr_covered_receiver_uid = null;
 
             // Fail events are resolved in chronological football order via
             // OrderBy(FailPlayEventType enum value), first-match-wins.
@@ -54,6 +58,9 @@ namespace TcgEngine.Gameplay
             // If yardage takes ball to end zone or safety, end play immediately
             if (game_data.raw_ball_on + playResolution.YardageGained >= 100 || game_data.raw_ball_on + playResolution.YardageGained <= 0)
                 playResolution.BallIsLive = false;
+
+            // Credit a tackler now that the full outcome is known (drives client animation)
+            game_data.tackler_uid = TacklerSelector.Choose(game_data);
 
             // Always go through Resolution phase so client fires snap + route animations
             StartPlayResolutionPhase(playResolution.BallIsLive);
@@ -132,11 +139,10 @@ namespace TcgEngine.Gameplay
                 bool incomplete = hasWrench || (playType == PlayType.LongPass && !hasFootball);
                 if (incomplete)
                 {
-                    var replQBFail = ScriptableObject.CreateInstance<AbilityData>();
-                    replQBFail.trigger = AbilityTrigger.OnPassResolution;
-                    replQBFail.failEventType = FailPlayEventType.IncompletePass;
-                    resolve_queue.AddAbility(replQBFail, null, null, null);
+                    // Direct short-circuit: AddAbility silently drops null casters, so the
+                    // queued version never fired (replacement-QB passes could never go incomplete)
                     Debug.Log($"[ReplacementQB] Pass incomplete ({(hasWrench ? "wrench" : "no football on long")}).");
+                    return HandleIncompletePass(null);
                 }
             }
             // Named QB's fail conditions (e.g. ConditionSlotIconCount(Wrench,>=1), ConditionBoardPositionCount(WR,<3))
@@ -154,7 +160,10 @@ namespace TcgEngine.Gameplay
 
             ReceiverRankingSystem rankingSystem = new ReceiverRankingSystem(availableReceivers, game_data.current_offensive_player.SelectedPlay == PlayType.LongPass);
 
-            var targetReceiver = rankingSystem.ApplyCoverage(game_data);
+            CoverageResult coverage = rankingSystem.ApplyCoverage(game_data);
+            Card targetReceiver = coverage.receiver;
+            game_data.ctr_defender_uid = coverage.ctrDefender?.uid;
+            game_data.ctr_covered_receiver_uid = coverage.coveredTopReceiver?.uid;
             var currPlayType = game_data.current_offensive_player.SelectedPlay;
             var currentPlayStatus = currPlayType == PlayType.LongPass ? StatusType.AddedDeepPassBonus : StatusType.AddedShortPassBonus;
 
@@ -218,6 +227,7 @@ namespace TcgEngine.Gameplay
                 defStatusBonuses = 0,
                 netYardage = passTotal,
                 receiverName = targetReceiver?.CardData?.title ?? "",
+                ctrDefenderName = coverage.ctrDefender?.CardData?.title ?? "",
             };
 
             // Set receiver uids for client animation
@@ -343,6 +353,7 @@ namespace TcgEngine.Gameplay
         private PlayResolution HandleTackleForLoss(AbilityQueueElement failEvent)
         {
             game_data.last_fail_event = FailPlayEventType.TackleForLoss;
+            game_data.fail_event_caster_uid = failEvent.caster?.uid;
             var casterGrit = failEvent.caster.Data.grit;
             return new PlayResolution
             {
@@ -361,6 +372,7 @@ namespace TcgEngine.Gameplay
         private PlayResolution HandleSack(AbilityQueueElement failEvent, List<AbilityQueueElement> otherEvents)
         {
             game_data.last_fail_event = FailPlayEventType.Sack;
+            game_data.fail_event_caster_uid = failEvent.caster?.uid;
             var fumble = otherEvents.FirstOrDefault(e => e.ability.failEventType == FailPlayEventType.QBFumble);
 
             if (fumble != null)
@@ -389,6 +401,7 @@ namespace TcgEngine.Gameplay
         protected virtual PlayResolution HandleQbFumble(AbilityQueueElement fumble)
         {
             game_data.last_fail_event = FailPlayEventType.QBFumble;
+            game_data.fail_event_caster_uid = fumble.caster?.uid;
             var recoveryCard = game_data.current_offensive_player.cards_board
                 .FirstOrDefault(c => c.GetTraitValue("fumble_recovery") > 0
                                   && c.GetTraitValue("fumble_recovery_used") == 0);
@@ -421,6 +434,7 @@ namespace TcgEngine.Gameplay
         {
             game_data.last_fail_event = FailPlayEventType.Interception;
             game_data.interceptor_uid = failEvent.caster?.uid;
+            game_data.fail_event_caster_uid = failEvent.caster?.uid;
 
             var offGrit = game_data.current_offensive_player.GetCurrentBoardCardGrit();
             var defGrit = game_data.GetCurrentDefensivePlayer().GetCurrentBoardCardGrit();
@@ -450,6 +464,7 @@ namespace TcgEngine.Gameplay
             {
                 game_data.last_fail_event = FailPlayEventType.TippedPass;
                 game_data.interceptor_uid = failEvent.caster?.uid;
+                game_data.fail_event_caster_uid = failEvent.caster?.uid;
                 return new PlayResolution
                 {
                     BallIsLive = true,
@@ -460,6 +475,7 @@ namespace TcgEngine.Gameplay
             } else // incomplete!
             {
                 game_data.last_fail_event = FailPlayEventType.TippedPass;
+                game_data.fail_event_caster_uid = failEvent.caster?.uid;
                 return new PlayResolution
                 {
                     BallIsLive = false,
@@ -473,6 +489,7 @@ namespace TcgEngine.Gameplay
         private PlayResolution HandleBattedPass(AbilityQueueElement failEvent)
         {
             game_data.last_fail_event = FailPlayEventType.BattedPass;
+            game_data.fail_event_caster_uid = failEvent.caster?.uid;
             return new PlayResolution
             {
                 BallIsLive = false,
@@ -485,6 +502,7 @@ namespace TcgEngine.Gameplay
         protected virtual PlayResolution HandleFumble(AbilityQueueElement failEvent)
         {
             game_data.last_fail_event = FailPlayEventType.RunnerFumble;
+            game_data.fail_event_caster_uid = failEvent.caster?.uid;
             var recoveryCard = game_data.current_offensive_player.cards_board
                 .FirstOrDefault(c => c.GetTraitValue("fumble_recovery") > 0
                                   && c.GetTraitValue("fumble_recovery_used") == 0);
@@ -517,6 +535,7 @@ namespace TcgEngine.Gameplay
         private PlayResolution HandleIncompletePass(AbilityQueueElement failEvent)
         {
             game_data.last_fail_event = FailPlayEventType.IncompletePass;
+            game_data.fail_event_caster_uid = failEvent?.caster?.uid;
             return new PlayResolution
             {
                 BallIsLive = false,

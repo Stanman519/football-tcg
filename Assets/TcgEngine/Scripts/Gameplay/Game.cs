@@ -140,6 +140,10 @@ namespace TcgEngine.Gameplay
         public string interceptor_uid;           // uid of defensive card that intercepted — drives ball animation
         public string fumble_recoverer_uid;      // uid of card that recovered fumble — drives ball animation
         public bool ball_was_live;               // this play went to LiveBall phase — routes Resolution NextStep, drives post-LB re-animation
+        public string fail_event_caster_uid;     // uid of card that caused last_fail_event (sacker/TFL man/tipper) — drives defender animation
+        public string tackler_uid;               // uid of defender credited with ending the play (null = TD/incomplete) — drives tackle animation
+        public string ctr_defender_uid;          // uid of CTR card that shifted coverage this pass — drives coverage-shift banner
+        public string ctr_covered_receiver_uid;  // uid of top receiver taken away by CTR
 
         // Slot machine modifiers (from abilities)
         public List<SlotModifier> temp_slot_modifiers;
@@ -1048,6 +1052,20 @@ namespace TcgEngine.Gameplay
             dest.ball_carrier_uid = source.ball_carrier_uid;
             dest.target_receiver_uid = source.target_receiver_uid;
             dest.ball_was_live = source.ball_was_live;
+            dest.fail_event_caster_uid = source.fail_event_caster_uid;
+            dest.tackler_uid = source.tackler_uid;
+            dest.ctr_defender_uid = source.ctr_defender_uid;
+            dest.ctr_covered_receiver_uid = source.ctr_covered_receiver_uid;
+            dest.last_fail_event = source.last_fail_event;
+            dest.interceptor_uid = source.interceptor_uid;
+            dest.fumble_recoverer_uid = source.fumble_recoverer_uid;
+            dest.turnover_pending = source.turnover_pending;
+            dest.live_ball_grit_bonus = source.live_ball_grit_bonus;
+            dest.live_ball_return_yards = source.live_ball_return_yards;
+            dest.last_play_type = source.last_play_type;
+            dest.last_play_result = source.last_play_result;
+            dest.last_play_yardage = source.last_play_yardage;
+            dest.last_coverage_guess_correct = source.last_coverage_guess_correct;
 
             dest.last_destroyed = source.last_destroyed;
             dest.last_played = source.last_played;
