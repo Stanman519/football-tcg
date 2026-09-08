@@ -118,7 +118,7 @@ public class BallManager : MonoBehaviour
         return activeTween;
     }
 
-    /// <summary>Spiral throw from current position to target. Scale-arc fakes height.</summary>
+    /// <summary>Spiral throw from current position to target. Parabolic scale fakes height; ball noses toward the target.</summary>
     public Sequence ThrowTo(Vector3 targetWorldPos, float duration = 0.5f)
     {
         KillActive();
@@ -126,11 +126,23 @@ public class BallManager : MonoBehaviour
         SetVisualState(BallVisualState.InFlight);
 
         float d = Scaled(duration);
+        Vector3 dir = targetWorldPos - transform.position;
+        if (dir.sqrMagnitude > 0.001f)
+            transform.rotation = Quaternion.Euler(0, 0, Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg - 90f);
+
         var seq = DOTween.Sequence();
         seq.Append(transform.DOMove(targetWorldPos, d).SetEase(Ease.Linear));
-        // Scale arc: grow to peak at midpoint, shrink back
-        seq.Join(transform.DOScale(throwArcScale, d * 0.5f).SetEase(Ease.OutQuad));
-        seq.Insert(d * 0.5f, transform.DOScale(1f, d * 0.5f).SetEase(Ease.InQuad));
+        // Continuous parabolic height: scale = 1 + (peak-1)·sin(πt) — no midpoint kink
+        seq.Join(DOVirtual.Float(0f, 1f, d, t =>
+        {
+            float s = 1f + (throwArcScale - 1f) * Mathf.Sin(Mathf.PI * t);
+            transform.localScale = new Vector3(s, s, 1f);
+        }).SetEase(Ease.Linear));
+        seq.OnComplete(() =>
+        {
+            transform.localScale = Vector3.one;
+            transform.rotation = Quaternion.identity;
+        });
         seq.SetLink(gameObject);
         activeSequence = seq;
         return seq;
@@ -236,7 +248,11 @@ public class BallManager : MonoBehaviour
                 SetFrames(spriteSheet.spiralFrames, spriteSheet.spiralFPS);
                 break;
             case BallVisualState.LooseBall:
-                SetFrames(spriteSheet.tumbleFrames, spriteSheet.tumbleFPS);
+                // Prefer dedicated loose frames when authored; fall back to tumble
+                if (spriteSheet.looseFrames != null && spriteSheet.looseFrames.Length > 0)
+                    SetFrames(spriteSheet.looseFrames, spriteSheet.looseFPS);
+                else
+                    SetFrames(spriteSheet.tumbleFrames, spriteSheet.tumbleFPS);
                 break;
             case BallVisualState.OnGround:
                 SetFrames(null, 0);
@@ -266,5 +282,6 @@ public class BallManager : MonoBehaviour
         activeSequence?.Kill();
         activeSequence = null;
         transform.localScale = Vector3.one;
+        transform.rotation = Quaternion.identity;
     }
 }
