@@ -17,6 +17,8 @@ namespace TcgEngine.UI
         private TextMeshProUGUI label;
         private Sequence activeSeq;
         private GamePhase prevPhase = GamePhase.None;
+        private int prevDown = -1;
+        private int prevOffId = -1;
 
         private static DownIndicatorUI _instance;
         public static DownIndicatorUI Get() => _instance;
@@ -49,15 +51,26 @@ namespace TcgEngine.UI
 
             if (gd.phase == GamePhase.ChoosePlayers && prevPhase != GamePhase.ChoosePlayers)
             {
-                string text = gd.current_down switch
+                // Only moments that change the situation. Routine downs are already on the
+                // scoreboard; this slab covers midfield, so it has to earn the screen.
+                int down = gd.current_down;
+                int offId = gd.current_offensive_player?.player_id ?? -1;
+                bool firstSeen = prevOffId == -1;
+                bool possessionChanged = !firstSeen && offId != prevOffId;
+
+                if (!firstSeen)
                 {
-                    1 => "1ST DOWN",
-                    2 => "2ND DOWN",
-                    3 => "3RD DOWN",
-                    4 => "4TH DOWN",
-                    _ => $"{gd.current_down}TH DOWN"
-                };
-                Show(text);
+                    if (possessionChanged && prevDown == 4)
+                        Show("TURNOVER ON DOWNS");
+                    else if (down == 1 && prevDown > 1 && !possessionChanged)
+                        Show("1ST DOWN");
+                    else if (down == 4)
+                        Show("4TH DOWN");
+                    // other possession changes (TD, turnover) are covered by BigPlayOverlay
+                }
+
+                prevDown = down;
+                prevOffId = offId;
             }
             prevPhase = gd.phase;
         }

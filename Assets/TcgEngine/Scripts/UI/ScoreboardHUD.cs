@@ -218,7 +218,10 @@ namespace TcgEngine.UI
             Canvas c = gameObject.AddComponent<Canvas>();
             c.renderMode = RenderMode.ScreenSpaceOverlay;
             c.sortingOrder = 50;
-            gameObject.AddComponent<CanvasScaler>();
+            var hudScaler = gameObject.AddComponent<CanvasScaler>();
+            hudScaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            hudScaler.referenceResolution = new Vector2(1920, 1080);
+            hudScaler.matchWidthOrHeight = 0.5f;
             gameObject.AddComponent<GraphicRaycaster>();
 
             Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");

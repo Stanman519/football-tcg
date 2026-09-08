@@ -202,6 +202,10 @@ public partial class PlayAnimationController : MonoBehaviour
         // 7. Outcome choreography: ball event + outcome + pursuit + tackle + aftermath
         yield return StartCoroutine(RunOutcomeChoreography(ctx));
 
+        // Big gain flash — fires here, right as the play ends (TD/INT flash inside the scripts)
+        if (ctx.yardage >= 20 && !ctx.isTouchdown && g.last_fail_event == FailPlayEventType.None)
+            BigPlayOverlay.Get()?.ShowEvent($"BIG PLAY  +{ctx.yardage} YDS", new Color(0.2f, 0.9f, 0.3f));
+
         // Fallback: no procedural route assigned (shouldn't happen for real plays)
         if (!routesAssigned && ctx.carrierSlot != null && ctx.yardage != 0)
         {

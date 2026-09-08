@@ -24,11 +24,6 @@ namespace TcgEngine.UI
         // Cached previous state for change detection
         private GamePhase prevPhase = GamePhase.None;
         private bool liveBallRevealShown; // reset each time we enter LiveBall
-        private int prevP0Points = 0;
-        private int prevP1Points = 0;
-        private int prevOffensivePlayerId = -1;
-        private int prevLastYardage = 0;
-        private PlayType prevLastPlayType = PlayType.Huddle;
 
         private static GameFeedbackUI instance;
         public static GameFeedbackUI Get() => instance;
@@ -55,12 +50,7 @@ namespace TcgEngine.UI
 
         private void OnGameStart()
         {
-            // Reset cached state on new game
             prevPhase = GamePhase.None;
-            prevP0Points = 0;
-            prevP1Points = 0;
-            prevOffensivePlayerId = -1;
-            prevLastYardage = 0;
         }
 
         private void OnRefreshAll()
@@ -77,8 +67,9 @@ namespace TcgEngine.UI
             // --- BoardStatOverlay ---
             boardStatOverlay?.Refresh(g, p0, p1);
 
-            // --- Detect events for BigPlayOverlay ---
-            DetectAndFireBigPlayEvents(g, p0, p1);
+            // BigPlayOverlay is fired from PlayAnimationController choreography at the moment the
+            // event happens — the old StartTurn heuristics guessed from possession/yardage and
+            // could mislabel (e.g. a QB fumble on a pass read as "INTERCEPTION!").
 
             // --- PlayCallRevealPanel: show when phase transitions TO RevealPlayCalls ---
             bool justEnteredReveal = prevPhase != GamePhase.RevealPlayCalls && g.phase == GamePhase.RevealPlayCalls;
@@ -111,64 +102,11 @@ namespace TcgEngine.UI
                 }
             }
 
-            // --- PlaySummaryPanel: show when phase transitions TO StartTurn after a play ---
-            bool justFinishedPlay = prevPhase != GamePhase.StartTurn && g.phase == GamePhase.StartTurn
-                                    && g.last_play_yardage != 0;
-            if (justFinishedPlay)
-                playSummaryPanel?.ShowSummary(g, p0, p1);
+            // PlaySummaryPanel retired: YardageSummaryPanel (Resolution tail) is the single recap.
+            // The old one re-derived its breakdown client-side from base card stats, ignoring
+            // status buffs, so it printed different numbers than the server for the same play.
 
-            // Cache state
             prevPhase = g.phase;
-            prevP0Points = p0?.points ?? 0;
-            prevP1Points = p1?.points ?? 0;
-            prevOffensivePlayerId = g.current_offensive_player?.player_id ?? -1;
-            prevLastYardage = g.last_play_yardage;
-            prevLastPlayType = g.last_play_type;
-        }
-
-        private void DetectAndFireBigPlayEvents(Game g, Player p0, Player p1)
-        {
-            if (bigPlayOverlay == null) return;
-
-            int curP0 = p0?.points ?? 0;
-            int curP1 = p1?.points ?? 0;
-            int curOffId = g.current_offensive_player?.player_id ?? -1;
-
-            bool p0Scored = curP0 > prevP0Points;
-            bool p1Scored = curP1 > prevP1Points;
-            bool possessionChanged = prevOffensivePlayerId >= 0 && curOffId != prevOffensivePlayerId;
-
-            // Touchdown
-            if (p0Scored || p1Scored)
-            {
-                bigPlayOverlay.ShowEvent("TOUCHDOWN!", new Color(1f, 0.75f, 0f));
-                return;
-            }
-
-            // Possession changes (turnover events)
-            if (possessionChanged && g.phase == GamePhase.StartTurn)
-            {
-                bool wasPass = prevLastPlayType == PlayType.ShortPass || prevLastPlayType == PlayType.LongPass;
-                bool wasRun = prevLastPlayType == PlayType.Run;
-
-                if (wasPass)
-                    bigPlayOverlay.ShowEvent("INTERCEPTION!", Color.red);
-                else if (wasRun)
-                    bigPlayOverlay.ShowEvent("FUMBLE!", new Color(1f, 0.5f, 0f));
-                else
-                    bigPlayOverlay.ShowEvent("TURNOVER ON DOWNS", new Color(0.8f, 0.8f, 0.8f));
-                return;
-            }
-
-            // Big gain / sack — only fire when phase just became StartTurn
-            if (prevPhase != GamePhase.StartTurn && g.phase == GamePhase.StartTurn)
-            {
-                int yards = g.last_play_yardage;
-                if (yards >= 20)
-                    bigPlayOverlay.ShowEvent($"BIG PLAY!  +{yards} YDS", new Color(0.2f, 0.9f, 0.3f));
-                else if (yards <= -7)
-                    bigPlayOverlay.ShowEvent($"SACK!  {yards} YDS", Color.red);
-            }
         }
     }
 }

@@ -8,18 +8,15 @@ using TcgEngine.Gameplay;
 namespace TcgEngine.UI
 {
     /// <summary>
+    /// RETIRED (2026-09-08) — no longer triggered. YardageSummaryPanel is the single post-play
+    /// recap. This one fired a phase later at StartTurn and re-derived its breakdown client-side
+    /// from base CardData stats, ignoring status buffs, so it printed different numbers than the
+    /// server for the same play. Kept only because a scene GameObject may still reference the
+    /// component; delete the file and the GameFeedbackUI field together once the scene is editable.
+    ///
     /// Post-play yardage breakdown panel.
     /// Appears for ~4 seconds after each play, then fades out.
     /// Clicking anywhere dismisses early.
-    ///
-    /// Inspector wiring (all optional — auto-built if null):
-    ///   panelRoot       — root GameObject to show/hide
-    ///   playTypeText    — "RUN PLAY" / "SHORT PASS" etc.
-    ///   yardageText     — "+9 yards" or "SACK -9 yds"
-    ///   downDistText    — "2nd & 2" (updated after play)
-    ///   breakdownText   — multi-line breakdown body
-    ///
-    /// Called by GameFeedbackUI after phase transitions to StartTurn.
     /// </summary>
     public class PlaySummaryPanel : MonoBehaviour
     {

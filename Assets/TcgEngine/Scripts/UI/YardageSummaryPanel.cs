@@ -37,6 +37,8 @@ namespace TcgEngine.UI
         private TextMeshProUGUI netYardageText;
         private TextMeshProUGUI breakdownText;
         private TextMeshProUGUI receiverText;
+        private TextMeshProUGUI tackleText;
+        private TextMeshProUGUI coverageText;
         private TextMeshProUGUI failEventText;
 
         private Coroutine activeCoroutine;
@@ -126,6 +128,8 @@ namespace TcgEngine.UI
                 }
                 sb.AppendLine($"Coach              {FormatSigned(bd.offCoachBase)}");
                 sb.AppendLine($"Def Coverage       {FormatSigned(-bd.defCoverageBase)}");
+                if (bd.defStatusBonuses != 0)
+                    sb.AppendLine($"Def Bonuses        {FormatSigned(-bd.defStatusBonuses)}");
                 sb.AppendLine($"Def Coach          {FormatSigned(-bd.defCoachBase)}");
                 if (bd.defCoverageMod != 0)
                     sb.AppendLine($"Coverage Guess     {FormatSigned(-bd.defCoverageMod)}");
@@ -146,6 +150,23 @@ namespace TcgEngine.UI
             else
             {
                 receiverText.text = "";
+            }
+
+            // Who made the stop (null on TD / incomplete / turnover)
+            string tacklerName = CardTitle(g, g.tackler_uid);
+            tackleText.text = string.IsNullOrEmpty(tacklerName) ? "" : $"Tackle: {tacklerName}";
+
+            // Coverage shift — who took the top receiver away
+            if (bd != null && !string.IsNullOrEmpty(bd.ctrDefenderName))
+            {
+                string covered = CardTitle(g, g.ctr_covered_receiver_uid);
+                coverageText.text = string.IsNullOrEmpty(covered)
+                    ? $"Coverage: {bd.ctrDefenderName}"
+                    : $"Coverage: {bd.ctrDefenderName} on {covered}";
+            }
+            else
+            {
+                coverageText.text = "";
             }
 
             // Fail event
@@ -176,6 +197,12 @@ namespace TcgEngine.UI
             return val >= 0 ? $"+{val}" : $"{val}";
         }
 
+        private static string CardTitle(Game g, string uid)
+        {
+            if (g == null || string.IsNullOrEmpty(uid)) return "";
+            return g.GetCard(uid)?.CardData?.title ?? "";
+        }
+
         // =====================================================================
         // Self-contained UI builder
         // =====================================================================
@@ -201,7 +228,8 @@ namespace TcgEngine.UI
 
             Image rootBg = rootPanel.AddComponent<Image>();
             rootBg.color = new Color(COL_BG.r, COL_BG.g, COL_BG.b, 0.88f);
-            SetAnchors(rootPanel, new Vector2(0.62f, 0.15f), new Vector2(0.96f, 0.85f));
+            // Left side: the mini slot machine lives at (0.72-0.98 x) and must stay readable
+            SetAnchors(rootPanel, new Vector2(0.04f, 0.15f), new Vector2(0.38f, 0.85f));
 
             // Left accent border
             GameObject border = new GameObject("LeftBorder");
@@ -213,13 +241,13 @@ namespace TcgEngine.UI
 
             // Header (play type label)
             headerText = MakeTMP(rootPanel.transform, "Header", 14f, COL_GOLD,
-                new Vector2(0.08f, 0.88f), new Vector2(0.5f, 0.95f),
+                new Vector2(0.08f, 0.90f), new Vector2(0.5f, 0.96f),
                 TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
             headerText.characterSpacing = 8f;
 
             // Net yardage (big)
             netYardageText = MakeTMP(rootPanel.transform, "NetYardage", 56f, COL_GREEN,
-                new Vector2(0.08f, 0.72f), new Vector2(0.92f, 0.9f),
+                new Vector2(0.08f, 0.76f), new Vector2(0.92f, 0.90f),
                 TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
             netYardageText.enableAutoSizing = true;
             netYardageText.fontSizeMin = 36f;
@@ -230,23 +258,33 @@ namespace TcgEngine.UI
             sep.transform.SetParent(rootPanel.transform, false);
             Image sepImg = sep.AddComponent<Image>();
             sepImg.color = new Color(1f, 1f, 1f, 0.15f);
-            SetAnchors(sep, new Vector2(0.08f, 0.70f), new Vector2(0.92f, 0.70f));
+            SetAnchors(sep, new Vector2(0.08f, 0.74f), new Vector2(0.92f, 0.74f));
             sep.GetComponent<RectTransform>().sizeDelta = new Vector2(0f, 2f);
 
             // Breakdown (monospace-style rows)
             breakdownText = MakeTMP(rootPanel.transform, "Breakdown", 15f, COL_WHITE,
-                new Vector2(0.08f, 0.28f), new Vector2(0.92f, 0.70f),
+                new Vector2(0.08f, 0.36f), new Vector2(0.92f, 0.74f),
                 TextAlignmentOptions.TopLeft, FontStyles.Normal);
             breakdownText.lineSpacing = 8f;
 
-            // Receiver line
+            // Receiver / ball carrier
             receiverText = MakeTMP(rootPanel.transform, "Receiver", 16f, COL_CYAN,
-                new Vector2(0.08f, 0.16f), new Vector2(0.92f, 0.26f),
+                new Vector2(0.08f, 0.28f), new Vector2(0.92f, 0.35f),
                 TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+
+            // Who made the stop
+            tackleText = MakeTMP(rootPanel.transform, "Tackle", 15f, COL_DIM,
+                new Vector2(0.08f, 0.21f), new Vector2(0.92f, 0.28f),
+                TextAlignmentOptions.MidlineLeft, FontStyles.Normal);
+
+            // Coverage shift
+            coverageText = MakeTMP(rootPanel.transform, "Coverage", 15f, COL_DIM,
+                new Vector2(0.08f, 0.14f), new Vector2(0.92f, 0.21f),
+                TextAlignmentOptions.MidlineLeft, FontStyles.Normal);
 
             // Fail event
             failEventText = MakeTMP(rootPanel.transform, "FailEvent", 20f, COL_RED,
-                new Vector2(0.08f, 0.04f), new Vector2(0.92f, 0.15f),
+                new Vector2(0.08f, 0.04f), new Vector2(0.92f, 0.13f),
                 TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
 
             rootPanel.SetActive(false);

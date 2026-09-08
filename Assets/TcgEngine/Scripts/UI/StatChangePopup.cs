@@ -67,7 +67,10 @@ namespace TcgEngine.UI
                 overlayCanvas = gameObject.AddComponent<Canvas>();
                 overlayCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
                 overlayCanvas.sortingOrder = 56;
-                gameObject.AddComponent<CanvasScaler>();
+                var popupScaler = gameObject.AddComponent<CanvasScaler>();
+                popupScaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                popupScaler.referenceResolution = new Vector2(1920, 1080);
+                popupScaler.matchWidthOrHeight = 0.5f;
             }
         }
 

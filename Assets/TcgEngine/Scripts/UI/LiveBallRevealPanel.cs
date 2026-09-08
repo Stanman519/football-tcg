@@ -187,7 +187,7 @@ namespace TcgEngine.UI
             // ── Canvas ──
             overlayCanvas = gameObject.AddComponent<Canvas>();
             overlayCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            overlayCanvas.sortingOrder = 82; // above PlayCallRevealPanel (80)
+            overlayCanvas.sortingOrder = 210; // above LiveBallCardZone (200) — the reveal was rendering under its dim
             var scaler = gameObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);

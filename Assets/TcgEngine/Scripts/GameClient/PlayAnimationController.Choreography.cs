@@ -271,6 +271,7 @@ public partial class PlayAnimationController
         {
             ctx.ball.AttachTo(interceptor);
             Popup(interceptor, "INTERCEPTED!", new Color(1f, 0.45f, 0.45f));
+            BigPlayOverlay.Get()?.ShowEvent("INTERCEPTION!", Color.red);
             yield return FieldWait(0.4f);
 
             // Return run toward the offense's end zone, with the nearest offense players chasing
@@ -451,6 +452,7 @@ public partial class PlayAnimationController
             carrier.transform.DOPunchScale(Vector3.one * 0.4f, 0.6f, 6, 0.5f).SetLink(carrier.gameObject);
             Popup(carrier, "TOUCHDOWN!", new Color(1f, 0.85f, 0.3f));
         }
+        BigPlayOverlay.Get()?.ShowEvent("TOUCHDOWN!", new Color(1f, 0.75f, 0f));
         yield return FieldWait(1.0f);
     }
 

@@ -30,7 +30,7 @@ namespace TcgEngine.UI
         [Tooltip("Assign 'Press Start 2P' or similar retro font. Falls back to built-in.")]
         public Font retroFont;
         public float typewriterDelay = 0.04f;   // seconds per character
-        public float holdDuration = 2.0f;
+        public float holdDuration = 1.2f;
         public float fadeDuration = 0.5f;
 
         private Canvas overlayCanvas;
@@ -41,12 +41,21 @@ namespace TcgEngine.UI
         private Image builtBg;
         private Text builtText;
 
+        private static BigPlayOverlay instance;
+        public static BigPlayOverlay Get() => instance;
+
         void Awake()
         {
+            instance = this;
             bool hasRef = overlayBackground != null || eventText != null;
             if (!hasRef)
                 BuildSelfContainedOverlay();
             SetVisible(false);
+        }
+
+        void OnDestroy()
+        {
+            if (instance == this) instance = null;
         }
 
         /// <summary>Show a big-play event with retro typewriter animation.</summary>
@@ -67,7 +76,8 @@ namespace TcgEngine.UI
 
             // --- 1. Activate ---
             SetVisible(true);
-            bg.color = new Color(0.05f, 0.05f, 0.05f, 0.92f);
+            // Translucent: the play it is describing should stay visible behind it
+            bg.color = new Color(0.05f, 0.05f, 0.05f, 0.75f);
             display.color = accentColor;
             display.text = "";
             if (subText != null) subText.text = "";
@@ -120,7 +130,7 @@ namespace TcgEngine.UI
 
             overlayCanvas = gameObject.AddComponent<Canvas>();
             overlayCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            overlayCanvas.sortingOrder = 100;
+            overlayCanvas.sortingOrder = 112; // above phase/down indicators; no longer ties DevTuningPanel
             var scaler = gameObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
