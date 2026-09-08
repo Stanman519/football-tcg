@@ -139,6 +139,7 @@ namespace TcgEngine.Gameplay
         public YardageBreakdown yardage_breakdown; // populated during ResolveRunOutcome/ResolvePassOutcome for UI display
         public string interceptor_uid;           // uid of defensive card that intercepted — drives ball animation
         public string fumble_recoverer_uid;      // uid of card that recovered fumble — drives ball animation
+        public bool ball_was_live;               // this play went to LiveBall phase — routes Resolution NextStep, drives post-LB re-animation
 
         // Slot machine modifiers (from abilities)
         public List<SlotModifier> temp_slot_modifiers;
@@ -1046,6 +1047,7 @@ namespace TcgEngine.Gameplay
 
             dest.ball_carrier_uid = source.ball_carrier_uid;
             dest.target_receiver_uid = source.target_receiver_uid;
+            dest.ball_was_live = source.ball_was_live;
 
             dest.last_destroyed = source.last_destroyed;
             dest.last_played = source.last_played;

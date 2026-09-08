@@ -150,9 +150,9 @@ namespace TcgEngine.UI
                 v => { var o = FindAnyObjectByType<BoardStatOverlay>(); if (o) o.cameraFocusDuration = v; },
                 () => { var o = FindAnyObjectByType<BoardStatOverlay>(); return o ? o.cameraFocusDuration : 1.3f; });
 
-            AddSlider(parent, "Per-Card Reveal", 0.1f, 3f, 1.3f,
-                v => { var o = FindAnyObjectByType<BoardStatOverlay>(); if (o) o.perCardDuration = v; },
-                () => { var o = FindAnyObjectByType<BoardStatOverlay>(); return o ? o.perCardDuration : 1.3f; });
+            AddSlider(parent, "Stat Reveal Cap", 1f, 12f, 4f,
+                v => { var o = FindAnyObjectByType<BoardStatOverlay>(); if (o) o.totalRevealCap = v; },
+                () => { var o = FindAnyObjectByType<BoardStatOverlay>(); return o ? o.totalRevealCap : 4f; });
 
             AddSlider(parent, "Hold All Duration", 0.2f, 5f, 1.7f,
                 v => { var o = FindAnyObjectByType<BoardStatOverlay>(); if (o) o.holdAllDuration = v; },

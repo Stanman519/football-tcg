@@ -284,12 +284,11 @@ namespace TcgEngine.Gameplay
         private const float FormationTransitionDelay = 4.0f;
         // ~1.5s spin + 1s results display = 2.5s total
         private const float SlotSpinDelay = 2.5f;
-        // settle(0.5) + minimize(0.7) + routes(~2s) + beats(0.6) + yardage(~1s) + pursuit(~1.5s)
-        private const float RouteAnimationDelay = 7.0f;
 
         /// <summary>
-        /// Routes play through Resolution phase (triggers client snap + route animations),
-        /// then proceeds to LiveBall or EndPlayPhase depending on ballIsLive.
+        /// Routes play through Resolution phase (triggers client snap + route animations).
+        /// Ready-gated: clients confirm when their animation finishes; NextStep routes to
+        /// LiveBall or EndPlayPhase via ball_was_live. Turn timer = timeout fallback.
         /// </summary>
         private void StartPlayResolutionPhase(bool ballIsLive)
         {
@@ -297,12 +296,18 @@ namespace TcgEngine.Gameplay
                 return;
 
             game_data.phase = GamePhase.Resolution;
+            game_data.ball_was_live = ballIsLive;
+            // Reset timer: it doubles as the animation timeout, and a depleted timer
+            // would otherwise fire NextStep every frame now that the fixed delay is gone
+            game_data.turn_timer = GameplayData.Get().turn_duration;
             RefreshData();
 
-            resolve_queue.AddCallback(ballIsLive
-                ? (System.Action)StartLiveBallPhaseInternal
-                : EndPlayPhase);
-            resolve_queue.ResolveAll(RouteAnimationDelay);
+            // AI has no animation to wait on — ready instantly
+            foreach (Player p in game_data.players)
+            {
+                if (p.is_ai)
+                    SetPlayerReadyPhase(p);
+            }
         }
 
         public virtual void StartLiveBallPhase()
@@ -416,7 +421,8 @@ namespace TcgEngine.Gameplay
                 return;
 
             GamePhase phase = game_data.phase;
-            if (phase != GamePhase.ChoosePlayers && phase != GamePhase.ChoosePlay && phase != GamePhase.LiveBall)
+            if (phase != GamePhase.ChoosePlayers && phase != GamePhase.ChoosePlay
+                && phase != GamePhase.LiveBall && phase != GamePhase.Resolution)
                 return; //only these phases wait on ready
 
             if (player.IsReadyForPhase(phase))
@@ -513,6 +519,14 @@ namespace TcgEngine.Gameplay
 
                 case GamePhase.LiveBall:
                     ResolveLiveBallEffects();
+                    resolve_queue.ResolveAll();
+                    break;
+
+                case GamePhase.Resolution:
+                    //Ready-gated (or timer timeout): route by whether the ball went live
+                    resolve_queue.AddCallback(game_data.ball_was_live
+                        ? (System.Action)StartLiveBallPhaseInternal
+                        : EndPlayPhase);
                     resolve_queue.ResolveAll();
                     break;
 

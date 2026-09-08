@@ -79,12 +79,9 @@ namespace TcgEngine.Client
 
             target_alpha = valid ? 1f : 0f;
 
-            // If movement queue is active, let it drive position; otherwise formation tween handles it
-            bool queueActive = moveQueue != null && !moveQueue.IsIdle;
-            if (queueActive)
-            {
-                moveQueue.Tick();
-            }
+            // Tick unconditionally (cheap no-op when idle) so armed queues self-start on late enqueues
+            moveQueue?.Tick();
+            bool queueActive = moveQueue != null && (!moveQueue.IsIdle || moveQueue.HasWork);
 
             // When queue finishes, freeze position so slots don't Lerp back to stale formation targets
             if (wasQueueActive && !queueActive)

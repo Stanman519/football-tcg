@@ -35,6 +35,7 @@ public class PlayAnimationController : MonoBehaviour
     private int lastTurn = -1;
     private bool routesAssigned;
     private Coroutine resolutionCoroutine;
+    private Coroutine readyRetryCoroutine;
 
     // Route plans from procedural generation (kept for audible detection)
     private List<ProceduralRouteGenerator.SlotRoutePlan> currentRoutePlans;
@@ -112,7 +113,12 @@ public class PlayAnimationController : MonoBehaviour
     /// </summary>
     private void OnResolutionStart(Game g)
     {
-        if (fieldSlotMgr == null) return;
+        if (fieldSlotMgr == null)
+        {
+            // Broken client must not stall the ready-gated Resolution phase
+            SendResolutionReady();
+            return;
+        }
 
         fieldSlotMgr.animationLocked = true;
 
@@ -216,9 +222,8 @@ public class PlayAnimationController : MonoBehaviour
         if (boardStatOverlay != null)
             boardStatOverlay.StartFadeOut();
 
-        // Dynamic wait: computed from longest assigned route
-        float routeWait = ComputeLongestRouteTime();
-        yield return FieldWait(routeWait);
+        // Wait for all route movement to actually finish (estimates were wrong for speed-tier segments)
+        yield return WaitForQueuesToFinish(15f);
 
         // Beat before yardage
         yield return FieldWait(0.3f);
@@ -226,7 +231,6 @@ public class PlayAnimationController : MonoBehaviour
         // Ball carrier yardage movement (fallback if no procedural route)
         if (!routesAssigned)
         {
-            float yardageDur = PlayerSpeed.Duration(Mathf.Abs(yardage), SpeedTier.Sprint);
             if (carrierSlot != null && yardage != 0)
             {
                 carrierSlot.MoveQueue.Enqueue(SlotMovementSegment.MoveBy(
@@ -235,7 +239,7 @@ public class PlayAnimationController : MonoBehaviour
                     "yardage"
                 ));
             }
-            yield return FieldWait(yardageDur);
+            yield return WaitForQueuesToFinish(10f);
         }
 
         // Beat before pursuit
@@ -243,10 +247,9 @@ public class PlayAnimationController : MonoBehaviour
 
         // Defense tracks toward ball carrier
         BoardSlot carrierForPursuit = FindSlotForCardUid(offPlayer, g.ball_carrier_uid ?? g.target_receiver_uid);
-        float pursuitDur = 0f;
         if (carrierForPursuit != null)
-            pursuitDur = EnqueueDefenseTracking(defPlayer, carrierForPursuit);
-        yield return FieldWait(pursuitDur);
+            EnqueueDefenseTracking(defPlayer, carrierForPursuit);
+        yield return WaitForQueuesToFinish(10f);
 
         // Post-play yardage summary
         var summaryPanel = YardageSummaryPanel.Get();
@@ -256,7 +259,29 @@ public class PlayAnimationController : MonoBehaviour
             yield return new WaitForSeconds(summaryPanel.fadeInDur + summaryPanel.holdDur + summaryPanel.fadeOutDur);
         }
 
+        // Animation done — tell server (Resolution is ready-gated); retry covers dropped-while-resolving
+        SendResolutionReady();
+
         resolutionCoroutine = null;
+    }
+
+    private void SendResolutionReady()
+    {
+        GameClient.Get()?.SendAction(GameAction.PlayerReadyPhase);
+        if (readyRetryCoroutine != null)
+            StopCoroutine(readyRetryCoroutine);
+        readyRetryCoroutine = StartCoroutine(ResolutionReadyRetry());
+    }
+
+    private IEnumerator ResolutionReadyRetry()
+    {
+        while (GameClient.Get()?.GetGameData()?.phase == GamePhase.Resolution)
+        {
+            yield return new WaitForSeconds(2f);
+            if (GameClient.Get()?.GetGameData()?.phase == GamePhase.Resolution)
+                GameClient.Get()?.SendAction(GameAction.PlayerReadyPhase);
+        }
+        readyRetryCoroutine = null;
     }
 
     /// <summary>
@@ -420,6 +445,21 @@ public class PlayAnimationController : MonoBehaviour
         return carrier;
     }
 
+    private void StopResolutionCoroutines()
+    {
+        // Timeout path can still flip phase mid-animation — don't let the stale sequence keep running
+        if (resolutionCoroutine != null)
+        {
+            StopCoroutine(resolutionCoroutine);
+            resolutionCoroutine = null;
+        }
+        if (readyRetryCoroutine != null)
+        {
+            StopCoroutine(readyRetryCoroutine);
+            readyRetryCoroutine = null;
+        }
+    }
+
     private void OnLiveBallStart(Game g)
     {
         // Queues with WaitForPhase(LiveBall) auto-resume via BroadcastPhaseChange
@@ -427,6 +467,7 @@ public class PlayAnimationController : MonoBehaviour
 
     private void OnEndTurn(Game g)
     {
+        StopResolutionCoroutines();
         ClearAllQueues();
         BallManager.Instance?.ResetToLOS();
         if (fieldSlotMgr != null)
@@ -438,6 +479,7 @@ public class PlayAnimationController : MonoBehaviour
 
     private void OnStartTurn(Game g)
     {
+        StopResolutionCoroutines();
         ClearAllQueues();
         BallManager.Instance?.ResetToLOS();
         if (fieldSlotMgr != null)
@@ -681,10 +723,26 @@ public class PlayAnimationController : MonoBehaviour
 
     private void StartAllQueues()
     {
+        // Start EVERY slot incl. defense — empty queues arm and self-start when
+        // pursuit/live-ball segments arrive later (Start is a no-op on running queues)
         foreach (BoardSlot slot in BoardSlot.GetAll())
-        {
-            if (!slot.MoveQueue.IsIdle) continue;
             slot.MoveQueue.Start();
+    }
+
+    /// <summary>Completion-driven wait: all movement queues idle (paused counts as done). Capped vs livelock.</summary>
+    private IEnumerator WaitForQueuesToFinish(float maxSeconds)
+    {
+        float t = 0f;
+        while (t < maxSeconds)
+        {
+            bool anyRunning = false;
+            foreach (BoardSlot s in BoardSlot.GetAll())
+            {
+                if (s.MoveQueue.IsActive) { anyRunning = true; break; }
+            }
+            if (!anyRunning) yield break;
+            t += Time.deltaTime;
+            yield return null;
         }
     }
 
@@ -723,18 +781,6 @@ public class PlayAnimationController : MonoBehaviour
         if (g == null || player == null || slot == null) return null;
         var cards = g.GetSlotCards(slot.assignedSlot);
         return cards != null && cards.Count > 0 ? cards[0] : null;
-    }
-
-    private float ComputeLongestRouteTime()
-    {
-        float longest = 1.0f;
-        foreach (BoardSlot slot in BoardSlot.GetAll())
-        {
-            if (slot.MoveQueue.IsIdle) continue;
-            float total = slot.MoveQueue.EstimateTotalMoveDuration();
-            if (total > longest) longest = total;
-        }
-        return longest;
     }
 
     // ── Live Ball Event Handling ─────────────────────────────

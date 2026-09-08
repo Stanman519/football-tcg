@@ -21,11 +21,13 @@ namespace TcgEngine.UI
         public float fadeDuration = 2.5f;
 
         [Header("Sequential Reveal")]
-        public float perCardDuration = 1.3f;
+        public float totalRevealCap = 4f;   // whole reveal (labels + hold) fits in this
+        public float minPerCard = 0.25f;
+        public float maxPerCard = 0.5f;
         public float fadeInDuration = 0.15f;
         public float punchScale = 0.1f;
         public float punchDuration = 0.2f;
-        public float holdAllDuration = 1.7f;
+        public float holdAllDuration = 1.0f;
         public float cameraFocusDuration = 1.3f;
 
         private Canvas overlayCanvas;
@@ -118,7 +120,16 @@ namespace TcgEngine.UI
 
             entries.Sort((a, b) => a.sortKey.CompareTo(b.sortKey));
 
+            // Pace to fit the cap regardless of label count
+            float perCard = Mathf.Clamp(
+                (totalRevealCap - holdAllDuration) / Mathf.Max(1, entries.Count),
+                minPerCard, maxPerCard);
+
             GameCamera cam = GameCamera.Get();
+
+            // Single wide focus instead of a per-card camera tour
+            if (cam != null && entries.Count > 0)
+                cam.FocusOn(entries[0].bc.transform.position, 0.95f, cameraFocusDuration);
 
             foreach (var entry in entries)
             {
@@ -140,13 +151,9 @@ namespace TcgEngine.UI
                 entry.bc.transform.DOPunchScale(Vector3.one * punchScale, punchDuration, 6, 0.5f)
                     .SetLink(entry.bc.gameObject);
 
-                // Camera nudge
-                if (cam != null)
-                    cam.FocusOn(entry.bc.transform.position, 0.95f, cameraFocusDuration);
-
                 yield return TimeController.Instance != null
-                    ? TimeController.Instance.ScaledWait(perCardDuration)
-                    : new WaitForSeconds(perCardDuration);
+                    ? TimeController.Instance.ScaledWait(perCard)
+                    : new WaitForSeconds(perCard);
             }
 
             // Release camera after all shown

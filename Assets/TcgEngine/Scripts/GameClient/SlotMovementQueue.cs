@@ -15,14 +15,16 @@ namespace TcgEngine.Client
     public class SlotMovementQueue
     {
         private readonly List<SlotMovementSegment> segments = new List<SlotMovementSegment>();
-        private int currentIndex = -1; // -1 = idle
+        private int currentIndex = -1; // -1 = not yet running
         private Tween activeTween;
         private bool paused;
+        private bool started; // armed by Start(); an armed queue self-starts when segments arrive
         private readonly BoardSlot owner;
 
         public bool IsIdle => currentIndex < 0 || currentIndex >= segments.Count;
         public bool IsPaused => paused;
         public bool IsActive => !IsIdle && !paused;
+        public bool HasWork => started && !paused && (currentIndex < 0 ? segments.Count > 0 : currentIndex < segments.Count);
         public int Count => segments.Count;
 
         /// <summary>Current speed multiplier from TimeController (1/FieldTimeScale). Longer = slower.</summary>
@@ -71,6 +73,7 @@ namespace TcgEngine.Client
                 segments.Clear();
                 currentIndex = -1;
                 paused = false;
+                started = false; // de-arm so cleared queues stay quiet until next play's Start()
             }
             else
             {
@@ -122,10 +125,14 @@ namespace TcgEngine.Client
 
         public void Start()
         {
-            if (segments.Count == 0) return;
-            currentIndex = 0;
+            // Arm even when empty — segments enqueued later (pursuit, live-ball deltas) self-start via Tick()
+            started = true;
             paused = false;
-            ExecuteCurrentSegment();
+            if (segments.Count > 0 && currentIndex < 0)
+            {
+                currentIndex = 0;
+                ExecuteCurrentSegment();
+            }
         }
 
         public void Resume()
@@ -141,15 +148,22 @@ namespace TcgEngine.Client
         /// <summary>Called from BoardSlot.Update() every frame.</summary>
         public void Tick()
         {
-            if (IsIdle || paused) return;
+            if (paused) return;
 
-            // If tween is still running, wait
-            if (activeTween != null && activeTween.IsActive() && activeTween.IsPlaying())
-                return;
-
-            // Current segment finished — advance
-            activeTween = null;
-            currentIndex++;
+            if (activeTween != null)
+            {
+                if (activeTween.IsActive() && activeTween.IsPlaying())
+                    return;
+                // Advance ONLY on real tween completion (never skips a freshly-enqueued segment)
+                activeTween = null;
+                currentIndex++;
+            }
+            else if (currentIndex < 0)
+            {
+                // Armed but never ran — self-start when work arrives
+                if (!started || segments.Count == 0) return;
+                currentIndex = 0;
+            }
 
             if (IsIdle) return;
 
@@ -225,7 +239,13 @@ namespace TcgEngine.Client
 
         private void ExecuteMoveTo(SlotMovementSegment seg)
         {
-            if (FieldSlotManager.Instance == null) return;
+            if (FieldSlotManager.Instance == null)
+            {
+                // Skip segment — returning without a tween would re-execute every frame
+                currentIndex++;
+                if (!IsIdle) ExecuteCurrentSegment();
+                return;
+            }
 
             Vector3 target = FieldSlotManager.Instance.ToLocalPosPublic(seg.footballCoord);
             target.z = -1f;
