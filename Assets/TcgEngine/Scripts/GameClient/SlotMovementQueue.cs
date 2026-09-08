@@ -26,6 +26,8 @@ namespace TcgEngine.Client
         public bool IsActive => !IsIdle && !paused;
         public bool HasWork => started && !paused && (currentIndex < 0 ? segments.Count > 0 : currentIndex < segments.Count);
         public int Count => segments.Count;
+        /// <summary>sourceTag of the segment currently executing (null when idle) — lets choreography sync to route phases like "yac".</summary>
+        public string CurrentSourceTag => IsIdle ? null : segments[currentIndex].sourceTag;
 
         /// <summary>Current speed multiplier from TimeController (1/FieldTimeScale). Longer = slower.</summary>
         private float SpeedMultiplier =>

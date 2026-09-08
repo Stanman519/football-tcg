@@ -89,7 +89,6 @@
     <Compile Include="Assets\TcgEngine\Scripts\GameClient\PlayerAttackZone.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\UI\HeroUI.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\UI\CardGrid.cs" />
-    <Compile Include="Assets\TcgEngine\Scripts\GameClient\FieldAnimationController.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Conditions\ConditionSelectedValue.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\GameServer\ServerMatchmaker.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\UI\ToggleText.cs" />
@@ -129,7 +128,6 @@
     <Compile Include="Assets\TcgEngine\Scripts\Tools\SceneNav.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Menu\LeaderboardPanel.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\SlotMachine\SlotReel.cs" />
-    <Compile Include="Assets\TcgEngine\Scripts\Gameplay\BallManager.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\GameClient\GameManager.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\FX\HoverFX.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\GameClient\FieldManager.cs" />
@@ -338,6 +336,7 @@
     <Compile Include="Assets\TcgEngine\Scripts\Data\AvatarData.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Effects\Template\EffectDiscard.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\GameClient\PlayAnimationController.cs" />
+    <Compile Include="Assets\TcgEngine\Scripts\GameClient\PlayAnimationController.Choreography.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\UI\OptionSelector.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Tools\ChangePermission.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Effects\Template\EffectDestroyEquip.cs" />
@@ -2058,4 +2057,5 @@
     <ProjectCapability Remove="ReferenceManagerAssemblies" />
   </ItemGroup>
 </Project>
+
 

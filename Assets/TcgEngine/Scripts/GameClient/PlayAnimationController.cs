@@ -16,7 +16,7 @@ using UnityEngine;
 /// Timing: ChoosePlay → Formations set → Slots spin → Yardage calculated
 ///   → Routes generated procedurally → Pre-snap beat → Snap → Play animates
 /// </summary>
-public class PlayAnimationController : MonoBehaviour
+public partial class PlayAnimationController : MonoBehaviour
 {
     public static PlayAnimationController Instance { get; private set; }
 
@@ -134,6 +134,7 @@ public class PlayAnimationController : MonoBehaviour
             currentRoutePlans = ProceduralRouteGenerator.PlanOffenseRoutes(g, offPlayer, playType, fw);
             hasAudible = currentRoutePlans.Any(p => p.route.wasHotRouted && p.isTargetReceiver);
             AssignProceduralRoutes(offPlayer, g);
+            AssignDefenseRoles(g, offPlayer, g.GetCurrentDefensivePlayer());
         }
 
         // Start all queues (they'll pause at WaitForSignal("snap"))
@@ -146,19 +147,10 @@ public class PlayAnimationController : MonoBehaviour
 
     private IEnumerator ResolutionSequence(Game g)
     {
-        var ball = BallManager.Instance;
-        Player offPlayer = g.current_offensive_player;
-        Player defPlayer = g.GetCurrentDefensivePlayer();
-        PlayType playType = offPlayer?.SelectedPlay ?? PlayType.Huddle;
-        int yardage = g.yardage_this_play;
-        bool isPass = (playType == PlayType.ShortPass || playType == PlayType.LongPass);
-        var failEvent = g.last_fail_event;
-
-        // Find key slots
-        var qbSlots = fieldSlotMgr?.GetSlotsForPosition(PlayerPositionGrp.QB, offPlayer.player_id);
-        BoardSlot qbSlot = qbSlots != null && qbSlots.Count > 0 ? qbSlots[0] : null;
-        BoardSlot carrierSlot = FindSlotForCardUid(offPlayer, g.ball_carrier_uid);
-        BoardSlot receiverSlot = FindSlotForCardUid(offPlayer, g.target_receiver_uid);
+        PlayCtx ctx = BuildPlayContext(g);
+        var ball = ctx.ball;
+        Player offPlayer = ctx.offPlayer;
+        BoardSlot qbSlot = ctx.qbSlot;
 
         // 1. Let the scene settle
         yield return FieldWait(0.5f);
@@ -200,18 +192,13 @@ public class PlayAnimationController : MonoBehaviour
             yield return FieldWait(audibleDuration);
         }
 
-        // 6. Snap the ball — routes begin
+        // 6. Snap the ball — routes + defense roles begin
         BroadcastSignal("snap");
 
-        // [BALL] Post-snap: branch on play type + fail event
-        if (ball != null)
-        {
-            yield return StartCoroutine(AnimateBallForPlay(
-                ball, g, playType, failEvent, yardage, isPass,
-                qbSlot, carrierSlot, receiverSlot, offPlayer, defPlayer));
-        }
+        // 7. Outcome choreography: ball event + outcome + pursuit + tackle + aftermath
+        yield return StartCoroutine(RunOutcomeChoreography(ctx));
 
-        // 7. PHASE B — Ability bullet-time showcase (buffered during phase transition)
+        // 8. Ability bullet-time showcase (buffered during phase transition)
         if (abilitySpotlight != null && abilitySpotlight.HasPendingShowcases)
         {
             yield return FieldWait(0.3f);
@@ -222,34 +209,16 @@ public class PlayAnimationController : MonoBehaviour
         if (boardStatOverlay != null)
             boardStatOverlay.StartFadeOut();
 
-        // Wait for all route movement to actually finish (estimates were wrong for speed-tier segments)
-        yield return WaitForQueuesToFinish(15f);
-
-        // Beat before yardage
-        yield return FieldWait(0.3f);
-
-        // Ball carrier yardage movement (fallback if no procedural route)
-        if (!routesAssigned)
+        // Fallback: no procedural route assigned (shouldn't happen for real plays)
+        if (!routesAssigned && ctx.carrierSlot != null && ctx.yardage != 0)
         {
-            if (carrierSlot != null && yardage != 0)
-            {
-                carrierSlot.MoveQueue.Enqueue(SlotMovementSegment.MoveBy(
-                    new Vector2(0, yardage),
-                    SpeedTier.Sprint,
-                    "yardage"
-                ));
-            }
+            ctx.carrierSlot.MoveQueue.Enqueue(SlotMovementSegment.MoveBy(
+                new Vector2(0, ctx.yardage),
+                SpeedTier.Sprint,
+                "yardage"
+            ));
             yield return WaitForQueuesToFinish(10f);
         }
-
-        // Beat before pursuit
-        yield return FieldWait(0.3f);
-
-        // Defense tracks toward ball carrier
-        BoardSlot carrierForPursuit = FindSlotForCardUid(offPlayer, g.ball_carrier_uid ?? g.target_receiver_uid);
-        if (carrierForPursuit != null)
-            EnqueueDefenseTracking(defPlayer, carrierForPursuit);
-        yield return WaitForQueuesToFinish(10f);
 
         // Post-play yardage summary
         var summaryPanel = YardageSummaryPanel.Get();
@@ -282,130 +251,6 @@ public class PlayAnimationController : MonoBehaviour
                 GameClient.Get()?.SendAction(GameAction.PlayerReadyPhase);
         }
         readyRetryCoroutine = null;
-    }
-
-    /// <summary>
-    /// Animates the football based on play type and fail event.
-    /// Called right after the snap signal.
-    /// </summary>
-    private IEnumerator AnimateBallForPlay(
-        BallManager ball, Game g, PlayType playType, FailPlayEventType failEvent,
-        int yardage, bool isPass,
-        BoardSlot qbSlot, BoardSlot carrierSlot, BoardSlot receiverSlot,
-        Player offPlayer, Player defPlayer)
-    {
-        // ── SACK: ball stays with QB, QB gets dragged back ──
-        if (failEvent == FailPlayEventType.Sack)
-        {
-            ball.AttachTo(qbSlot);
-            yield break;
-        }
-
-        // ── RUN PLAYS ──
-        if (!isPass)
-        {
-            // Handoff to ball carrier
-            if (carrierSlot != null && carrierSlot != qbSlot)
-            {
-                yield return FieldWait(0.2f); // brief QB hold
-                ball.HandOffTo(carrierSlot, 0.3f);
-                yield return FieldWait(0.35f);
-            }
-            ball.AttachTo(carrierSlot ?? qbSlot);
-
-            // Fumble check
-            if (failEvent == FailPlayEventType.RunnerFumble)
-            {
-                // Wait for carrier to reach ~fumble point, then pop loose
-                yield return FieldWait(0.5f);
-                ball.FumbleLoose(ball.transform.position, 0.5f);
-                yield return FieldWait(0.55f);
-
-                // Recovery
-                BoardSlot recovererSlot = ResolveRecovererSlot(g, offPlayer, defPlayer);
-                if (recovererSlot != null)
-                {
-                    ball.RecoverTo(recovererSlot, 0.3f);
-                    yield return FieldWait(0.35f);
-                }
-            }
-            yield break;
-        }
-
-        // ── PASS PLAYS ──
-        // QB holds ball during dropback
-        ball.AttachTo(qbSlot);
-        yield return FieldWait(0.6f); // dropback time
-
-        // QB Fumble (pre-throw)
-        if (failEvent == FailPlayEventType.QBFumble)
-        {
-            ball.FumbleLoose(ball.transform.position, 0.5f);
-            yield return FieldWait(0.55f);
-            BoardSlot recovererSlot = ResolveRecovererSlot(g, offPlayer, defPlayer);
-            if (recovererSlot != null)
-            {
-                ball.RecoverTo(recovererSlot, 0.3f);
-                yield return FieldWait(0.35f);
-            }
-            yield break;
-        }
-
-        // Determine throw target position
-        BoardSlot throwTarget = receiverSlot ?? carrierSlot;
-        if (throwTarget == null)
-        {
-            // No receiver found — ball just stays with QB
-            yield break;
-        }
-        Vector3 targetPos = throwTarget.transform.position;
-
-        // Calculate flight duration based on distance
-        float dist = Vector3.Distance(ball.transform.position, targetPos);
-        float flightDur = Mathf.Clamp(dist * 0.06f, 0.3f, 0.8f);
-
-        // Throw the ball
-        ball.Detach();
-        ball.ThrowTo(targetPos, flightDur);
-        yield return FieldWait(flightDur + 0.05f);
-
-        // ── INTERCEPTION ──
-        if (failEvent == FailPlayEventType.Interception ||
-            (failEvent == FailPlayEventType.TippedPass && g.turnover_pending))
-        {
-            BoardSlot interceptorSlot = FindInterceptorSlot(g, defPlayer);
-            if (interceptorSlot != null)
-            {
-                ball.AttachTo(interceptorSlot);
-            }
-            yield break;
-        }
-
-        // ── INCOMPLETE (including BattedPass, TippedPass non-INT) ──
-        if (failEvent == FailPlayEventType.IncompletePass ||
-            failEvent == FailPlayEventType.BattedPass ||
-            (failEvent == FailPlayEventType.TippedPass && !g.turnover_pending))
-        {
-            ball.DropIncomplete(targetPos, 0.6f);
-            yield break;
-        }
-
-        // ── COMPLETE PASS ──
-        ball.AttachTo(throwTarget);
-
-        // Runner fumble after catch
-        if (failEvent == FailPlayEventType.RunnerFumble)
-        {
-            yield return FieldWait(0.5f);
-            ball.FumbleLoose(ball.transform.position, 0.5f);
-            yield return FieldWait(0.55f);
-            BoardSlot recovererSlot = ResolveRecovererSlot(g, offPlayer, defPlayer);
-            if (recovererSlot != null)
-            {
-                ball.RecoverTo(recovererSlot, 0.3f);
-                yield return FieldWait(0.35f);
-            }
-        }
     }
 
     /// <summary>Find the BoardSlot for the interceptor card, or nearest DB.</summary>
