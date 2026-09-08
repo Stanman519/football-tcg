@@ -22,7 +22,7 @@ public partial class PlayAnimationController : MonoBehaviour
 
     [Header("Pre-Snap Timing")]
     [Tooltip("Seconds for the pre-snap 'hut hut' beat")]
-    public float preSnapBeatDuration = 2.4f;
+    public float preSnapBeatDuration = 1.2f;
     [Tooltip("Seconds for audible animation when hot route triggers")]
     public float audibleDuration = 1.5f;
 
@@ -54,6 +54,8 @@ public partial class PlayAnimationController : MonoBehaviour
         slotMachineUI = FindFirstObjectByType<SlotMachineUI>();
         boardStatOverlay = FindFirstObjectByType<BoardStatOverlay>();
         abilitySpotlight = FindFirstObjectByType<AbilitySpotlight>();
+        if (abilitySpotlight == null) // not in scene — self-builds its canvas in Awake
+            abilitySpotlight = new GameObject("AbilitySpotlight").AddComponent<AbilitySpotlight>();
     }
 
     void Start()
@@ -152,19 +154,21 @@ public partial class PlayAnimationController : MonoBehaviour
         Player offPlayer = ctx.offPlayer;
         BoardSlot qbSlot = ctx.qbSlot;
 
-        // 1. Let the scene settle
-        yield return FieldWait(0.5f);
+        // 1. Reels just finished flashing (Resolution starts after full spin) — one readable beat, full size
+        yield return FieldWait(0.9f);
 
         // 2. Minimize slot machine
         if (slotMachineUI != null)
             slotMachineUI.MinimizeAnimated(0.5f);
         yield return FieldWait(0.7f);
 
-        // 3. PHASE A — Sequential base stat contributions
-        Player p0 = g.players != null && g.players.Length > 0 ? g.players[0] : null;
-        Player p1 = g.players != null && g.players.Length > 1 ? g.players[1] : null;
-        if (boardStatOverlay != null)
-            yield return boardStatOverlay.ShowLabelsSequential(g, p0, p1);
+        // 3. IMPACT SHOWCASES — zoom each player whose ability shaped this play, w/ value banner
+        if (abilitySpotlight != null)
+        {
+            abilitySpotlight.BuildFromImpacts(g);
+            if (abilitySpotlight.HasPendingShowcases)
+                yield return abilitySpotlight.FlushAndProcess(bulletTime: false);
+        }
 
         // [BALL] Snap to QB
         if (ball != null && qbSlot != null)
@@ -197,17 +201,6 @@ public partial class PlayAnimationController : MonoBehaviour
 
         // 7. Outcome choreography: ball event + outcome + pursuit + tackle + aftermath
         yield return StartCoroutine(RunOutcomeChoreography(ctx));
-
-        // 8. Ability bullet-time showcase (buffered during phase transition)
-        if (abilitySpotlight != null && abilitySpotlight.HasPendingShowcases)
-        {
-            yield return FieldWait(0.3f);
-            yield return abilitySpotlight.FlushAndProcess();
-        }
-
-        // Fade out base stat labels now that showcases are done
-        if (boardStatOverlay != null)
-            boardStatOverlay.StartFadeOut();
 
         // Fallback: no procedural route assigned (shouldn't happen for real plays)
         if (!routesAssigned && ctx.carrierSlot != null && ctx.yardage != 0)

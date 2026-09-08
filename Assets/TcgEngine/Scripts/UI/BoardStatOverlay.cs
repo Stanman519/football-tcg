@@ -61,12 +61,11 @@ namespace TcgEngine.UI
             if (sequentialMode) { prevPhase = g.phase; return; }
 
             bool inResolution = g.phase == GamePhase.Resolution;
-            bool justEnteredResolution = inResolution && prevPhase != GamePhase.Resolution;
             bool justLeftResolution = !inResolution && prevPhase == GamePhase.Resolution;
 
-            if (justEnteredResolution)
-                ShowLabels(g, p0, p1);
-
+            // No auto-show on entering Resolution: base-stat labels on every card competed with the
+            // impact showcases (which carry the same info per actor, with real values incl. buffs).
+            // ShowLabels/ShowLabelsSequential remain available for deliberate callers.
             if (justLeftResolution)
                 StartFadeOut();
 

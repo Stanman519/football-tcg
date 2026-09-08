@@ -11,9 +11,9 @@ namespace TcgEngine.UI
 {
     /// <summary>
     /// Ability spotlight with two modes:
-    /// 1) Immediate: glow + banner on ability fire (non-Resolution phases)
-    /// 2) Buffered showcase: during Resolution, buffers abilities, sorts by position group,
-    ///    plays back with slow-mo + camera zoom (bullet-time) after snap.
+    /// 1) Immediate: glow + banner on ability fire (LiveBall / out-of-play phases)
+    /// 2) Showcase: pre-snap playback of the play's impact records (Game.play_impacts) —
+    ///    camera zoom + glow + value banner per impacted card, sorted football-chronologically.
     /// </summary>
     public class AbilitySpotlight : MonoBehaviour
     {
@@ -41,10 +41,7 @@ namespace TcgEngine.UI
         private Canvas overlayCanvas;
         private readonly List<SpotlightBanner> bannerPool = new List<SpotlightBanner>();
 
-        // Buffering
-        private bool isBuffering;
         private readonly List<ShowcaseEntry> pendingShowcases = new List<ShowcaseEntry>();
-        private Coroutine showcaseCoroutine;
 
         public struct ShowcaseEntry
         {
@@ -54,6 +51,7 @@ namespace TcgEngine.UI
             public PlayerPositionGrp posGroup;
             public bool isOffense;
             public int sortKey;
+            public string valueLine; // "+5 RUN" etc. from PlayImpact; empty for non-stat abilities
         }
 
         private class SpotlightBanner
@@ -79,7 +77,6 @@ namespace TcgEngine.UI
             {
                 client.onAbilityStart += OnAbilityStart;
                 client.onAbilityEnd += OnAbilityEnd;
-                client.onRefreshAll += OnRefreshAll;
             }
         }
 
@@ -90,7 +87,6 @@ namespace TcgEngine.UI
             {
                 client.onAbilityStart -= OnAbilityStart;
                 client.onAbilityEnd -= OnAbilityEnd;
-                client.onRefreshAll -= OnRefreshAll;
             }
         }
 
@@ -107,66 +103,31 @@ namespace TcgEngine.UI
             }
         }
 
-        // ── Phase tracking for buffer mode ────────────────────
+        // ── Ability Events (immediate mode only) ─────────────
 
-        private void OnRefreshAll()
+        private static bool InPlayWindow(Game g)
         {
-            Game g = GameClient.Get()?.GetGameData();
-            if (g == null) return;
-
-            // Start buffering when Resolution phase begins
-            if (g.phase == GamePhase.Resolution && !isBuffering)
-            {
-                isBuffering = true;
-                pendingShowcases.Clear();
-            }
-            // Stop buffering if we leave Resolution without flushing
-            else if (g.phase != GamePhase.Resolution && isBuffering && showcaseCoroutine == null)
-            {
-                isBuffering = false;
-                pendingShowcases.Clear();
-            }
+            // The impact-showcase pipeline owns these phases — no immediate flashes
+            return g != null && (g.phase == GamePhase.RevealPlayCalls
+                || g.phase == GamePhase.SlotSpin
+                || g.phase == GamePhase.Resolution);
         }
-
-        // ── Ability Events ────────────────────────────────────
 
         private void OnAbilityStart(AbilityData ability, Card caster)
         {
             if (ability == null || caster == null) return;
+            if (InPlayWindow(GameClient.Get()?.GetGameData())) return;
 
             BoardCard bcard = BoardCard.Get(caster.uid);
             if (bcard == null) return;
 
-            // If buffering (Resolution phase), queue for later playback
-            if (isBuffering)
-            {
-                Game g = GameClient.Get()?.GetGameData();
-                bool isOff = g != null && g.current_offensive_player != null
-                             && caster.player_id == g.current_offensive_player.player_id;
-
-                PlayerPositionGrp grp = caster.Data != null ? caster.Data.playerPosition : PlayerPositionGrp.NONE;
-                PlayType pt = g?.last_play_type ?? PlayType.Huddle;
-
-                pendingShowcases.Add(new ShowcaseEntry
-                {
-                    ability = ability,
-                    caster = caster,
-                    boardCard = bcard,
-                    posGroup = grp,
-                    isOffense = isOff,
-                    sortKey = ShowcaseSortKey(grp, isOff, pt)
-                });
-                return;
-            }
-
-            // Immediate mode (non-Resolution)
             ShowImmediate(ability, caster, bcard);
         }
 
         private void OnAbilityEnd(AbilityData ability, Card caster)
         {
             if (ability == null || caster == null) return;
-            if (isBuffering) return; // showcase handles cleanup
+            if (InPlayWindow(GameClient.Get()?.GetGameData())) return;
 
             BoardCard bcard = BoardCard.Get(caster.uid);
             if (bcard == null) return;
@@ -237,19 +198,74 @@ namespace TcgEngine.UI
             }
         }
 
-        // ── Showcase Mode (Bullet-Time Phase B) ──────────────
+        // ── Showcase Mode ─────────────────────────────────────
 
-        /// <summary>
-        /// Called by PlayAnimationController after snap. Sorts buffered abilities
-        /// by position group and plays them back with slow-mo + camera zoom.
-        /// Returns true if there are abilities to showcase.
-        /// </summary>
         public bool HasPendingShowcases => pendingShowcases.Count > 0;
 
-        public IEnumerator FlushAndProcess()
+        /// <summary>Short label for a PlayImpact's status delta, e.g. "+5 RUN", "-2 DEEP COV".</summary>
+        private static string ImpactValueLine(int statusType, int value)
         {
-            isBuffering = false;
+            if (statusType == 0 || value == 0) return "";
+            string label = (StatusType)statusType switch
+            {
+                StatusType.AddedRunBonus => "RUN",
+                StatusType.AddedShortPassBonus => "SHORT PASS",
+                StatusType.AddedDeepPassBonus => "DEEP PASS",
+                StatusType.AddedRunCoverageBonus => "RUN COV",
+                StatusType.AddedShortPassCoverageBonus => "SHORT COV",
+                StatusType.AddedDeepPassCoverageBonus => "DEEP COV",
+                _ => "",
+            };
+            if (label == "") return "";
+            return $"{value:+#;-#;0} {label}";
+        }
 
+        /// <summary>
+        /// Build showcase entries from the server's per-ability impact records for this play.
+        /// Called by PlayAnimationController at Resolution start (pre-snap).
+        /// </summary>
+        public void BuildFromImpacts(Game g)
+        {
+            pendingShowcases.Clear();
+            if (g == null || g.play_impacts == null) return;
+
+            PlayType pt = g.current_offensive_player?.SelectedPlay ?? PlayType.Huddle;
+
+            foreach (var impact in g.play_impacts)
+            {
+                Card caster = null;
+                foreach (var p in g.players)
+                {
+                    caster = p.cards_board.FirstOrDefault(c => c.uid == impact.caster_uid);
+                    if (caster != null) break;
+                }
+                if (caster == null) continue;
+
+                BoardCard bcard = BoardCard.Get(caster.uid);
+                if (bcard == null) continue;
+
+                AbilityData ability = AbilityData.Get(impact.ability_id);
+                if (ability == null) continue;
+
+                bool isOff = g.current_offensive_player != null
+                             && caster.player_id == g.current_offensive_player.player_id;
+                PlayerPositionGrp grp = caster.Data != null ? caster.Data.playerPosition : PlayerPositionGrp.NONE;
+
+                pendingShowcases.Add(new ShowcaseEntry
+                {
+                    ability = ability,
+                    caster = caster,
+                    boardCard = bcard,
+                    posGroup = grp,
+                    isOffense = isOff,
+                    sortKey = ShowcaseSortKey(grp, isOff, pt),
+                    valueLine = ImpactValueLine(impact.status_type, impact.value),
+                });
+            }
+        }
+
+        public IEnumerator FlushAndProcess(bool bulletTime = true)
+        {
             if (pendingShowcases.Count == 0)
                 yield break;
 
@@ -264,11 +280,14 @@ namespace TcgEngine.UI
 
                 Color glowColor = entry.isOffense ? offenseGlow : defenseGlow;
 
-                // 1. Slow routes via TimeController
-                if (TimeController.Instance != null)
-                    TimeController.Instance.SetBulletTime(1f / showcaseSlowMultiplier, 0.15f);
-                else
-                    SlotMovementQueue.SetAllSpeed(showcaseSlowMultiplier);
+                // 1. Slow routes via TimeController (skipped pre-snap — field is static)
+                if (bulletTime)
+                {
+                    if (TimeController.Instance != null)
+                        TimeController.Instance.SetBulletTime(1f / showcaseSlowMultiplier, 0.15f);
+                    else
+                        SlotMovementQueue.SetAllSpeed(showcaseSlowMultiplier);
+                }
 
                 // 2. Camera zoom to caster
                 if (cam != null)
@@ -288,10 +307,14 @@ namespace TcgEngine.UI
                 entry.boardCard.transform.DOPunchScale(Vector3.one * punchScale, punchDuration, 6, 0.5f)
                     .SetLink(entry.boardCard.gameObject);
 
-                // 4. Two-line banner
+                // 4. Two-line banner — impact VALUE is the headline when we have one
                 var display = AbilityTextGenerator.Generate(entry.ability);
-                string effectLine = !string.IsNullOrEmpty(display.effect) ? display.effect
+                string generatedEffect = !string.IsNullOrEmpty(display.effect) ? display.effect
                     : (!string.IsNullOrEmpty(entry.ability.title) ? entry.ability.title : entry.ability.id);
+
+                bool hasValue = !string.IsNullOrEmpty(entry.valueLine);
+                string effectLine = hasValue ? entry.valueLine : generatedEffect;
+                string contextLine = hasValue ? generatedEffect : (display.trigger ?? "");
 
                 SpotlightBanner banner = null;
                 if (!string.IsNullOrEmpty(effectLine))
@@ -302,8 +325,8 @@ namespace TcgEngine.UI
                     banner.effectText.color = entry.isOffense
                         ? new Color(0.3f, 1f, 0.45f)
                         : new Color(1f, 0.45f, 0.45f);
-                    banner.triggerText.text = display.trigger ?? "";
-                    banner.triggerText.gameObject.SetActive(!string.IsNullOrEmpty(display.trigger));
+                    banner.triggerText.text = contextLine;
+                    banner.triggerText.gameObject.SetActive(!string.IsNullOrEmpty(contextLine));
                     banner.accentBar.color = glowColor;
                     banner.group.alpha = 1f;
                     banner.root.SetActive(true);
@@ -339,10 +362,13 @@ namespace TcgEngine.UI
                     cam.ReleaseFocus(0.2f);
 
                 // Restore route speed
-                if (TimeController.Instance != null)
-                    TimeController.Instance.ResetSpeed(0.15f);
-                else
-                    SlotMovementQueue.SetAllSpeed(1f);
+                if (bulletTime)
+                {
+                    if (TimeController.Instance != null)
+                        TimeController.Instance.ResetSpeed(0.15f);
+                    else
+                        SlotMovementQueue.SetAllSpeed(1f);
+                }
 
                 // Brief gap before next ability
                 yield return new WaitForSeconds(showcasePerAbility - showcaseHoldDur);
@@ -484,7 +510,7 @@ namespace TcgEngine.UI
         {
             overlayCanvas = gameObject.AddComponent<Canvas>();
             overlayCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            overlayCanvas.sortingOrder = 60;
+            overlayCanvas.sortingOrder = 78; // above YardageSummary 75, below PlayCallReveal 80
             var scaler = gameObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
