@@ -237,7 +237,7 @@ namespace TcgEngine.Gameplay
             slotMachineUI.FireReelUI(game_data.current_slot_data.Results, slotMachineManager.slot_data);
 
             resolve_queue.AddCallback(StartTurn);
-            resolve_queue.ResolveAll(SlotSpinDelay);
+            resolve_queue.ResolveAll(PreGameSpinDelay);
         }
 
         private SlotMachineResultDTO SpinSlotsWithModifiers(bool recordHistory = true)
@@ -282,8 +282,13 @@ namespace TcgEngine.Gameplay
         // ── Animation timing constants ──────────────────────
         // Huddle→formation at jog (~4.5 yd/s), max ~15yd = ~3.3s + 0.5s dramatic beat
         private const float FormationTransitionDelay = 4.0f;
-        // ~1.5s spin + 1s results display = 2.5s total
-        private const float SlotSpinDelay = 2.5f;
+        // Reels lock ~1.95/2.45/2.95s + win-line flash 0.92s + ~1.1s read hold
+        private const float SlotSpinDelay = 5.0f;
+        // Pre-game decorative spin: reels + flash, no read hold needed
+        private const float PreGameSpinDelay = 4.0f;
+        // PlayCallRevealPanel runs 3.65s (5.5s w/ enhancer frame) — spin starts only after it fades
+        private const float PlayCallRevealDelay = 3.9f;
+        private const float PlayCallRevealDelayEnhanced = 5.7f;
 
         /// <summary>
         /// Routes play through Resolution phase (triggers client snap + route animations).
@@ -514,7 +519,9 @@ namespace TcgEngine.Gameplay
                     }
                     RevealPlayCalls();
                     resolve_queue.AddCallback(StartSlotSpinPhase);
-                    resolve_queue.ResolveAll();
+                    //Let the reveal panel finish BEFORE the reels spin — each beat owns the screen
+                    bool hasEnhancers = game_data.players.Any(p => p.PlayEnhancer != null);
+                    resolve_queue.ResolveAll(hasEnhancers ? PlayCallRevealDelayEnhanced : PlayCallRevealDelay);
                     break;
 
                 case GamePhase.LiveBall:

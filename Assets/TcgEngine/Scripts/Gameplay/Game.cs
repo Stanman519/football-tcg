@@ -67,6 +67,19 @@ namespace TcgEngine.Gameplay
     }
 
     /// <summary>
+    /// One ability's contribution to the current play — recorded in TriggerBoardSlotAbilities,
+    /// consumed by the client's pre-snap impact showcases.
+    /// </summary>
+    [System.Serializable]
+    public class PlayImpact
+    {
+        public string caster_uid;
+        public string ability_id;
+        public int status_type;   // (int)StatusType; 0 = non-stat ability (respin, slot modifier...)
+        public int value;         // status delta attributed to this ability; 0 for non-stat
+    }
+
+    /// <summary>
     /// Breakdown of yardage calculation for UI display.
     /// Populated during ResolveRunOutcome / ResolvePassOutcome.
     /// </summary>
@@ -144,6 +157,7 @@ namespace TcgEngine.Gameplay
         public string tackler_uid;               // uid of defender credited with ending the play (null = TD/incomplete) — drives tackle animation
         public string ctr_defender_uid;          // uid of CTR card that shifted coverage this pass — drives coverage-shift banner
         public string ctr_covered_receiver_uid;  // uid of top receiver taken away by CTR
+        public List<PlayImpact> play_impacts = new List<PlayImpact>(); // per-ability contributions this play — drives pre-snap impact showcases
 
         // Slot machine modifiers (from abilities)
         public List<SlotModifier> temp_slot_modifiers;
@@ -1056,6 +1070,7 @@ namespace TcgEngine.Gameplay
             dest.tackler_uid = source.tackler_uid;
             dest.ctr_defender_uid = source.ctr_defender_uid;
             dest.ctr_covered_receiver_uid = source.ctr_covered_receiver_uid;
+            dest.play_impacts = source.play_impacts; // shallow, same pattern as yardage_breakdown
             dest.last_fail_event = source.last_fail_event;
             dest.interceptor_uid = source.interceptor_uid;
             dest.fumble_recoverer_uid = source.fumble_recoverer_uid;

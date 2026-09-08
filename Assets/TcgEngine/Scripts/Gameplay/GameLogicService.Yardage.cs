@@ -25,6 +25,7 @@ namespace TcgEngine.Gameplay
             game_data.tackler_uid = null;
             game_data.ctr_defender_uid = null;
             game_data.ctr_covered_receiver_uid = null;
+            game_data.play_impacts = new List<PlayImpact>();
 
             // Fail events are resolved in chronological football order via
             // OrderBy(FailPlayEventType enum value), first-match-wins.
@@ -78,7 +79,28 @@ namespace TcgEngine.Gameplay
         ///   (null callback) so ResolveRunFailEvents / ResolvePassFailEvents pick
         ///   them up through GetAbilityQueue().
         /// </summary>
-        private void TriggerBoardSlotAbilities(PlayType playType)
+        // Status types tracked for per-ability impact attribution (pre-snap showcases)
+        private static readonly StatusType[] ImpactStatuses =
+        {
+            StatusType.AddedRunBonus, StatusType.AddedShortPassBonus, StatusType.AddedDeepPassBonus,
+            StatusType.AddedRunCoverageBonus, StatusType.AddedShortPassCoverageBonus, StatusType.AddedDeepPassCoverageBonus,
+        };
+
+        private int[] SnapshotStatusSums()
+        {
+            var sums = new int[ImpactStatuses.Length];
+            for (int i = 0; i < ImpactStatuses.Length; i++)
+            {
+                int total = 0;
+                foreach (var p in game_data.players)
+                    foreach (var c in p.cards_board)
+                        total += c.GetStatusValue(ImpactStatuses[i]);
+                sums[i] = total;
+            }
+            return sums;
+        }
+
+        protected void TriggerBoardSlotAbilities(PlayType playType)
         {
             var triggerType = playType == PlayType.Run
                 ? AbilityTrigger.OnRunResolution
@@ -110,16 +132,47 @@ namespace TcgEngine.Gameplay
                         }
                         else
                         {
-                            // Stat buff: apply synchronously before yardage is calculated
+                            // Stat buff: apply synchronously before yardage is calculated.
+                            // Snapshot status sums around it so the contribution can be attributed
+                            // to this caster (abilities resolve serially here — unambiguous).
                             Debug.Log($"[SlotDraw] Firing stat ability '{ability.id}' from {card.card_id}");
+                            int[] before = SnapshotStatusSums();
                             ResolveCardAbility(ability, card, card);
+                            int[] after = SnapshotStatusSums();
+
+                            bool anyDelta = false;
+                            for (int i = 0; i < ImpactStatuses.Length; i++)
+                            {
+                                if (after[i] != before[i])
+                                {
+                                    anyDelta = true;
+                                    game_data.play_impacts.Add(new PlayImpact
+                                    {
+                                        caster_uid = card.uid,
+                                        ability_id = ability.id,
+                                        status_type = (int)ImpactStatuses[i],
+                                        value = after[i] - before[i],
+                                    });
+                                }
+                            }
+                            if (!anyDelta)
+                            {
+                                // Non-stat ability (respin, slot modifier...) — still worth a showcase
+                                game_data.play_impacts.Add(new PlayImpact
+                                {
+                                    caster_uid = card.uid,
+                                    ability_id = ability.id,
+                                    status_type = 0,
+                                    value = 0,
+                                });
+                            }
                         }
                     }
                 }
             }
         }
 
-        private PlayResolution ResolvePassOutcome()
+        protected PlayResolution ResolvePassOutcome()
         {
             var playType = game_data.current_offensive_player.SelectedPlay;
             var middleIcons = game_data.current_slot_data.Results
@@ -193,9 +246,14 @@ namespace TcgEngine.Gameplay
                     c.GetStatusValue(currentPlayStatus));
 
             var defPlayerPass = game_data.GetCurrentDefensivePlayer();
+            // BUGFIX: was summing def cards w/ the OFFENSIVE status type — defensive coverage buffs never counted
+            var coverageStatus = currPlayType == PlayType.LongPass
+                ? StatusType.AddedDeepPassCoverageBonus
+                : StatusType.AddedShortPassCoverageBonus;
+            int defStatusBonus = defPlayerPass.cards_board.Sum(c => c.GetStatusValue(coverageStatus));
             var otherDefPlayerYardage = defPlayerPass.cards_board
-                .Sum(c => (currPlayType == PlayType.LongPass ? c.Data.deep_pass_coverage_bonus : c.Data.short_pass_coverage_bonus) +
-                    c.GetStatusValue(currentPlayStatus));
+                .Sum(c => currPlayType == PlayType.LongPass ? c.Data.deep_pass_coverage_bonus : c.Data.short_pass_coverage_bonus)
+                + defStatusBonus;
             int defCoachPassBase = defPlayerPass.head_coach.baseDefenseYardage[currPlayType];
 
             bool defGuessedPass = defPlayerPass.SelectedPlay == currPlayType;
@@ -221,10 +279,10 @@ namespace TcgEngine.Gameplay
                 offPlayerBase = baseYardage,
                 offStatusBonuses = statusYardage,
                 offOtherPositions = otherOffPlayerYardage,
-                defCoverageBase = otherDefPlayerYardage,
+                defCoverageBase = otherDefPlayerYardage - defStatusBonus,
                 defCoachBase = defCoachPassBase,
                 defCoverageMod = passCoverageMod,
-                defStatusBonuses = 0,
+                defStatusBonuses = defStatusBonus,
                 netYardage = passTotal,
                 receiverName = targetReceiver?.CardData?.title ?? "",
                 ctrDefenderName = coverage.ctrDefender?.CardData?.title ?? "",
