@@ -48,16 +48,28 @@ Open issues:
 - Console: "referenced script (Unknown) is missing" spam at boot (likely a prefab).
 - LiveBallRevealPanel shows as soon as one LiveBall card is visible in state, not on the Reveal event.
 
+Session 3 (2026-11-11):
+- LiveBall branches verified in play mode: negate (Blanket Coverage), ball security, fumble recovery by grit, def yardage card (Ankle Tackle). Not seen: fumble TURNOVER (def grit must exceed off), In The Zone (immune).
+- Recap = ledger: rows tick in one at a time (zero rows hidden, +green/-red), total pops last; no rows on fail events. Fonts ~2x. Verified.
+- Resolution now ~14-18s with 2 ability beats + ledger. Watch total play length.
+
+Decisions (user, 2026-11-11):
+- Beats AUTO-ADVANCE (no click-to-advance).
+- Fail events: come from card abilities whose `conditions_trigger` read the slot icons (card = what, slots = when). Only slot-only case in code: Incomplete with no QB on board (wrench / no football on long). Card data currently wires only Sack (00113) + QBFumble (00132).
+- The 9 empty-effect abilities: deferred (too bespoke). Note 00105 "force a fumble on run" is likely just `failEventType: 8`.
+- Generated csprojs: committed as-is.
+
 **NEXT, in order:**
-1. Playtest remaining LiveBall branches (negate, ball security, fumble grit) + def LiveBall cards from AI.
-2. Card data: add missing fail-event abilities, fix the 9 empty ones.
-3. Extend beats: TD / first-down / coach abilities; yardage recap as beats instead of a text block.
-4. M5 remainder below. 5. Ball sheet frames. 6. M6 timing knobs + CTR banner. 7. LiveBallCardZone rebuild (P0).
+1. Play-length pass: total time per play is growing (reveal 4s + spin 5s + beats + ledger). Tune holds / cap ability beats (top 3 by value, rest in ledger).
+2. M5 remainder below (fumble turnover + return visual check, re-pursuit after delta).
+3. Beats for TD / coach abilities.
+4. Card data: more fail-event abilities.
+5. Ball sheet frames. 6. M6 timing knobs + CTR banner. 7. LiveBallCardZone rebuild (P0).
 
 ### M5 status
 - [x] v1 beat sequencer from `MsgLiveBallEvent`s (replaces 5c/5e immediate anim; no new phase - server delay = sum of beats).
 - [ ] 5b `Game.live_ball_log` so beats come from state, not messages (reconnect-safe). Only if messages prove racy.
-- [ ] 5d recap: show final (post-LB) yardage with "Live Ball: pre -> final" line.
+- [x] Final yardage shown by the LiveBall "Result" beat ("Was X, live ball +Y").
 - [ ] Re-pursuit + tackle after yardage delta; TD celebrate if final crosses goal.
 - [ ] Tie reveal panel to the Reveal event.
 
