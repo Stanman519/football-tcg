@@ -67,6 +67,32 @@ namespace TcgEngine.Gameplay
     }
 
     /// <summary>
+    /// LiveBall resolves in one server frame; the client replays its events one beat at a time.
+    /// Server holds EndTurn for the summed beat time so nothing is cut off. Single source of truth for both.
+    /// </summary>
+    public static class LiveBallBeats
+    {
+        public const float EndPad = 0.6f;
+
+        public static float Duration(LiveBallEventType type, bool anyCard)
+        {
+            switch (type)
+            {
+                case LiveBallEventType.Reveal: return anyCard ? 4.2f : 0f; // LiveBallRevealPanel 2-frame reveal
+                case LiveBallEventType.BothPass: return 1.2f;
+                case LiveBallEventType.NegateOffense:
+                case LiveBallEventType.NegateDefense:
+                case LiveBallEventType.BallSecurity: return 2.4f;
+                case LiveBallEventType.FumbleRecovery: return 2.8f;
+                case LiveBallEventType.FumbleTurnover: return 3.0f;
+                case LiveBallEventType.YardageDelta: return 2.6f;
+                case LiveBallEventType.PostLBResolved: return anyCard ? 1.8f : 0f;
+                default: return 1.5f;
+            }
+        }
+    }
+
+    /// <summary>
     /// One ability's contribution to the current play — recorded in TriggerBoardSlotAbilities,
     /// consumed by the client's pre-snap impact showcases.
     /// </summary>

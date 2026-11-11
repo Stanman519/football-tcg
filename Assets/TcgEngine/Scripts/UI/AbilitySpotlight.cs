@@ -444,20 +444,32 @@ namespace TcgEngine.UI
 
         private void ShowImpactPanel(ShowcaseEntry entry, string headline, string desc, Color sideColor, int index, int total)
         {
+            CardData cd = entry.caster.CardData;
+            string label = (entry.isOffense ? "OFFENSE" : "DEFENSE") + "  -  " + entry.posGroup.ToString().Replace('_', '/');
+            string title = cd != null && !string.IsNullOrEmpty(cd.title) ? cd.title : entry.caster.card_id;
+            ShowBeat(cd, label, title, headline, desc, sideColor, index, total);
+        }
+
+        /// <summary>
+        /// Generic "one thing happened" beat: same big panel, any source (LiveBall cards, outcomes...).
+        /// card may be null (no art). Call HideBeat() when the beat is over.
+        /// </summary>
+        public void ShowBeat(CardData card, string label, string title, string headline, string desc,
+            Color color, int index = 0, int total = 0)
+        {
             if (impactRoot == null) BuildImpactPanel();
 
-            CardData cd = entry.caster.CardData;
-            Sprite art = cd != null ? cd.GetFullArt(entry.caster.VariantData) : null;
+            Sprite art = card != null ? card.GetFullArt(null) : null;
             impactArt.sprite = art;
             impactArt.enabled = art != null;
 
-            impactAccent.color = sideColor;
-            impactSide.text = (entry.isOffense ? "OFFENSE" : "DEFENSE") + "  -  " + entry.posGroup.ToString().Replace('_', '/');
-            impactSide.color = sideColor;
-            impactName.text = cd != null && !string.IsNullOrEmpty(cd.title) ? cd.title : entry.caster.card_id;
-            impactValue.text = headline;
-            impactValue.color = sideColor;
-            impactDesc.text = desc;
+            impactAccent.color = color;
+            impactSide.text = label ?? "";
+            impactSide.color = color;
+            impactName.text = title ?? "";
+            impactValue.text = headline ?? "";
+            impactValue.color = color;
+            impactDesc.text = desc ?? "";
             impactCount.text = total > 1 ? $"{index}/{total}" : "";
 
             impactGroup.DOKill();
@@ -469,6 +481,11 @@ namespace TcgEngine.UI
             impactValue.transform.localScale = Vector3.one;
             impactValue.transform.DOPunchScale(Vector3.one * 0.15f, 0.35f, 5, 0.5f).SetLink(impactRoot.gameObject);
         }
+
+        public void HideBeat() => HideImpactPanel();
+
+        public Color OffenseColor => offenseGlow;
+        public Color DefenseColor => defenseGlow;
 
         private void HideImpactPanel()
         {

@@ -637,25 +637,136 @@ public partial class PlayAnimationController : MonoBehaviour
 
     // ── Live Ball Event Handling ─────────────────────────────
 
+    private struct LiveBallBeat
+    {
+        public LiveBallEventType type;
+        public string offCardId, defCardId;
+        public int p1, p2;
+    }
+
+    private readonly Queue<LiveBallBeat> liveBallBeats = new Queue<LiveBallBeat>();
+    private Coroutine liveBallBeatRoutine;
+    private bool liveBallAnyCard;
+
+    // Server fires every LiveBall event in one frame. Queue them and play ONE beat at a time
+    // (panel + field move + hold) so the player can follow what each card did.
+    // Durations come from LiveBallBeats; the server holds EndTurn for the same total.
     private void OnLiveBallEventReceived(LiveBallEventType type, string offCardId, string defCardId, int p1, int p2)
     {
-        Game g = GameClient.Get()?.GetGameData();
-        if (g == null) return;
+        if (type == LiveBallEventType.Reveal)
+        {
+            liveBallBeats.Clear();
+            liveBallAnyCard = !string.IsNullOrEmpty(offCardId) || !string.IsNullOrEmpty(defCardId);
+        }
 
-        if (type == LiveBallEventType.YardageDelta)
+        liveBallBeats.Enqueue(new LiveBallBeat { type = type, offCardId = offCardId, defCardId = defCardId, p1 = p1, p2 = p2 });
+        if (liveBallBeatRoutine == null)
+            liveBallBeatRoutine = StartCoroutine(RunLiveBallBeats());
+    }
+
+    private IEnumerator RunLiveBallBeats()
+    {
+        while (liveBallBeats.Count > 0)
         {
-            int delta = p1;
-            Debug.Log($"[LiveBall.Anim] YardageDelta {delta:+#;-#;0} from {offCardId} -> total {p2}");
-            AnimateCarrierDelta(g, delta);
+            LiveBallBeat beat = liveBallBeats.Dequeue();
+            float dur = LiveBallBeats.Duration(beat.type, liveBallAnyCard);
+            Game g = GameClient.Get()?.GetGameData();
+            if (g == null || dur <= 0f) continue;
+
+            CardData offData = string.IsNullOrEmpty(beat.offCardId) ? null : CardData.Get(beat.offCardId);
+            CardData defData = string.IsNullOrEmpty(beat.defCardId) ? null : CardData.Get(beat.defCardId);
+            Color offCol = abilitySpotlight != null ? abilitySpotlight.OffenseColor : Color.green;
+            Color defCol = abilitySpotlight != null ? abilitySpotlight.DefenseColor : Color.red;
+            Color neutral = new Color(1f, 0.85f, 0.3f);
+            bool panel = true;
+
+            switch (beat.type)
+            {
+                case LiveBallEventType.Reveal:
+                    panel = false; // LiveBallRevealPanel owns this beat
+                    break;
+
+                case LiveBallEventType.BothPass:
+                    ShowLiveBallBeat(null, "LIVE BALL", "No cards played", "PLAY STANDS", "", neutral);
+                    break;
+
+                case LiveBallEventType.NegateOffense:
+                    ShowLiveBallBeat(defData, "DEFENSE  -  LIVE BALL", CardTitle(defData), "NEGATED",
+                        $"Cancels {CardTitle(offData)}", defCol);
+                    break;
+
+                case LiveBallEventType.NegateDefense:
+                    ShowLiveBallBeat(offData, "OFFENSE  -  LIVE BALL", CardTitle(offData), "IMMUNE",
+                        "Defensive effects ignored", offCol);
+                    break;
+
+                case LiveBallEventType.BallSecurity:
+                    ShowLiveBallBeat(offData, "OFFENSE  -  LIVE BALL", CardTitle(offData), "FUMBLE PREVENTED",
+                        $"Stops {CardTitle(defData)}", offCol);
+                    break;
+
+                case LiveBallEventType.FumbleRecovery:
+                    ShowLiveBallBeat(defData, "FUMBLE ATTEMPT", CardTitle(defData), "OFFENSE RECOVERS",
+                        $"Grit: offense {beat.p1} vs defense {beat.p2}", offCol);
+                    break;
+
+                case LiveBallEventType.FumbleTurnover:
+                    ShowLiveBallBeat(defData, "FUMBLE ATTEMPT", CardTitle(defData), "FUMBLE!",
+                        $"Grit: offense {beat.p1} vs defense {beat.p2}", defCol);
+                    break;
+
+                case LiveBallEventType.YardageDelta:
+                {
+                    // Source card arrives in the off slot regardless of side; side = its card type
+                    bool srcIsDef = offData != null && offData.type == CardType.DefLiveBall;
+                    int delta = beat.p1;
+                    ShowLiveBallBeat(offData, (srcIsDef ? "DEFENSE" : "OFFENSE") + "  -  LIVE BALL", CardTitle(offData),
+                        $"{delta:+#;-#;0} YDS", $"Play total: {beat.p2} yds", srcIsDef ? defCol : offCol);
+                    Debug.Log($"[LiveBall.Anim] YardageDelta {delta:+#;-#;0} from {beat.offCardId} -> total {beat.p2}");
+                    AnimateCarrierDelta(g, delta);
+                    break;
+                }
+
+                case LiveBallEventType.PostLBResolved:
+                {
+                    Debug.Log($"[LiveBall.Anim] PostLBResolved pre={beat.p1} final={beat.p2} turnover={g.turnover_pending}");
+                    if (g.turnover_pending)
+                    {
+                        ShowLiveBallBeat(null, "LIVE BALL", "Result", "TURNOVER",
+                            g.live_ball_return_yards > 0 ? $"Returned {g.live_ball_return_yards} yds" : "", defCol);
+                        AnimateLiveBallTurnover(g);
+                    }
+                    else
+                    {
+                        int diff = beat.p2 - beat.p1;
+                        ShowLiveBallBeat(null, "LIVE BALL", "Result", $"{beat.p2:+#;-#;0} YDS",
+                            diff != 0 ? $"Was {beat.p1}, live ball {diff:+#;-#;0}" : "No change", neutral);
+                    }
+                    break;
+                }
+            }
+
+            float hold = panel ? Mathf.Max(0.2f, dur - 0.35f) : dur;
+            yield return new WaitForSeconds(hold);
+            if (panel)
+            {
+                abilitySpotlight?.HideBeat();
+                yield return new WaitForSeconds(0.35f);
+            }
         }
-        else if (type == LiveBallEventType.PostLBResolved)
-        {
-            int preLB = p1;
-            int finalLB = p2;
-            Debug.Log($"[LiveBall.Anim] PostLBResolved pre={preLB} final={finalLB} turnover={g.turnover_pending}");
-            if (g.turnover_pending)
-                AnimateLiveBallTurnover(g);
-        }
+        liveBallBeatRoutine = null;
+    }
+
+    private void ShowLiveBallBeat(CardData card, string label, string title, string headline, string desc, Color color)
+    {
+        if (abilitySpotlight != null)
+            abilitySpotlight.ShowBeat(card, label, title, headline, desc, color);
+    }
+
+    private static string CardTitle(CardData cd)
+    {
+        if (cd == null) return "";
+        return !string.IsNullOrEmpty(cd.title) ? cd.title : cd.id;
     }
 
     private void AnimateCarrierDelta(Game g, int deltaYards)

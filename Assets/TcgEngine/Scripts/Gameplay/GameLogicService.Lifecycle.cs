@@ -813,6 +813,8 @@ namespace TcgEngine.Gameplay
             Debug.Log($"[LiveBall] Resolving — OFF: {offCard?.card_id ?? "pass"} | DEF: {defCard?.card_id ?? "pass"}");
 
             int preLBYardage = game_data.yardage_this_play;
+            live_ball_beat_time = 0f;
+            live_ball_any_card = offCard != null || defCard != null;
 
             // Fire reveal event (shows both cards or "PASS" placeholders)
             FireLiveBallEvent(LiveBallEventType.Reveal, offCard, defCard, 0, 0);
@@ -946,8 +948,14 @@ namespace TcgEngine.Gameplay
         {
             if (is_ai_predict) return;
             onLiveBallEvent?.Invoke(eventType, offCard, defCard, offGrit, defGrit);
-            resolve_queue.SetDelay(1.5f);
+            // Events all fire this frame; client replays them as sequential beats.
+            // Hold EndTurn for the summed beat time (SetDelay keeps the max).
+            live_ball_beat_time += LiveBallBeats.Duration(eventType, live_ball_any_card);
+            resolve_queue.SetDelay(live_ball_beat_time + LiveBallBeats.EndPad);
         }
+
+        private float live_ball_beat_time;
+        private bool live_ball_any_card;
 
         /// <summary>
         /// Checks if any ability on a live ball card has the given effect type.
