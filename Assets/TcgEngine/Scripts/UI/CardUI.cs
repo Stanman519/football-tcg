@@ -107,7 +107,15 @@ namespace TcgEngine.UI
 
             // Art
             if (card_image != null)
-                card_image.sprite = card.GetFullArt(variant);
+            {
+                Sprite art = card.GetFullArt(variant);
+                card_image.sprite = art;
+                // No art yet (enhancers / live ball cards): flat type-colored placeholder instead of a blank rect
+                if (art != null) card_image.color = Color.white;
+                else if (card.type == CardType.OffLiveBall) card_image.color = new Color(0.16f, 0.42f, 0.26f);
+                else if (card.type == CardType.DefLiveBall) card_image.color = new Color(0.48f, 0.18f, 0.18f);
+                else card_image.color = new Color(0.17f, 0.27f, 0.48f);
+            }
             if (frame_image != null)
                 frame_image.sprite = variant.frame;
 
