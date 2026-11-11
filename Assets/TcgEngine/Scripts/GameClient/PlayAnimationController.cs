@@ -175,6 +175,14 @@ public partial class PlayAnimationController : MonoBehaviour
                 yield return abilitySpotlight.FlushAndProcess(bulletTime: false);
         }
 
+        // Let stragglers finish lining up (after a possession change slots are still jogging in from the bench)
+        float lineupWait = 0f;
+        while (lineupWait < 3f && AnySlotStillMoving())
+        {
+            lineupWait += Time.deltaTime;
+            yield return null;
+        }
+
         // [BALL] Snap to QB
         if (ball != null && qbSlot != null)
         {
@@ -636,6 +644,16 @@ public partial class PlayAnimationController : MonoBehaviour
     }
 
     // ── Live Ball Event Handling ─────────────────────────────
+
+    private static bool AnySlotStillMoving()
+    {
+        foreach (BoardSlot bs in FindObjectsByType<BoardSlot>(FindObjectsSortMode.None))
+        {
+            if (bs.MoveQueue != null && bs.MoveQueue.HasWork)
+                return true;
+        }
+        return false;
+    }
 
     private struct LiveBallBeat
     {
