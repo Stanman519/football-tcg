@@ -176,6 +176,23 @@ namespace TcgEngine.UI
                 v => { var o = PlayAnimationController.Instance; if (o) o.audibleDuration = v; },
                 () => { var o = PlayAnimationController.Instance; return o ? o.audibleDuration : 1.5f; });
 
+            // Info beats (ability spotlight / recap ledger) — pacing of "what just happened"
+            AddSlider(parent, "Ability Beat Hold", 0.5f, 5f, 1.7f,
+                v => { var o = FindAnyObjectByType<AbilitySpotlight>(); if (o) { o.showcaseHoldDur = v; o.showcasePerAbility = v + 0.3f; } },
+                () => { var o = FindAnyObjectByType<AbilitySpotlight>(); return o ? o.showcaseHoldDur : 1.7f; });
+
+            AddSlider(parent, "Max Ability Beats", 1f, 8f, 3f,
+                v => { var o = FindAnyObjectByType<AbilitySpotlight>(); if (o) o.maxShowcases = Mathf.RoundToInt(v); },
+                () => { var o = FindAnyObjectByType<AbilitySpotlight>(); return o ? o.maxShowcases : 3f; });
+
+            AddSlider(parent, "Recap Row Stagger", 0.05f, 1.5f, 0.3f,
+                v => { var o = YardageSummaryPanel.Get(); if (o) o.rowStagger = v; },
+                () => { var o = YardageSummaryPanel.Get(); return o ? o.rowStagger : 0.3f; });
+
+            AddSlider(parent, "Recap Hold", 0.5f, 6f, 2.2f,
+                v => { var o = YardageSummaryPanel.Get(); if (o) o.holdDur = v; },
+                () => { var o = YardageSummaryPanel.Get(); return o ? o.holdDur : 2.2f; });
+
             // SlotMovementQueue — global speed multiplier
             AddSlider(parent, "Movement Speed Mult", 0.25f, 4f, 1f,
                 v => SlotMovementQueue.SetAllSpeed(v),

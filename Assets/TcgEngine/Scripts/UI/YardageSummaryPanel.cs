@@ -25,9 +25,9 @@ namespace TcgEngine.UI
 
         [Header("Timing")]
         public float fadeInDur   = 0.4f;
-        public float holdDur     = 2.6f;   // after the total lands
+        public float holdDur     = 2.2f;   // after the total lands
         public float fadeOutDur  = 0.5f;
-        public float rowStagger  = 0.45f;  // one ledger row at a time, total last
+        public float rowStagger  = 0.3f;   // one ledger row at a time, total last
 
         public bool IsShowing => isShowing;
         private int rowCount;

@@ -160,12 +160,12 @@ public partial class PlayAnimationController : MonoBehaviour
         BoardSlot qbSlot = ctx.qbSlot;
 
         // 1. Reels just finished flashing (Resolution starts after full spin) — one readable beat, full size
-        yield return FieldWait(0.9f);
+        yield return FieldWait(0.5f);
 
         // 2. Minimize slot machine
         if (slotMachineUI != null)
             slotMachineUI.MinimizeAnimated(0.5f);
-        yield return FieldWait(0.7f);
+        yield return FieldWait(0.55f);
 
         // 3. IMPACT SHOWCASES — zoom each player whose ability shaped this play, w/ value banner
         if (abilitySpotlight != null)

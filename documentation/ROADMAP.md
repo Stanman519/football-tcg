@@ -49,9 +49,11 @@ Open issues:
 - LiveBallRevealPanel shows as soon as one LiveBall card is visible in state, not on the Reveal event.
 
 Session 3 (2026-11-11):
-- LiveBall branches verified in play mode: negate (Blanket Coverage), ball security, fumble recovery by grit, def yardage card (Ankle Tackle). Not seen: fumble TURNOVER (def grit must exceed off), In The Zone (immune).
+- LiveBall branches verified in play mode: negate (Blanket Coverage), ball security, fumble recovery by grit, def yardage card (Ankle Tackle). Fumble TURNOVER verified too ("FUMBLE! Grit 0 vs 3" -> "TURNOVER, returned 6 yds", possession flips). Not seen: In The Zone (immune).
 - Recap = ledger: rows tick in one at a time (zero rows hidden, +green/-red), total pops last; no rows on fail events. Fonts ~2x. Verified.
-- Resolution now ~14-18s with 2 ability beats + ledger. Watch total play length.
+- Play length (measured, Run, 2 ability beats): reveal 3.9s + spin 5.0s + Resolution ~14-15.5s (was 17.6 before trims) = ~24s call-to-end; LiveBall adds 2s (both pass) to ~10s (cards).
+- Trims applied: pre-showcase waits, ability beat 2.0s each (cap 3/play), ledger stagger 0.3s, recap hold 2.2s (scene value). New DevTuningPanel sliders: Ability Beat Hold, Max Ability Beats, Recap Row Stagger, Recap Hold.
+- Noted: Run with no runner on board = -10 to -12 yds every play (def coverage vs 0 offense). Balance question, now that abilities fire.
 
 Decisions (user, 2026-11-11):
 - Beats AUTO-ADVANCE (no click-to-advance).
@@ -60,8 +62,8 @@ Decisions (user, 2026-11-11):
 - Generated csprojs: committed as-is.
 
 **NEXT, in order:**
-1. Play-length pass: total time per play is growing (reveal 4s + spin 5s + beats + ledger). Tune holds / cap ability beats (top 3 by value, rest in ledger).
-2. M5 remainder below (fumble turnover + return visual check, re-pursuit after delta).
+1. User feel pass with the DevTuningPanel sliders (target ~20s/play); then bake values. Server-side reveal 3.9s / spin 5.0s are the next cut if still long.
+2. M5 remainder below (re-pursuit after delta, reveal tied to event).
 3. Beats for TD / coach abilities.
 4. Card data: more fail-event abilities.
 5. Ball sheet frames. 6. M6 timing knobs + CTR banner. 7. LiveBallCardZone rebuild (P0).

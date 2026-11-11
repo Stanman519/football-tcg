@@ -35,8 +35,8 @@ namespace TcgEngine.UI
         public float showcaseSlowMultiplier = 5f;  // route speed multiplier (5x = 20% speed)
         public float showcaseCameraZoom = 0.85f;
         public float showcaseZoomDur = 0.25f;
-        public float showcaseHoldDur = 2.0f;
-        public float showcasePerAbility = 2.4f;
+        public float showcaseHoldDur = 1.7f;
+        public float showcasePerAbility = 2.0f;
         public int maxShowcases = 3;                // cap beats per play (largest |value| first)     // total real-time per ability
 
         private Canvas overlayCanvas;
