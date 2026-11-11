@@ -65,21 +65,26 @@ Session 4 (2026-11-11):
 - LiveBall reveal now driven by the Reveal event (CardData overload; GameFeedbackUI polling removed). Panel fonts ~2x, verified readable.
 - LiveBall yardage delta: defense re-pursues to where the carrier ENDS, tackler pops. LiveBall TD (delta crosses goal) gets a TOUCHDOWN result beat. Ran clean in play mode (+3 Juke Move); pursuit too small to judge from stills, TD branch unseen.
 - TD in Resolution: scorer beat ("SCORE / name / TOUCHDOWN / N-yd run") after the flash. Unseen.
-- EditMode 125/125.
+- EditMode 130/130.
+- LiveBall is READY-GATED (03a8c14): new `GamePhase.LiveBallResolve = 31`. Server fires LB events, waits for client ready (AI instant, 30s timeout, skipped in AI sims). `LiveBallBeats.Duration` is client-only now. Verified in play: cards 9.1s, both pass 1.7s.
+- `UITheme` (b2e0d83): one palette + type scale + MakeTMP/SetAnchors/BuildOverlayCanvas. Reveal panels, recap, spotlight, PAC popups use it. Verified in play (pre label fix).
+- UNVERIFIED (MCP dropped): play-call reveal label width/overlap fix; empty-slot markers fading to 6% outside ChoosePlayers.
+- Tried `FieldSlotManager.slotScale` 0.5 -> 0.75 for bigger tokens; reverted unseen. Needs a look in editor (overlap risk).
+- WARNING: `.gitignore` has `*.unity` -> `GameClCo.unity` (the game scene) is NOT in git. Scene-serialized values (recap hold 2.2, slotScale) are unversioned.
 
 **NEXT, in order:**
 1. User feel pass with the DevTuningPanel sliders (target ~20s/play); then bake values. Server-side reveal 3.9s / spin 5.0s are the next cut if still long.
-2. Presentation architecture (see below) - pending user go-ahead.
+2. Presentation architecture, remaining: play_log, PAC split, rest of panels onto UITheme (BigPlayOverlay, DevTuning, LiveBallCardZone, play picker). Bigger field tokens.
 3. Coach beats: needs server change (record coach procs in `play_impacts`; fire before yardage calc).
 4. Card data: more fail-event abilities.
 5. Ball sheet frames. 6. M6 timing knobs + CTR banner. 7. LiveBallCardZone rebuild (P0).
 
 ### Presentation debt (flagged 2026-11-11)
 Architecture:
-- Ready-gate LiveBall like Resolution; delete `LiveBallBeats.Duration` (server mirrors client anim lengths = drift risk).
+- [x] Ready-gate LiveBall like Resolution.
 - One ordered `Game.play_log` of typed events (ability proc, fail event, LB event, score) instead of 3 channels (phase diffs, messages, derived fields). Client = one beat queue over it. Reconnect/replay-safe.
 - `PlayAnimationController` (1450 lines, 37 hardcoded waits) -> director + beat classes; timings in one ScriptableObject.
-- 6 panels hand-build UI in code with private colors/fonts/helpers -> shared theme + base class now, prefabs later (so layout is tunable in editor).
+- [~] Shared theme done (`UITheme`), 4 panels migrated. Still: base class for show/hide + canvas, then prefabs (so layout is tunable in editor).
 Visual:
 - Field tokens tiny (~80px of 1920); empty-slot X/circle markers are louder than the players.
 - Three unrelated panel styles (reveal mint/coral, beat navy, recap gray, play-picker black).
