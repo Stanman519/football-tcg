@@ -46,7 +46,7 @@ Data gaps (card content, not code):
 Open issues:
 - AI fields no QB/RB on offense (not investigated).
 - Console: "referenced script (Unknown) is missing" spam at boot (likely a prefab).
-- LiveBallRevealPanel shows as soon as one LiveBall card is visible in state, not on the Reveal event.
+- Coach abilities fire AFTER yardage is computed (`OnCoachTrigger` post-calc) and leave no trace for the client -> no beat possible yet.
 
 Session 3 (2026-11-11):
 - LiveBall branches verified in play mode: negate (Blanket Coverage), ball security, fumble recovery by grit, def yardage card (Ankle Tackle). Fumble TURNOVER verified too ("FUMBLE! Grit 0 vs 3" -> "TURNOVER, returned 6 yds", possession flips). Not seen: In The Zone (immune).
@@ -61,19 +61,38 @@ Decisions (user, 2026-11-11):
 - The 9 empty-effect abilities: deferred (too bespoke). Note 00105 "force a fumble on run" is likely just `failEventType: 8`.
 - Generated csprojs: committed as-is.
 
+Session 4 (2026-11-11):
+- LiveBall reveal now driven by the Reveal event (CardData overload; GameFeedbackUI polling removed). Panel fonts ~2x, verified readable.
+- LiveBall yardage delta: defense re-pursues to where the carrier ENDS, tackler pops. LiveBall TD (delta crosses goal) gets a TOUCHDOWN result beat. Ran clean in play mode (+3 Juke Move); pursuit too small to judge from stills, TD branch unseen.
+- TD in Resolution: scorer beat ("SCORE / name / TOUCHDOWN / N-yd run") after the flash. Unseen.
+- EditMode 125/125.
+
 **NEXT, in order:**
 1. User feel pass with the DevTuningPanel sliders (target ~20s/play); then bake values. Server-side reveal 3.9s / spin 5.0s are the next cut if still long.
-2. M5 remainder below (re-pursuit after delta, reveal tied to event).
-3. Beats for TD / coach abilities.
+2. Presentation architecture (see below) - pending user go-ahead.
+3. Coach beats: needs server change (record coach procs in `play_impacts`; fire before yardage calc).
 4. Card data: more fail-event abilities.
 5. Ball sheet frames. 6. M6 timing knobs + CTR banner. 7. LiveBallCardZone rebuild (P0).
+
+### Presentation debt (flagged 2026-11-11)
+Architecture:
+- Ready-gate LiveBall like Resolution; delete `LiveBallBeats.Duration` (server mirrors client anim lengths = drift risk).
+- One ordered `Game.play_log` of typed events (ability proc, fail event, LB event, score) instead of 3 channels (phase diffs, messages, derived fields). Client = one beat queue over it. Reconnect/replay-safe.
+- `PlayAnimationController` (1450 lines, 37 hardcoded waits) -> director + beat classes; timings in one ScriptableObject.
+- 6 panels hand-build UI in code with private colors/fonts/helpers -> shared theme + base class now, prefabs later (so layout is tunable in editor).
+Visual:
+- Field tokens tiny (~80px of 1920); empty-slot X/circle markers are louder than the players.
+- Three unrelated panel styles (reveal mint/coral, beat navy, recap gray, play-picker black).
+- Play-call reveal: full-screen dim with small text (same fix as LiveBall reveal needed).
+- Beat panel art area empty for the 30 art-less cards; recap opens as an empty box.
+- Hand fan clipped at screen bottom, black card faces.
 
 ### M5 status
 - [x] v1 beat sequencer from `MsgLiveBallEvent`s (replaces 5c/5e immediate anim; no new phase - server delay = sum of beats).
 - [ ] 5b `Game.live_ball_log` so beats come from state, not messages (reconnect-safe). Only if messages prove racy.
 - [x] Final yardage shown by the LiveBall "Result" beat ("Was X, live ball +Y").
-- [ ] Re-pursuit + tackle after yardage delta; TD celebrate if final crosses goal.
-- [ ] Tie reveal panel to the Reveal event.
+- [x] Re-pursuit + tackle after yardage delta; TD result beat if final crosses goal.
+- [x] Tie reveal panel to the Reveal event.
 
 ---
 

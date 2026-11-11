@@ -23,7 +23,6 @@ namespace TcgEngine.UI
 
         // Cached previous state for change detection
         private GamePhase prevPhase = GamePhase.None;
-        private bool liveBallRevealShown; // reset each time we enter LiveBall
 
         private static GameFeedbackUI instance;
         public static GameFeedbackUI Get() => instance;
@@ -81,26 +80,8 @@ namespace TcgEngine.UI
                 playCallRevealPanel.ShowReveal(g, localP, oppP);
             }
 
-            // --- LiveBallRevealPanel: show when both players' LiveBallCards become visible ---
-            if (g.phase == GamePhase.LiveBall && prevPhase != GamePhase.LiveBall)
-                liveBallRevealShown = false; // reset on fresh entry
-
-            if (g.phase == GamePhase.LiveBall && !liveBallRevealShown && liveBallRevealPanel != null)
-            {
-                Player offP = g.current_offensive_player;
-                Player defP = g.GetCurrentDefensivePlayer();
-                // Both cards visible = resolution about to start (server sent refresh with cards)
-                if (offP != null && defP != null &&
-                    (offP.LiveBallCard != null || defP.LiveBallCard != null))
-                {
-                    liveBallRevealShown = true;
-                    int localId = GameClient.Get().GetPlayerID();
-                    Player localP = localId == 0 ? p0 : p1;
-                    Player oppP = localId == 0 ? p1 : p0;
-                    bool localIsOff = localP?.player_id == offP.player_id;
-                    liveBallRevealPanel.ShowReveal(localP?.LiveBallCard, oppP?.LiveBallCard, localIsOff);
-                }
-            }
+            // LiveBallRevealPanel is driven by the LiveBall Reveal event (PlayAnimationController beat
+            // queue) so it starts in step with the server's beat timing, not on first card visibility.
 
             // PlaySummaryPanel retired: YardageSummaryPanel (Resolution tail) is the single recap.
             // The old one re-derived its breakdown client-side from base card stats, ignoring

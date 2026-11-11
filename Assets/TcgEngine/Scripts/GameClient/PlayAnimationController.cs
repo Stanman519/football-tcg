@@ -741,8 +741,13 @@ public partial class PlayAnimationController : MonoBehaviour
             switch (beat.type)
             {
                 case LiveBallEventType.Reveal:
+                {
                     panel = false; // LiveBallRevealPanel owns this beat
+                    int localId = GameClient.Get().GetPlayerID();
+                    bool localIsOff = g.current_offensive_player != null && g.current_offensive_player.player_id == localId;
+                    LiveBallRevealPanel.Get()?.ShowReveal(localIsOff ? offData : defData, localIsOff ? defData : offData, localIsOff);
                     break;
+                }
 
                 case LiveBallEventType.BothPass:
                     ShowLiveBallBeat(null, "LIVE BALL", "No cards played", "PLAY STANDS", "", neutral);
@@ -797,8 +802,21 @@ public partial class PlayAnimationController : MonoBehaviour
                     else
                     {
                         int diff = beat.p2 - beat.p1;
-                        ShowLiveBallBeat(null, "LIVE BALL", "Result", $"{beat.p2:+#;-#;0} YDS",
-                            diff != 0 ? $"Was {beat.p1}, live ball {diff:+#;-#;0}" : "No change", neutral);
+                        // LiveBall yardage pushed the play across the goal line
+                        bool lbTouchdown = g.raw_ball_on + beat.p1 < 100 && g.raw_ball_on + beat.p2 >= 100;
+                        if (lbTouchdown)
+                        {
+                            ShowLiveBallBeat(null, "LIVE BALL", "Result", "TOUCHDOWN!",
+                                $"Was {beat.p1}, live ball {diff:+#;-#;0}", new Color(1f, 0.75f, 0f));
+                            BoardSlot scorer = FindSlotForCardUid(g.current_offensive_player, g.ball_carrier_uid ?? g.target_receiver_uid);
+                            if (scorer != null)
+                                scorer.transform.DOPunchScale(Vector3.one * 0.4f, 0.6f, 6, 0.5f).SetLink(scorer.gameObject);
+                        }
+                        else
+                        {
+                            ShowLiveBallBeat(null, "LIVE BALL", "Result", $"{beat.p2:+#;-#;0} YDS",
+                                diff != 0 ? $"Was {beat.p1}, live ball {diff:+#;-#;0}" : "No change", neutral);
+                        }
                     }
                     break;
                 }
@@ -851,7 +869,34 @@ public partial class PlayAnimationController : MonoBehaviour
         );
 
         if (defPlayer != null)
-            EnqueueDefenseTracking(defPlayer, carrier);
+            StartCoroutine(RePursueAfterDelta(defPlayer, carrier));
+    }
+
+    // Defense re-closes on where the carrier ENDS UP (not where the delta started), then the tackler pops.
+    private IEnumerator RePursueAfterDelta(Player defPlayer, BoardSlot carrier)
+    {
+        yield return null;
+        float t = 0f;
+        while (t < 1.2f && carrier != null && carrier.MoveQueue.HasWork)
+        {
+            t += Time.deltaTime;
+            yield return null;
+        }
+        if (carrier == null) yield break;
+
+        EnqueueDefenseTracking(defPlayer, carrier);
+        Game g = GameClient.Get()?.GetGameData();
+        BoardSlot tackler = FindSlotForCardUid(defPlayer, g?.tackler_uid);
+        if (tackler == null) yield break;
+
+        t = 0f;
+        yield return null;
+        while (t < 0.9f && tackler.MoveQueue.HasWork)
+        {
+            t += Time.deltaTime;
+            yield return null;
+        }
+        ContactPop(tackler, carrier);
     }
 
     private void AnimateLiveBallTurnover(Game g)

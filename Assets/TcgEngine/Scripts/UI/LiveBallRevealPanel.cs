@@ -68,6 +68,12 @@ namespace TcgEngine.UI
         /// <summary>Show the 2-frame live ball reveal.</summary>
         public void ShowReveal(Card localCard, Card opponentCard, bool localIsOffense)
         {
+            ShowReveal(localCard?.Data, opponentCard?.Data, localIsOffense);
+        }
+
+        /// <summary>CardData overload: driven by the LiveBall Reveal event (ids only, no state race).</summary>
+        public void ShowReveal(CardData localCard, CardData opponentCard, bool localIsOffense)
+        {
             if (isShowing) return;
             if (localCard == null && opponentCard == null) return;
             if (activeCoroutine != null) StopCoroutine(activeCoroutine);
@@ -87,7 +93,7 @@ namespace TcgEngine.UI
         // =====================================================================
         // Reveal coroutine
         // =====================================================================
-        private IEnumerator RunRevealSequence(Card localCard, Card opponentCard, bool localIsOffense)
+        private IEnumerator RunRevealSequence(CardData localCard, CardData opponentCard, bool localIsOffense)
         {
             isShowing = true;
 
@@ -129,12 +135,12 @@ namespace TcgEngine.UI
         // =====================================================================
         private void PopulateFrame(TextMeshProUGUI nameTmp, TextMeshProUGUI abilityTmp,
             TextMeshProUGUI slotTmp, TextMeshProUGUI labelTmp,
-            Card card, string label, Color accentColor)
+            CardData card, string label, Color accentColor)
         {
             labelTmp.text = label;
             labelTmp.color = accentColor;
 
-            if (card == null || card.Data == null)
+            if (card == null)
             {
                 nameTmp.text = "NO CARD";
                 nameTmp.color = COL_DIM_WHITE;
@@ -144,35 +150,29 @@ namespace TcgEngine.UI
                 return;
             }
 
-            nameTmp.text = card.Data.title?.ToUpper() ?? card.card_id?.ToUpper() ?? "UNKNOWN";
+            nameTmp.text = (!string.IsNullOrEmpty(card.title) ? card.title : card.id)?.ToUpper() ?? "UNKNOWN";
             nameTmp.color = accentColor;
 
             // Ability text
-            if (card.Data.abilities != null && card.Data.abilities.Length > 0)
-            {
-                var ab = card.Data.abilities[0];
-                string desc = !string.IsNullOrEmpty(ab.desc) ? ab.desc : ab.title ?? "ACTIVE";
-                abilityTmp.text = desc;
-            }
+            if (card.abilities != null && card.abilities.Length > 0 && card.abilities[0] != null
+                && !string.IsNullOrEmpty(card.abilities[0].desc))
+                abilityTmp.text = card.abilities[0].desc;
             else
-            {
-                abilityTmp.text = "";
-            }
-            abilityTmp.color = new Color(accentColor.r, accentColor.g, accentColor.b, 0.7f);
+                abilityTmp.text = card.text ?? "";
+            abilityTmp.color = Color.white;
 
             // Slot requirements
-            if (card.Data.slotRequirements != null && card.Data.slotRequirements.Length > 0)
+            if (card.slotRequirements != null && card.slotRequirements.Length > 0)
             {
                 var sb = new System.Text.StringBuilder();
-                foreach (var req in card.Data.slotRequirements)
+                foreach (var req in card.slotRequirements)
                     sb.Append($"{req.requiredCount}x {req.icon}  ");
                 slotTmp.text = sb.ToString().TrimEnd();
                 slotTmp.color = COL_GOLD;
             }
             else
             {
-                slotTmp.text = "NO SLOT COST";
-                slotTmp.color = COL_DIM_WHITE;
+                slotTmp.text = ""; // no cost = say nothing
             }
         }
 
@@ -201,7 +201,7 @@ namespace TcgEngine.UI
             rootGroup.blocksRaycasts = false;
 
             Image rootBg = rootPanel.AddComponent<Image>();
-            rootBg.color = new Color(COL_BG.r, COL_BG.g, COL_BG.b, 0.8f);
+            rootBg.color = new Color(COL_BG.r, COL_BG.g, COL_BG.b, 0.9f);
             StretchFill(rootPanel);
 
             try
@@ -230,7 +230,7 @@ namespace TcgEngine.UI
             GameObject frame = new GameObject(name);
             frame.transform.SetParent(parent, false);
             Image frameBg = frame.AddComponent<Image>();
-            frameBg.color = new Color(accentColor.r, accentColor.g, accentColor.b, 0.05f);
+            frameBg.color = new Color(accentColor.r, accentColor.g, accentColor.b, 0.14f);
             CanvasGroup cg = frame.AddComponent<CanvasGroup>();
             cg.alpha = 0f;
             SetAnchors(frame, anchorMin, anchorMax);
@@ -241,37 +241,37 @@ namespace TcgEngine.UI
             Image bImg = border.AddComponent<Image>();
             bImg.color = accentColor;
             SetAnchors(border, new Vector2(0f, 0f), new Vector2(0f, 1f));
-            border.GetComponent<RectTransform>().sizeDelta = new Vector2(4f, 0f);
+            border.GetComponent<RectTransform>().sizeDelta = new Vector2(8f, 0f);
 
             // Label tag
             GameObject labelBg = new GameObject("LabelBg");
             labelBg.transform.SetParent(frame.transform, false);
             Image lbImg = labelBg.AddComponent<Image>();
             lbImg.color = new Color(accentColor.r, accentColor.g, accentColor.b, 0.2f);
-            SetAnchors(labelBg, new Vector2(0.12f, 0.78f), new Vector2(0.6f, 0.85f));
+            SetAnchors(labelBg, new Vector2(0.08f, 0.80f), new Vector2(0.62f, 0.88f));
 
-            labelTmp = MakeTMP(frame.transform, "Label", 12f, accentColor,
-                new Vector2(0.13f, 0.78f), new Vector2(0.59f, 0.85f),
+            labelTmp = MakeTMP(frame.transform, "Label", 26f, accentColor,
+                new Vector2(0.10f, 0.80f), new Vector2(0.61f, 0.88f),
                 TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
-            labelTmp.characterSpacing = 12f;
+            labelTmp.characterSpacing = 6f;
 
             // Card name (large)
-            nameTmp = MakeTMP(frame.transform, "CardName", 48f, accentColor,
+            nameTmp = MakeTMP(frame.transform, "CardName", 88f, accentColor,
                 new Vector2(0.08f, 0.52f), new Vector2(0.92f, 0.78f),
                 TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
             nameTmp.enableAutoSizing = true;
-            nameTmp.fontSizeMin = 28f;
-            nameTmp.fontSizeMax = 48f;
+            nameTmp.fontSizeMin = 40f;
+            nameTmp.fontSizeMax = 88f;
 
             // Ability text
-            abilityTmp = MakeTMP(frame.transform, "AbilityText", 16f,
-                new Color(accentColor.r, accentColor.g, accentColor.b, 0.7f),
+            abilityTmp = MakeTMP(frame.transform, "AbilityText", 36f,
+                Color.white,
                 new Vector2(0.08f, 0.28f), new Vector2(0.92f, 0.52f),
-                TextAlignmentOptions.TopLeft, FontStyles.Italic);
+                TextAlignmentOptions.TopLeft, FontStyles.Normal);
             abilityTmp.enableWordWrapping = true;
 
             // Slot requirements
-            slotTmp = MakeTMP(frame.transform, "SlotReqs", 14f, COL_GOLD,
+            slotTmp = MakeTMP(frame.transform, "SlotReqs", 26f, COL_GOLD,
                 new Vector2(0.08f, 0.14f), new Vector2(0.92f, 0.26f),
                 TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
             slotTmp.characterSpacing = 2f;

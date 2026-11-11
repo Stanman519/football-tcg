@@ -454,6 +454,24 @@ public partial class PlayAnimationController
         }
         BigPlayOverlay.Get()?.ShowEvent("TOUCHDOWN!", new Color(1f, 0.75f, 0f));
         yield return FieldWait(1.0f);
+
+        // Scoring beat: who scored and how (same who / value / why panel as abilities)
+        if (abilitySpotlight != null)
+        {
+            Game g = GameClient.Get()?.GetGameData();
+            Card scorer = null;
+            string uid = g?.ball_carrier_uid ?? g?.target_receiver_uid;
+            if (g != null && !string.IsNullOrEmpty(uid) && ctx.offPlayer != null)
+                scorer = ctx.offPlayer.cards_board.FirstOrDefault(c => c != null && c.uid == uid);
+            CardData cd = scorer?.CardData;
+            string how = g != null && g.current_offensive_player != null
+                && g.current_offensive_player.SelectedPlay == PlayType.Run ? "run" : "pass";
+            abilitySpotlight.ShowBeat(cd, "SCORE", cd != null ? cd.title : "", "TOUCHDOWN",
+                $"{ctx.yardage}-yd {how}", new Color(1f, 0.75f, 0f));
+            yield return new WaitForSeconds(1.8f);
+            abilitySpotlight.HideBeat();
+            yield return new WaitForSeconds(0.35f);
+        }
     }
 
     // ── Helpers ─────────────────────────────────────────────
