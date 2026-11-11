@@ -35,8 +35,8 @@ namespace TcgEngine.UI
         public float showcaseSlowMultiplier = 5f;  // route speed multiplier (5x = 20% speed)
         public float showcaseCameraZoom = 0.85f;
         public float showcaseZoomDur = 0.25f;
-        public float showcaseHoldDur = 1.2f;
-        public float showcasePerAbility = 1.8f;     // total real-time per ability
+        public float showcaseHoldDur = 2.0f;
+        public float showcasePerAbility = 2.4f;     // total real-time per ability
 
         private Canvas overlayCanvas;
         private readonly List<SpotlightBanner> bannerPool = new List<SpotlightBanner>();
@@ -98,7 +98,7 @@ namespace TcgEngine.UI
             {
                 if (banner.trackedCard == null || !banner.root.activeSelf) continue;
                 Vector3 screenPos = Camera.main.WorldToScreenPoint(banner.trackedCard.transform.position);
-                screenPos.y += bannerYOffset;
+                screenPos.y += bannerYOffset * (Screen.height / 1080f);
                 banner.root.transform.position = screenPos;
             }
         }
@@ -273,6 +273,8 @@ namespace TcgEngine.UI
             pendingShowcases.Sort((a, b) => a.sortKey.CompareTo(b.sortKey));
 
             GameCamera cam = GameCamera.Get();
+            int total = pendingShowcases.Count(e => e.boardCard != null);
+            int shown = 0;
 
             foreach (var entry in pendingShowcases)
             {
@@ -307,47 +309,27 @@ namespace TcgEngine.UI
                 entry.boardCard.transform.DOPunchScale(Vector3.one * punchScale, punchDuration, 6, 0.5f)
                     .SetLink(entry.boardCard.gameObject);
 
-                // 4. Two-line banner — impact VALUE is the headline when we have one
+                // 4. Impact panel — fixed screen spot, big type: WHO / WHAT VALUE / WHY
                 var display = AbilityTextGenerator.Generate(entry.ability);
-                string generatedEffect = !string.IsNullOrEmpty(display.effect) ? display.effect
-                    : (!string.IsNullOrEmpty(entry.ability.title) ? entry.ability.title : entry.ability.id);
-
-                bool hasValue = !string.IsNullOrEmpty(entry.valueLine);
-                string effectLine = hasValue ? entry.valueLine : generatedEffect;
-                string contextLine = hasValue ? generatedEffect : (display.trigger ?? "");
-
-                SpotlightBanner banner = null;
-                if (!string.IsNullOrEmpty(effectLine))
+                string generatedEffect = display.effect;
+                if (string.IsNullOrEmpty(generatedEffect))
                 {
-                    banner = GetOrCreateBanner();
-                    banner.trackedCard = entry.boardCard;
-                    banner.effectText.text = effectLine;
-                    banner.effectText.color = entry.isOffense
-                        ? new Color(0.3f, 1f, 0.45f)
-                        : new Color(1f, 0.45f, 0.45f);
-                    banner.triggerText.text = contextLine;
-                    banner.triggerText.gameObject.SetActive(!string.IsNullOrEmpty(contextLine));
-                    banner.accentBar.color = glowColor;
-                    banner.group.alpha = 1f;
-                    banner.root.SetActive(true);
+                    // Generator had nothing: fall back to printed card text, then a real title (never the raw id)
+                    CardData cd = entry.caster.CardData;
+                    if (cd != null && !string.IsNullOrEmpty(cd.text)) generatedEffect = cd.text;
+                    else if (!string.IsNullOrEmpty(entry.ability.title) && entry.ability.title != entry.ability.id)
+                        generatedEffect = entry.ability.title;
+                    else generatedEffect = "";
                 }
+                bool hasValue = !string.IsNullOrEmpty(entry.valueLine);
+                shown++;
+                ShowImpactPanel(entry, hasValue ? entry.valueLine : "ABILITY", generatedEffect, glowColor, shown, total);
 
                 // 5. Hold (not scaled — showcase timing is independent of field speed)
                 yield return new WaitForSeconds(showcaseHoldDur);
 
-                // 6. Fade banner, release
-                if (banner != null)
-                {
-                    var b = banner;
-                    b.group.DOKill();
-                    b.group.DOFade(0f, bannerFadeOut)
-                        .SetLink(b.root)
-                        .OnComplete(() =>
-                        {
-                            b.trackedCard = null;
-                            b.root.SetActive(false);
-                        });
-                }
+                // 6. Release
+                HideImpactPanel();
 
                 // Fade glow
                 if (glow != null)
@@ -375,6 +357,124 @@ namespace TcgEngine.UI
             }
 
             pendingShowcases.Clear();
+        }
+
+        // ── Impact Panel (showcase) ───────────────────────────
+
+        private RectTransform impactRoot;
+        private CanvasGroup impactGroup;
+        private Image impactArt, impactAccent;
+        private Text impactSide, impactName, impactValue, impactDesc, impactCount;
+        private static readonly Vector2 ImpactShownPos = new Vector2(70f, 40f);
+
+        private Text MakeText(Transform parent, string name, int size, FontStyle style, Color color,
+            Vector2 anchorMin, Vector2 anchorMax, TextAnchor align)
+        {
+            GameObject go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            Text t = go.AddComponent<Text>();
+            t.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            t.fontSize = size;
+            t.fontStyle = style;
+            t.color = color;
+            t.alignment = align;
+            t.supportRichText = false;
+            t.raycastTarget = false;
+            t.horizontalOverflow = HorizontalWrapMode.Wrap;
+            t.verticalOverflow = VerticalWrapMode.Truncate;
+            RectTransform rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = anchorMin; rt.anchorMax = anchorMax;
+            rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
+            return t;
+        }
+
+        private void BuildImpactPanel()
+        {
+            GameObject root = new GameObject("ImpactPanel");
+            root.transform.SetParent(overlayCanvas.transform, false);
+            impactRoot = root.AddComponent<RectTransform>();
+            // Left-middle: recap panel's column (recap only shows post-play), clear of mini slots on the right
+            impactRoot.anchorMin = impactRoot.anchorMax = new Vector2(0f, 0.5f);
+            impactRoot.pivot = new Vector2(0f, 0.5f);
+            impactRoot.sizeDelta = new Vector2(760f, 300f);
+            impactRoot.anchoredPosition = ImpactShownPos;
+
+            impactGroup = root.AddComponent<CanvasGroup>();
+            impactGroup.blocksRaycasts = false;
+            impactGroup.interactable = false;
+            impactGroup.alpha = 0f;
+
+            Image bg = root.AddComponent<Image>();
+            bg.color = new Color(0.05f, 0.06f, 0.1f, 0.94f);
+            bg.raycastTarget = false;
+
+            GameObject accentGo = new GameObject("Accent");
+            accentGo.transform.SetParent(root.transform, false);
+            impactAccent = accentGo.AddComponent<Image>();
+            impactAccent.raycastTarget = false;
+            RectTransform art = accentGo.GetComponent<RectTransform>();
+            art.anchorMin = new Vector2(0f, 0f); art.anchorMax = new Vector2(0f, 1f);
+            art.pivot = new Vector2(0f, 0.5f); art.sizeDelta = new Vector2(10f, 0f);
+
+            GameObject artGo = new GameObject("Art");
+            artGo.transform.SetParent(root.transform, false);
+            impactArt = artGo.AddComponent<Image>();
+            impactArt.preserveAspect = true;
+            impactArt.raycastTarget = false;
+            RectTransform irt = artGo.GetComponent<RectTransform>();
+            irt.anchorMin = new Vector2(0.03f, 0.06f); irt.anchorMax = new Vector2(0.31f, 0.94f);
+            irt.offsetMin = irt.offsetMax = Vector2.zero;
+
+            Color grey = new Color(0.75f, 0.78f, 0.85f);
+            impactSide  = MakeText(root.transform, "Side", 26, FontStyle.Bold, grey,
+                new Vector2(0.34f, 0.82f), new Vector2(0.80f, 0.96f), TextAnchor.MiddleLeft);
+            impactCount = MakeText(root.transform, "Count", 24, FontStyle.Normal, grey,
+                new Vector2(0.80f, 0.82f), new Vector2(0.97f, 0.96f), TextAnchor.MiddleRight);
+            impactName  = MakeText(root.transform, "Name", 38, FontStyle.Bold, Color.white,
+                new Vector2(0.34f, 0.64f), new Vector2(0.97f, 0.83f), TextAnchor.MiddleLeft);
+            impactValue = MakeText(root.transform, "Value", 76, FontStyle.Bold, Color.white,
+                new Vector2(0.34f, 0.33f), new Vector2(0.97f, 0.66f), TextAnchor.MiddleLeft);
+            impactValue.resizeTextForBestFit = true;
+            impactValue.resizeTextMinSize = 30; impactValue.resizeTextMaxSize = 76;
+            impactDesc  = MakeText(root.transform, "Desc", 30, FontStyle.Normal, new Color(0.9f, 0.9f, 0.9f),
+                new Vector2(0.34f, 0.05f), new Vector2(0.97f, 0.33f), TextAnchor.UpperLeft);
+            impactDesc.resizeTextForBestFit = true;
+            impactDesc.resizeTextMinSize = 20; impactDesc.resizeTextMaxSize = 30;
+        }
+
+        private void ShowImpactPanel(ShowcaseEntry entry, string headline, string desc, Color sideColor, int index, int total)
+        {
+            if (impactRoot == null) BuildImpactPanel();
+
+            CardData cd = entry.caster.CardData;
+            Sprite art = cd != null ? cd.GetFullArt(entry.caster.VariantData) : null;
+            impactArt.sprite = art;
+            impactArt.enabled = art != null;
+
+            impactAccent.color = sideColor;
+            impactSide.text = (entry.isOffense ? "OFFENSE" : "DEFENSE") + "  -  " + entry.posGroup.ToString().Replace('_', '/');
+            impactSide.color = sideColor;
+            impactName.text = cd != null && !string.IsNullOrEmpty(cd.title) ? cd.title : entry.caster.card_id;
+            impactValue.text = headline;
+            impactValue.color = sideColor;
+            impactDesc.text = desc;
+            impactCount.text = total > 1 ? $"{index}/{total}" : "";
+
+            impactGroup.DOKill();
+            impactRoot.DOKill();
+            impactRoot.anchoredPosition = ImpactShownPos + new Vector2(-120f, 0f);
+            impactRoot.DOAnchorPos(ImpactShownPos, 0.25f).SetEase(Ease.OutQuad).SetLink(impactRoot.gameObject);
+            impactGroup.DOFade(1f, 0.2f).SetEase(Ease.OutQuad).SetLink(impactRoot.gameObject);
+            impactValue.transform.DOKill();
+            impactValue.transform.localScale = Vector3.one;
+            impactValue.transform.DOPunchScale(Vector3.one * 0.15f, 0.35f, 5, 0.5f).SetLink(impactRoot.gameObject);
+        }
+
+        private void HideImpactPanel()
+        {
+            if (impactGroup == null) return;
+            impactGroup.DOKill();
+            impactGroup.DOFade(0f, bannerFadeOut).SetEase(Ease.OutQuad).SetLink(impactRoot.gameObject);
         }
 
         // ── Sort Key ──────────────────────────────────────────
@@ -443,7 +543,7 @@ namespace TcgEngine.UI
             bg.color = new Color(0.08f, 0.08f, 0.12f, 0.88f);
 
             RectTransform rt = root.GetComponent<RectTransform>();
-            rt.sizeDelta = new Vector2(360f, 60f);
+            rt.sizeDelta = new Vector2(560f, 104f);
             rt.pivot = new Vector2(0.5f, 0.5f);
 
             // Accent bar (left edge)
@@ -463,7 +563,7 @@ namespace TcgEngine.UI
             triggerGo.transform.SetParent(root.transform, false);
             Text triggerT = triggerGo.AddComponent<Text>();
             triggerT.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            triggerT.fontSize = 10;
+            triggerT.fontSize = 22;
             triggerT.fontStyle = FontStyle.Normal;
             triggerT.color = new Color(0.7f, 0.7f, 0.7f, 1f);
             triggerT.alignment = TextAnchor.LowerCenter;
@@ -479,7 +579,7 @@ namespace TcgEngine.UI
             effectGo.transform.SetParent(root.transform, false);
             Text effectT = effectGo.AddComponent<Text>();
             effectT.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            effectT.fontSize = 14;
+            effectT.fontSize = 32;
             effectT.fontStyle = FontStyle.Bold;
             effectT.color = Color.white;
             effectT.alignment = TextAnchor.UpperCenter;
