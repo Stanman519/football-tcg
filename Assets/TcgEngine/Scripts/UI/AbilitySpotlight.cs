@@ -36,7 +36,8 @@ namespace TcgEngine.UI
         public float showcaseCameraZoom = 0.85f;
         public float showcaseZoomDur = 0.25f;
         public float showcaseHoldDur = 2.0f;
-        public float showcasePerAbility = 2.4f;     // total real-time per ability
+        public float showcasePerAbility = 2.4f;
+        public int maxShowcases = 3;                // cap beats per play (largest |value| first)     // total real-time per ability
 
         private Canvas overlayCanvas;
         private readonly List<SpotlightBanner> bannerPool = new List<SpotlightBanner>();
@@ -52,6 +53,7 @@ namespace TcgEngine.UI
             public bool isOffense;
             public int sortKey;
             public string valueLine; // "+5 RUN" etc. from PlayImpact; empty for non-stat abilities
+            public int magnitude;    // |value| — picks which beats to show when there are too many
         }
 
         private class SpotlightBanner
@@ -260,6 +262,7 @@ namespace TcgEngine.UI
                     isOffense = isOff,
                     sortKey = ShowcaseSortKey(grp, isOff, pt),
                     valueLine = ImpactValueLine(impact.status_type, impact.value),
+                    magnitude = Mathf.Abs(impact.value),
                 });
             }
         }
@@ -268,6 +271,14 @@ namespace TcgEngine.UI
         {
             if (pendingShowcases.Count == 0)
                 yield break;
+
+            // Keep the play moving: only the biggest few get a beat; the rest still count in the recap ledger
+            if (pendingShowcases.Count > maxShowcases)
+            {
+                var top = pendingShowcases.OrderByDescending(e => e.magnitude).Take(maxShowcases).ToList();
+                pendingShowcases.Clear();
+                pendingShowcases.AddRange(top);
+            }
 
             // Sort by position group (football chronological order)
             pendingShowcases.Sort((a, b) => a.sortKey.CompareTo(b.sortKey));
