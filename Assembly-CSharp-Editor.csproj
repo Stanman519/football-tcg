@@ -53,6 +53,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\TcgEngine\Editor\FontAssetGenerator.cs" />
+    <Compile Include="Assets\TcgEngine\Tests\Editor\ResolutionReadyGateTests.cs" />
     <Compile Include="Assets\TcgEngine\Tests\Editor\StaminaTests.cs" />
     <Compile Include="Assets\TcgEngine\Tests\Editor\FumbleTests.cs" />
     <Compile Include="Assets\TcgEngine\Tests\Editor\PlayEnhancerTests.cs" />
@@ -69,6 +70,7 @@
     <Compile Include="Assets\TcgEngine\Editor\CardImporter.cs" />
     <Compile Include="Assets\TcgEngine\Editor\RouteDesignerWindow.cs" />
     <Compile Include="Assets\TcgEngine\Editor\CardPreviewRebuilder.cs" />
+    <Compile Include="Assets\TcgEngine\Tests\Editor\PhaseReadyTests.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Editor\ImportPackage.cs" />
     <Compile Include="Assets\TcgEngine\Editor\Dev\DevMenuItems.cs" />
     <Compile Include="Assets\TcgEngine\Editor\HandCardPrefabBuilder.cs" />
@@ -79,7 +81,10 @@
     <Compile Include="Assets\TcgEngine\Tests\Editor\ScoringTests.cs" />
     <Compile Include="Assets\TcgEngine\Editor\RouteLibraryAudit.cs" />
     <Compile Include="Assets\TcgEngine\Editor\PlayCallPanelBuilder.cs" />
+    <Compile Include="Assets\TcgEngine\Tests\Editor\CardEligibilityTests.cs" />
+    <Compile Include="Assets\TcgEngine\Tests\Editor\PlayImpactTests.cs" />
     <Compile Include="Assets\TcgEngine\Editor\CardFrameSpriteGenerator.cs" />
+    <Compile Include="Assets\TcgEngine\Tests\Editor\TacklerSelectorTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="UnityEngine">

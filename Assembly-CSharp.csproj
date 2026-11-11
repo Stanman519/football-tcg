@@ -221,7 +221,6 @@
     <Compile Include="Assets\TcgEngine\Scripts\FX\AimTargetFX.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\GameClient\BallSpriteSheet.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Gameplay\ReceiverRankingSystem.cs" />
-    <Compile Include="Assets\TcgEngine\Scripts\Gameplay\TacklerSelector.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\AI\AIPlayerMM.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\GameClient\RouteConverter.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Conditions\ConditionFieldPosition.cs" />
@@ -253,6 +252,7 @@
     <Compile Include="Assets\TcgEngine\Scripts\GameClient\SlotMovementQueue.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Conditions\ConditionTrait.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\UI\PlaySummaryPanel.cs" />
+    <Compile Include="Assets\TcgEngine\Scripts\Gameplay\TacklerSelector.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\FX\BoardCardFX.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\GameServer\GameServer.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\UI\EndGamePanel.cs" />
@@ -336,7 +336,6 @@
     <Compile Include="Assets\TcgEngine\Scripts\Data\AvatarData.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Effects\Template\EffectDiscard.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\GameClient\PlayAnimationController.cs" />
-    <Compile Include="Assets\TcgEngine\Scripts\GameClient\PlayAnimationController.Choreography.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\UI\OptionSelector.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Tools\ChangePermission.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Effects\Template\EffectDestroyEquip.cs" />
@@ -420,6 +419,7 @@
     <Compile Include="Assets\TcgEngine\Scripts\UI\AbilitySpotlight.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\GameClient\FieldSlotManager.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Data\GameplayData.cs" />
+    <Compile Include="Assets\TcgEngine\Scripts\GameClient\PlayAnimationController.Choreography.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Conditions\ConditionSelf.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Data\DeckPuzzleData.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Menu\CollectionPanel.cs" />
@@ -2057,5 +2057,3 @@
     <ProjectCapability Remove="ReferenceManagerAssemblies" />
   </ItemGroup>
 </Project>
-
-
