@@ -449,7 +449,7 @@ namespace TcgEngine.Gameplay
         {
             if (game_data.state == GameState.GameEnded)
                 return;
-            if (game_data.phase != GamePhase.LiveBall)
+            if (game_data.phase != GamePhase.LiveBall && game_data.phase != GamePhase.Resolution)
                 return;
 
             game_data.selector = SelectorType.None;
@@ -534,10 +534,11 @@ namespace TcgEngine.Gameplay
                     break;
 
                 case GamePhase.Resolution:
-                    //Ready-gated (or timer timeout): route by whether the ball went live
+                    //Ready-gated (or timer timeout): route by whether the ball went live.
+                    //Dead-ball plays still go through EndTurn (status durations, EndOfTurn abilities, turn_count)
                     resolve_queue.AddCallback(game_data.ball_was_live
                         ? (System.Action)StartLiveBallPhaseInternal
-                        : EndPlayPhase);
+                        : EndTurn);
                     resolve_queue.ResolveAll();
                     break;
 

@@ -101,7 +101,7 @@ public partial class PlayAnimationController : MonoBehaviour
                 OnEndTurn(g);
             else if (phase == GamePhase.StartTurn)
                 OnStartTurn(g);
-            else if (lastPhase == GamePhase.Resolution || lastPhase == GamePhase.LiveBall)
+            else if (lastPhase == GamePhase.Resolution || lastPhase == GamePhase.LiveBall || lastPhase == GamePhase.EndTurn)
                 // Dead-ball plays (TD, incomplete...) go Resolution -> ChoosePlayers with no EndTurn/StartTurn
                 // refresh in between; without this the field stays animationLocked and the next play
                 // animates from stale positions (benched slots, old ball spot)

@@ -62,6 +62,19 @@ namespace TcgEngine.Tests
         }
 
         [Test]
+        public void Resolution_DeadBall_RoutesThroughEndTurn()
+        {
+            game.ball_was_live = false;
+            bool turnEnded = false;
+            logic.onTurnEnd += () => turnEnded = true;
+
+            try { logic.NextStep(); }
+            catch (System.NullReferenceException) { } // scene-dependent tail of EndPlayPhase
+
+            Assert.IsTrue(turnEnded); // EndTurn ran (durations tick, EndOfTurn abilities fire)
+        }
+
+        [Test]
         public void Resolution_ReadyIdempotent()
         {
             logic.SetPlayerReadyPhase(game.players[0]);
