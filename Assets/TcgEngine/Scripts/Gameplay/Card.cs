@@ -401,7 +401,10 @@ namespace TcgEngine.Gameplay
 
         public void AddAbility(AbilityData ability)
         {
-            //abilities.Add(ability.id); TODO: took this out just to make it run early in testing
+            // Was commented out since early prototyping -> every card had ZERO runtime abilities
+            // (SetAbilities runs before abilities_data exists, so nothing was stored at all).
+            if (ability == null) return;
+            abilities.Add(ability.id);
 			if (abilities_data != null)
 				abilities_data.Add(ability);
         }
