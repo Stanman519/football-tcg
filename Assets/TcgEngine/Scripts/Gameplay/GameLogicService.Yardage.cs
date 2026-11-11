@@ -115,14 +115,36 @@ namespace TcgEngine.Gameplay
                         if (ability == null || ability.trigger != triggerType) continue;
 
                         // Slot gate
-                        if (!ability.AreSlotRequirementsMet(game_data.current_slot_data))
+                        bool slotOk = ability.AreSlotRequirementsMet(game_data.current_slot_data);
+#if UNITY_EDITOR
+                        // Dev outcome forcing (DevState): guarantee procs / a specific fail event for playtests
+                        bool isFail = ability.failEventType != FailPlayEventType.None;
+                        if (!isFail && TcgEngine.Dev.DevState.ForceAbilityProcs) slotOk = true;
+                        if (isFail && TcgEngine.Dev.DevState.ForceFailEvent != FailPlayEventType.None)
+                            slotOk = ability.failEventType == TcgEngine.Dev.DevState.ForceFailEvent;
+#endif
+                        if (!slotOk)
                         {
                             Debug.Log($"[SlotDraw] {card.card_id} '{ability.id}' — req not met, skipped.");
                             continue;
                         }
 
                         // Other trigger conditions (e.g. ConditionOwner, ConditionLastPlayType)
-                        if (!ability.AreTriggerConditionsMet(game_data, card)) continue;
+                        bool condOk = ability.AreTriggerConditionsMet(game_data, card);
+#if UNITY_EDITOR
+                        // Card abilities gate on slot icons via conditions_trigger (not slotRequirements) - bypass those too
+                        if (!isFail && TcgEngine.Dev.DevState.ForceAbilityProcs) condOk = true;
+                        if (isFail && ability.failEventType == TcgEngine.Dev.DevState.ForceFailEvent) condOk = true;
+#endif
+                        if (!condOk) continue;
+
+                        // Data gap: shell ability with no effects and no fail event does nothing, so don't showcase it
+                        if (ability.failEventType == FailPlayEventType.None
+                            && (ability.effects == null || ability.effects.Length == 0))
+                        {
+                            Debug.LogWarning($"[SlotDraw] {card.card_id} '{ability.id}' has no effects, skipped (fix card data).");
+                            continue;
+                        }
 
                         if (ability.failEventType != FailPlayEventType.None)
                         {

@@ -27,6 +27,10 @@ namespace TcgEngine.Dev
         public List<string> defenseBoardCardIds = new List<string>();
 
         public bool pauseAI = true;
+
+        [Header("Outcome forcing")]
+        public bool forceAbilityProcs;
+        public FailPlayEventType forceFailEvent = FailPlayEventType.None;
     }
 }
 #endif

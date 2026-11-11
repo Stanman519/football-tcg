@@ -7,6 +7,10 @@ namespace TcgEngine.Dev
         public static bool AIPaused;
         public static DevScenario PendingScenario;
         public static bool ScenarioApplied;
+
+        // Outcome forcing (playtest): see GameLogicService.TriggerBoardSlotAbilities
+        public static bool ForceAbilityProcs; // stat abilities ignore slot requirements
+        public static TcgEngine.Gameplay.FailPlayEventType ForceFailEvent; // only this fail event fires, slot reqs ignored
     }
 }
 #endif

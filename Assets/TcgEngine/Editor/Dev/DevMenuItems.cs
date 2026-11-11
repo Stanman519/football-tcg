@@ -28,6 +28,35 @@ namespace TcgEngine.Dev
             Debug.Log("[Dev] Scenario cleared.");
         }
 
+        // Outcome forcing - use in PLAY MODE (statics reset on domain reload / exit)
+        [MenuItem("First&Long/Dev/Force/Ability Procs (toggle)")]
+        public static void ForceProcs()
+        {
+            DevState.ForceAbilityProcs = !DevState.ForceAbilityProcs;
+            Debug.Log($"[Dev] ForceAbilityProcs = {DevState.ForceAbilityProcs}");
+        }
+        [MenuItem("First&Long/Dev/Force/Fail Event/None")]
+        public static void ForceNone() => SetFail(FailPlayEventType.None);
+        [MenuItem("First&Long/Dev/Force/Fail Event/Sack")]
+        public static void ForceSack() => SetFail(FailPlayEventType.Sack);
+        [MenuItem("First&Long/Dev/Force/Fail Event/Interception")]
+        public static void ForceInt() => SetFail(FailPlayEventType.Interception);
+        [MenuItem("First&Long/Dev/Force/Fail Event/Tackle For Loss")]
+        public static void ForceTfl() => SetFail(FailPlayEventType.TackleForLoss);
+        [MenuItem("First&Long/Dev/Force/Fail Event/Runner Fumble")]
+        public static void ForceFumble() => SetFail(FailPlayEventType.RunnerFumble);
+        [MenuItem("First&Long/Dev/Force/Fail Event/QB Fumble")]
+        public static void ForceQbFumble() => SetFail(FailPlayEventType.QBFumble);
+        [MenuItem("First&Long/Dev/Force/Fail Event/Batted Pass")]
+        public static void ForceBatted() => SetFail(FailPlayEventType.BattedPass);
+        [MenuItem("First&Long/Dev/Force/Fail Event/Incomplete")]
+        public static void ForceIncomplete() => SetFail(FailPlayEventType.IncompletePass);
+        private static void SetFail(FailPlayEventType t)
+        {
+            DevState.ForceFailEvent = t;
+            Debug.Log($"[Dev] ForceFailEvent = {t} (needs a board card with that fail ability for the called play type)");
+        }
+
         [MenuItem("First&Long/Dev/Create Default Scenarios")]
         public static void CreateDefaults()
         {

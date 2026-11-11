@@ -24,6 +24,11 @@ namespace TcgEngine.Dev
                 DevState.ScenarioApplied = false;
                 DevState.AIPaused = scenario != null && scenario.pauseAI;
                 if (scenario != null)
+                {
+                    DevState.ForceAbilityProcs = scenario.forceAbilityProcs;
+                    DevState.ForceFailEvent = scenario.forceFailEvent;
+                }
+                if (scenario != null)
                     Debug.Log($"[DevBootstrap] Loaded '{scenario.scenarioName}' (target: {scenario.targetPhase})");
             }
             else if (state == PlayModeStateChange.EnteredEditMode)
@@ -32,6 +37,8 @@ namespace TcgEngine.Dev
                 DevState.PendingScenario = null;
                 DevState.ScenarioApplied = false;
                 DevState.AIPaused = false;
+                DevState.ForceAbilityProcs = false;
+                DevState.ForceFailEvent = TcgEngine.Gameplay.FailPlayEventType.None;
             }
         }
     }
