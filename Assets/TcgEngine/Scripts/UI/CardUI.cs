@@ -132,6 +132,7 @@ namespace TcgEngine.UI
                 bool isOff = card.type == CardType.OffensivePlayer;
 
                 if (player_section != null) player_section.SetActive(true);
+                SetPlayerStatChildren(true);
 
                 // Stamina
                 if (stamina_icon != null) stamina_icon.enabled = true;
@@ -177,7 +178,12 @@ namespace TcgEngine.UI
             }
             else
             {
-                if (player_section != null) player_section.SetActive(false);
+                // Non-player cards: keep the art area + NAME visible (was hiding the whole section ->
+                // blank black card); hide only the player-stat children
+                if (player_section != null) player_section.SetActive(true);
+                SetPlayerStatChildren(false);
+                if (ability_name_text != null)
+                    ability_name_text.text = card.IsLiveBall() ? "LIVE BALL" : "PLAY ENHANCER";
 
                 // Non-player cards: hide the stat cluster
                 if (stamina_icon != null) stamina_icon.enabled = false;
@@ -335,5 +341,17 @@ namespace TcgEngine.UI
 
         public CardData GetCard()    => card;
         public VariantData GetVariant() => variant;
+
+        private static readonly string[] PlayerStatChildNames = { "PositionBadge", "StatStrip", "Badges" };
+
+        private void SetPlayerStatChildren(bool visible)
+        {
+            if (player_section == null) return;
+            foreach (string n in PlayerStatChildNames)
+            {
+                Transform t = player_section.transform.Find(n);
+                if (t != null) t.gameObject.SetActive(visible);
+            }
+        }
     }
 }
