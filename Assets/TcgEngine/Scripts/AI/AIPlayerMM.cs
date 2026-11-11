@@ -221,6 +221,17 @@ namespace TcgEngine.AI
             Card enhancer = !string.IsNullOrEmpty(play_enhancer_card_uid)
                 ? player.GetCard(play_enhancer_card_uid)
                 : null;
+
+            // TEMP: minimax always picks Run on offense (heuristic ties) — random call until play eval exists.
+            // Keep the chosen play when an enhancer is attached (its legality depends on the play).
+            bool isOffense = game_data.current_offensive_player != null
+                && game_data.current_offensive_player.player_id == player_id;
+            if (isOffense && enhancer == null)
+            {
+                PlayType[] plays = { PlayType.Run, PlayType.ShortPass, PlayType.LongPass };
+                playType = plays[Random.Range(0, plays.Length)];
+            }
+
             gameplay.SelectPlay(player, playType, enhancer);
         }
 
