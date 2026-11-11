@@ -33,8 +33,10 @@ NOT covered yet (never occurred vs this AI):
 - Spotlight redesigned 779b593: big fixed impact panel (left-middle; art / name / value / text), 2.0s hold. Verified in play mode (+3 RUN COV etc.). Last width tweak not re-screenshotted.
 - Dev forcing 099219f: `First&Long > Dev > Force` (play mode) or `DevScenario.forceAbilityProcs / forceFailEvent`. Bypasses slot reqs AND trigger conditions (cards gate on slot icons via `conditions_trigger`, none use `slotRequirements`).
 - Dead-ball plays route through `EndTurn` 6d3ce40. AI offense random play call 8793dc2 (temp).
-- M5 v1: LiveBall beat sequencer. Server sums `LiveBallBeats.Duration` per event and holds EndTurn that long; client queues events and plays one beat at a time on the impact panel (+ carrier delta / turnover anim). COMPILE-ONLY, NOT PLAYTESTED (Unity MCP dropped).
-- Snap waits up to 3s for slots still lining up; CardUI type-colored placeholder for art-less cards. Both compile-only.
+- M5 v1: LiveBall beat sequencer. Server sums `LiveBallBeats.Duration` per event and holds EndTurn that long; client queues events and plays one beat at a time on the impact panel (+ carrier delta / turnover anim). PLAYTESTED: Juke Move -> reveal, "+3 YDS", "Result" beats over ~9s (was 1.5s), EndTurn waits.
+- Snap waits up to 3s for slots still lining up (not visually confirmed).
+- Non-player cards were blank black (CardUI hid whole PlayerSection incl. name/art area). Now name + type-colored art area show. Verified.
+- Outcome beat: fail events get a panel ("SACK / caused by <card>", "INCOMPLETE") before the recap. Verified for Incomplete; forced Sack (00113) verified firing + animating earlier.
 
 Data gaps (card content, not code):
 - Only 2 fail-event abilities exist: Sack (00113), QBFumble (00132). INT / TFL / runner fumble / batted pass cannot come from cards.
@@ -47,9 +49,9 @@ Open issues:
 - LiveBallRevealPanel shows as soon as one LiveBall card is visible in state, not on the Reveal event.
 
 **NEXT, in order:**
-1. Playtest (needs Unity MCP): M5 beats with LiveBall cards, forced Sack via 00113, lineup wait, placeholder art, panel width.
+1. Playtest remaining LiveBall branches (negate, ball security, fumble grit) + def LiveBall cards from AI.
 2. Card data: add missing fail-event abilities, fix the 9 empty ones.
-3. Apply the beat pattern to fail events / outcome (sack, INT, TD) so every "why" gets a panel.
+3. Extend beats: TD / first-down / coach abilities; yardage recap as beats instead of a text block.
 4. M5 remainder below. 5. Ball sheet frames. 6. M6 timing knobs + CTR banner. 7. LiveBallCardZone rebuild (P0).
 
 ### M5 status
