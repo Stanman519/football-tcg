@@ -239,6 +239,20 @@ namespace TcgEngine.Client
             }
         }
 
+        /// <summary>
+        /// Keep on-field players inside the sidelines (e.g. an out route from a wide alignment).
+        /// Slots already parked out of bounds (bench at ±1.1) are left alone.
+        /// </summary>
+        private Vector3 ClampToField(Vector3 target)
+        {
+            float fw = FieldSlotManager.Instance != null ? FieldSlotManager.Instance.fieldWidth : 53.3f;
+            float half = fw * 0.5f;
+            if (Mathf.Abs(owner.transform.localPosition.x) > half) return target;
+            float limit = half - 1.5f; // ~1.5 yd inside the sideline
+            target.x = Mathf.Clamp(target.x, -limit, limit);
+            return target;
+        }
+
         private void ExecuteMoveTo(SlotMovementSegment seg)
         {
             if (FieldSlotManager.Instance == null)
@@ -251,6 +265,7 @@ namespace TcgEngine.Client
 
             Vector3 target = FieldSlotManager.Instance.ToLocalPosPublic(seg.footballCoord);
             target.z = -1f;
+            target = ClampToField(target);
 
             float dur = seg.duration;
             if (seg.speedTier.HasValue)
@@ -282,6 +297,7 @@ namespace TcgEngine.Client
             Vector3 delta = new Vector3(seg.deltaFootballCoord.x * fieldWidth, seg.deltaFootballCoord.y, 0);
             Vector3 target = current + delta;
             target.z = -1f;
+            target = ClampToField(target);
 
             float dur = seg.duration;
             if (seg.speedTier.HasValue)
