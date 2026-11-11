@@ -28,27 +28,36 @@ NOT covered yet (never occurred vs this AI):
 - AbilitySpotlight showcases (`play_impacts` was 0 every play)
 - LiveBall card effects (both sides passed every time)
 
-Open issues seen:
-- Dead-ball plays skip server `EndTurn`: `turn_count` not incremented, status durations not ticked, EndOfTurn abilities not fired. Rules question.
-- AI offense only ever called Run with no QB/RB on board (carrier empty, ball goes to empty QB slot).
-- After possession change, slots are still jogging in from the bench when Resolution starts (formation tween not finished).
-- Several hand cards render as black rectangles.
-- Console: "referenced script (Unknown) is missing" spam at boot (no missing components on scene objects; likely a prefab).
+### Session 2 (2026-11-11, later) - abilities + spotlight + M5 v1
+- **ROOT CAUSE of "nothing procs"**: `Card.AddAbility` had `abilities.Add` commented out since prototype -> every card had ZERO runtime abilities. Fixed 21dc2ed. ~140 abilities live for the first time: expect balance/behaviour shifts, watch for effect NREs.
+- Spotlight redesigned 779b593: big fixed impact panel (left-middle; art / name / value / text), 2.0s hold. Verified in play mode (+3 RUN COV etc.). Last width tweak not re-screenshotted.
+- Dev forcing 099219f: `First&Long > Dev > Force` (play mode) or `DevScenario.forceAbilityProcs / forceFailEvent`. Bypasses slot reqs AND trigger conditions (cards gate on slot icons via `conditions_trigger`, none use `slotRequirements`).
+- Dead-ball plays route through `EndTurn` 6d3ce40. AI offense random play call 8793dc2 (temp).
+- M5 v1: LiveBall beat sequencer. Server sums `LiveBallBeats.Duration` per event and holds EndTurn that long; client queues events and plays one beat at a time on the impact panel (+ carrier delta / turnover anim). COMPILE-ONLY, NOT PLAYTESTED (Unity MCP dropped).
+- Snap waits up to 3s for slots still lining up; CardUI type-colored placeholder for art-less cards. Both compile-only.
+
+Data gaps (card content, not code):
+- Only 2 fail-event abilities exist: Sack (00113), QBFumble (00132). INT / TFL / runner fumble / batted pass cannot come from cards.
+- 9 abilities have `effects: []` (e.g. 00105 "force a fumble on run") - skipped at runtime with a warning.
+- 30/30 non-player cards have no art; no DefensivePlayEnhancer (type 70) assets exist.
+
+Open issues:
+- AI fields no QB/RB on offense (not investigated).
+- Console: "referenced script (Unknown) is missing" spam at boot (likely a prefab).
+- LiveBallRevealPanel shows as soon as one LiveBall card is visible in state, not on the Reveal event.
 
 **NEXT, in order:**
-1. Dev scenario to force sack / INT / fumble + a slot-ability card, then playtest those scripts and the spotlight.
-2. Assign sliced frames to `BallSpriteSheet.asset` (`Tools > Setup Ball Sprite Sheet`).
-3. M5 post-LiveBall re-animation — sub-tasks below.
-4. M6 timing knobs in DevTuningPanel + CTR "Coverage Shift!" banner (uses `ctr_defender_uid`). Subsumes P1.5.
-5. LiveBallCardZone rebuild (P0).
+1. Playtest (needs Unity MCP): M5 beats with LiveBall cards, forced Sack via 00113, lineup wait, placeholder art, panel width.
+2. Card data: add missing fail-event abilities, fix the 9 empty ones.
+3. Apply the beat pattern to fail events / outcome (sack, INT, TD) so every "why" gets a panel.
+4. M5 remainder below. 5. Ball sheet frames. 6. M6 timing knobs + CTR banner. 7. LiveBallCardZone rebuild (P0).
 
-### M5 sub-tasks (post-LiveBall re-animation)
-Problem: `ResolveLiveBallEffects` fires all events in one frame, then `EndTurn` after a single 1.5s delay; client `OnEndTurn` clears queues + resets ball -> deltas/turnover never visibly play. Recap shows pre-LB yardage.
-- [ ] 5a server: new ready-gated phase `LiveBallResolve` (after LiveBall, before EndTurn). AI auto-ready, fresh timer as timeout. `EndTurn` guard updated. Tests.
-- [ ] 5b server: `Game.live_ball_log` (ordered: type, off/def card uid, p1, p2) + `pre_lb_yardage`; cloned + serialized. Client animates from state, not from racing `MsgLiveBallEvent`s. Tests.
-- [ ] 5c client: `PlayAnimationController.LiveBall.cs` — `LiveBallSequence`: wait reveal panel -> per-entry beats (negate / ball security popups, yardage delta carrier move + re-pursuit + tackle, fumble loose + scramble + recover, turnover return) -> TD celebrate if final crosses goal -> ready.
-- [ ] 5d recap: skip pre-LB recap when `ball_was_live`; show final recap after 5c with "Live Ball: pre -> final" line.
-- [ ] 5e cleanup: remove old `OnLiveBallEventReceived` immediate animation; fix stale `LiveBallResolutionUI` refs (file does not exist) in CLAUDE.md.
+### M5 status
+- [x] v1 beat sequencer from `MsgLiveBallEvent`s (replaces 5c/5e immediate anim; no new phase - server delay = sum of beats).
+- [ ] 5b `Game.live_ball_log` so beats come from state, not messages (reconnect-safe). Only if messages prove racy.
+- [ ] 5d recap: show final (post-LB) yardage with "Live Ball: pre -> final" line.
+- [ ] Re-pursuit + tackle after yardage delta; TD celebrate if final crosses goal.
+- [ ] Tie reveal panel to the Reveal event.
 
 ---
 
