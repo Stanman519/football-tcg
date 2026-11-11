@@ -1,24 +1,43 @@
 # ROADMAP
 
 ## STATUS (2026-11-11)
-Play-animation overhaul (plan in memory `play-animation-overhaul.md`). Committed 2026-09-08, **STILL NOT PLAYTESTED** (Unity MCP offline again 2026-11-11; `dotnet build` clean):
+Play-animation overhaul (plan in memory `play-animation-overhaul.md`). **First playtest done 2026-11-11** (UnityMCP, scripted driver vs AI, ~15 plays; 124/124 EditMode tests pass):
 - [x] M1 Resolution ready-gate, self-starting move queues, defense moves (9b7a01a)
 - [x] M2 outcome facts: fail caster, tackler, CTR defender (e66be2a)
 - [x] M3 play choreographer, per-outcome scripts + defense roles (463a562)
 - [x] M4 code half: parabolic throw arc, facing, looseFrames (007af96)
 - [x] Presentation A-C: reveal/spin split, AbilitySpotlight pre-snap, single recap panel left, BigPlay at moment (a2c2ab3, b744476, 482e771)
-- [x] Fix: LiveBall phase gets fresh turn timer (fd876e9)
 
-### Static verification 2026-11-11 (code + scene YAML only, NOT visual)
-- Defense deep sign (`Mathf.Sign(slot.localPosition.y)`): OK by construction. Slots are LOSMarker-local, defense formations all +y, offense gains = +y. No per-player flip.
-- Ball sprite sheet: `BallManager.spriteSheet` wired in `GameClCo.unity` to `BallSpriteSheet.asset`. Asset uses `basic_football_sprite` for ALL states (1 frame each) -> no spiral/tumble anim. Both sheets ARE sliced (fumble 12, spiral 10) but not assigned.
-- AbilitySpotlight runtime creation: OK, no serialized deps, self-builds canvas. Banner text 10/14pt on 1920 ref = likely too small to read.
-- YardageSummaryPanel: in scene, anchors x 0.04-0.38; mini slots x 0.72-0.98 (scene values match code). No overlap.
-- Risk: Resolution timeout = `turn_duration` 30s. Long plays w/ 4+ impact showcases (1.8s each) + audible + recap can approach it -> server advances mid-animation.
+### Playtest results 2026-11-11
+Verified in play mode:
+- Run, short pass, long pass, TD: Resolution plays 10-13s, snap -> routes -> throw -> pursuit -> recap. TOUCHDOWN overlay fires.
+- Defense deep sign correct (slot positions logged: DL/LB step toward LOS on run, defense on +y).
+- Recap panel left, mini slots right, no overlap. Hot-route banner shows.
+- Ball visible, snaps, follows carrier, flies on throws. Still single-frame sprite (sheets sliced but unassigned).
+- LiveBall gets a fresh 60s timer.
+
+Fixed during playtest:
+- fd876e9 LiveBall inherited Resolution's spent timer
+- 0efaa1b ready queued during a reveal delay leaked into Resolution and skipped the whole animation
+- ff62501 targeted WR out route ran off the sideline, ball followed off-screen
+- bda40b4 after a dead-ball play (TD/incomplete) field stayed locked: next play animated from the benches, 19s
+- 53b1262 PlayImpactTests fixture
+
+NOT covered yet (never occurred vs this AI):
+- Sack / INT / TFL / fumble / batted scripts (need defender fail-event cards + slot icons)
+- AbilitySpotlight showcases (`play_impacts` was 0 every play)
+- LiveBall card effects (both sides passed every time)
+
+Open issues seen:
+- Dead-ball plays skip server `EndTurn`: `turn_count` not incremented, status durations not ticked, EndOfTurn abilities not fired. Rules question.
+- AI offense only ever called Run with no QB/RB on board (carrier empty, ball goes to empty QB slot).
+- After possession change, slots are still jogging in from the bench when Resolution starts (formation tween not finished).
+- Several hand cards render as black rectangles.
+- Console: "referenced script (Unknown) is missing" spam at boot (no missing components on scene objects; likely a prefab).
 
 **NEXT, in order:**
-1. PLAYTEST in editor (run, pass, sack/INT, TD). Confirm the 4 items above visually + Resolution never hits 30s timeout.
-2. Assign sliced frames to `BallSpriteSheet.asset` (`Tools > Setup Ball Sprite Sheet`, needs editor).
+1. Dev scenario to force sack / INT / fumble + a slot-ability card, then playtest those scripts and the spotlight.
+2. Assign sliced frames to `BallSpriteSheet.asset` (`Tools > Setup Ball Sprite Sheet`).
 3. M5 post-LiveBall re-animation — sub-tasks below.
 4. M6 timing knobs in DevTuningPanel + CTR "Coverage Shift!" banner (uses `ctr_defender_uid`). Subsumes P1.5.
 5. LiveBallCardZone rebuild (P0).
