@@ -269,7 +269,13 @@ public partial class PlayAnimationController : MonoBehaviour
         if (summaryPanel != null)
         {
             summaryPanel.ShowSummary(g);
-            yield return new WaitForSeconds(summaryPanel.fadeInDur + summaryPanel.holdDur + summaryPanel.fadeOutDur);
+            yield return null;
+            float recapWait = 0f;
+            while (summaryPanel.IsShowing && recapWait < 12f) // staggered ledger: length depends on row count
+            {
+                recapWait += Time.deltaTime;
+                yield return null;
+            }
         }
 
         // Animation done — tell server (Resolution is ready-gated); retry covers dropped-while-resolving

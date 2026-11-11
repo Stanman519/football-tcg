@@ -25,8 +25,12 @@ namespace TcgEngine.UI
 
         [Header("Timing")]
         public float fadeInDur   = 0.4f;
-        public float holdDur     = 3.0f;
+        public float holdDur     = 2.6f;   // after the total lands
         public float fadeOutDur  = 0.5f;
+        public float rowStagger  = 0.45f;  // one ledger row at a time, total last
+
+        public bool IsShowing => isShowing;
+        private int rowCount;
 
         private Canvas overlayCanvas;
         private CanvasGroup rootGroup;
@@ -78,8 +82,26 @@ namespace TcgEngine.UI
             rootPanel.SetActive(true);
             rootGroup.alpha = 0f;
 
+            // Ledger reveal: rows tick in one by one, THEN the total pops — reads as "this + this - that = result"
+            breakdownText.maxVisibleLines = 0;
+            netYardageText.alpha = 0f;
+            SetFooterAlpha(0f);
+
             rootGroup.DOFade(1f, fadeInDur).SetEase(Ease.OutQuad).SetLink(gameObject);
-            yield return new WaitForSeconds(fadeInDur + holdDur);
+            yield return new WaitForSeconds(fadeInDur);
+
+            for (int i = 1; i <= rowCount; i++)
+            {
+                breakdownText.maxVisibleLines = i;
+                yield return new WaitForSeconds(rowStagger);
+            }
+
+            netYardageText.alpha = 1f;
+            netYardageText.transform.DOKill();
+            netYardageText.transform.localScale = Vector3.one;
+            netYardageText.transform.DOPunchScale(Vector3.one * 0.18f, 0.35f, 5, 0.5f).SetLink(gameObject);
+            SetFooterAlpha(1f);
+            yield return new WaitForSeconds(holdDur);
 
             rootGroup.DOFade(0f, fadeOutDur).SetEase(Ease.InQuad).SetLink(gameObject);
             yield return new WaitForSeconds(fadeOutDur);
@@ -111,28 +133,27 @@ namespace TcgEngine.UI
             netYardageText.text = $"{sign}{net} YDS";
             netYardageText.color = net >= 0 ? COL_GREEN : COL_RED;
 
-            // Breakdown
-            if (bd != null)
+            // Breakdown — skipped on fail events (sack/incomplete/turnover: the math didn't decide the play)
+            rowCount = 0;
+            if (bd != null && g.last_fail_event == FailPlayEventType.None)
             {
                 var sb = new StringBuilder();
                 if (isPass)
                 {
-                    sb.AppendLine($"Receiver Base      {FormatSigned(bd.offPlayerBase)}");
-                    sb.AppendLine($"Receiver Bonus     {FormatSigned(bd.offStatusBonuses)}");
-                    sb.AppendLine($"QB / OL            {FormatSigned(bd.offOtherPositions)}");
+                    Row(sb, "Receiver", bd.offPlayerBase, true);
+                    Row(sb, "Receiver bonus", bd.offStatusBonuses, false);
+                    Row(sb, "QB / OL", bd.offOtherPositions, false);
                 }
                 else
                 {
-                    sb.AppendLine($"Player Run Base    {FormatSigned(bd.offPlayerBase)}");
-                    sb.AppendLine($"Run Bonuses        {FormatSigned(bd.offStatusBonuses)}");
+                    Row(sb, "Runner", bd.offPlayerBase, true);
+                    Row(sb, "Run bonuses", bd.offStatusBonuses, false);
                 }
-                sb.AppendLine($"Coach              {FormatSigned(bd.offCoachBase)}");
-                sb.AppendLine($"Def Coverage       {FormatSigned(-bd.defCoverageBase)}");
-                if (bd.defStatusBonuses != 0)
-                    sb.AppendLine($"Def Bonuses        {FormatSigned(-bd.defStatusBonuses)}");
-                sb.AppendLine($"Def Coach          {FormatSigned(-bd.defCoachBase)}");
-                if (bd.defCoverageMod != 0)
-                    sb.AppendLine($"Coverage Guess     {FormatSigned(-bd.defCoverageMod)}");
+                Row(sb, "Coach", bd.offCoachBase, false);
+                Row(sb, "Def coverage", -bd.defCoverageBase, false);
+                Row(sb, "Def bonuses", -bd.defStatusBonuses, false);
+                Row(sb, "Def coach", -bd.defCoachBase, false);
+                Row(sb, "Coverage guess", -bd.defCoverageMod, false);
                 breakdownText.text = sb.ToString().TrimEnd();
             }
             else
@@ -192,6 +213,22 @@ namespace TcgEngine.UI
             }
         }
 
+        private void Row(StringBuilder sb, string label, int val, bool always)
+        {
+            if (val == 0 && !always) return; // zero rows are noise
+            string col = val > 0 ? "#64FFA0" : (val < 0 ? "#FF6464" : "#A0A0A0");
+            sb.AppendLine($"{label}<pos=78%><color={col}><b>{FormatSigned(val)}</b></color>");
+            rowCount++;
+        }
+
+        private void SetFooterAlpha(float a)
+        {
+            receiverText.alpha = a;
+            tackleText.alpha = a;
+            coverageText.alpha = a;
+            failEventText.alpha = a;
+        }
+
         private static string FormatSigned(int val)
         {
             return val >= 0 ? $"+{val}" : $"{val}";
@@ -229,7 +266,7 @@ namespace TcgEngine.UI
             Image rootBg = rootPanel.AddComponent<Image>();
             rootBg.color = new Color(COL_BG.r, COL_BG.g, COL_BG.b, 0.88f);
             // Left side: the mini slot machine lives at (0.72-0.98 x) and must stay readable
-            SetAnchors(rootPanel, new Vector2(0.04f, 0.15f), new Vector2(0.38f, 0.85f));
+            SetAnchors(rootPanel, new Vector2(0.03f, 0.16f), new Vector2(0.37f, 0.88f));
 
             // Left accent border
             GameObject border = new GameObject("LeftBorder");
@@ -240,18 +277,18 @@ namespace TcgEngine.UI
             border.GetComponent<RectTransform>().sizeDelta = new Vector2(4f, 0f);
 
             // Header (play type label)
-            headerText = MakeTMP(rootPanel.transform, "Header", 14f, COL_GOLD,
+            headerText = MakeTMP(rootPanel.transform, "Header", 26f, COL_GOLD,
                 new Vector2(0.08f, 0.90f), new Vector2(0.5f, 0.96f),
                 TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
             headerText.characterSpacing = 8f;
 
             // Net yardage (big)
-            netYardageText = MakeTMP(rootPanel.transform, "NetYardage", 56f, COL_GREEN,
+            netYardageText = MakeTMP(rootPanel.transform, "NetYardage", 96f, COL_GREEN,
                 new Vector2(0.08f, 0.76f), new Vector2(0.92f, 0.90f),
                 TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
             netYardageText.enableAutoSizing = true;
-            netYardageText.fontSizeMin = 36f;
-            netYardageText.fontSizeMax = 56f;
+            netYardageText.fontSizeMin = 48f;
+            netYardageText.fontSizeMax = 96f;
 
             // Separator
             GameObject sep = new GameObject("Separator");
@@ -262,28 +299,28 @@ namespace TcgEngine.UI
             sep.GetComponent<RectTransform>().sizeDelta = new Vector2(0f, 2f);
 
             // Breakdown (monospace-style rows)
-            breakdownText = MakeTMP(rootPanel.transform, "Breakdown", 15f, COL_WHITE,
+            breakdownText = MakeTMP(rootPanel.transform, "Breakdown", 32f, COL_WHITE,
                 new Vector2(0.08f, 0.36f), new Vector2(0.92f, 0.74f),
                 TextAlignmentOptions.TopLeft, FontStyles.Normal);
             breakdownText.lineSpacing = 8f;
 
             // Receiver / ball carrier
-            receiverText = MakeTMP(rootPanel.transform, "Receiver", 16f, COL_CYAN,
+            receiverText = MakeTMP(rootPanel.transform, "Receiver", 28f, COL_CYAN,
                 new Vector2(0.08f, 0.28f), new Vector2(0.92f, 0.35f),
                 TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
 
             // Who made the stop
-            tackleText = MakeTMP(rootPanel.transform, "Tackle", 15f, COL_DIM,
+            tackleText = MakeTMP(rootPanel.transform, "Tackle", 26f, COL_DIM,
                 new Vector2(0.08f, 0.21f), new Vector2(0.92f, 0.28f),
                 TextAlignmentOptions.MidlineLeft, FontStyles.Normal);
 
             // Coverage shift
-            coverageText = MakeTMP(rootPanel.transform, "Coverage", 15f, COL_DIM,
+            coverageText = MakeTMP(rootPanel.transform, "Coverage", 26f, COL_DIM,
                 new Vector2(0.08f, 0.14f), new Vector2(0.92f, 0.21f),
                 TextAlignmentOptions.MidlineLeft, FontStyles.Normal);
 
             // Fail event
-            failEventText = MakeTMP(rootPanel.transform, "FailEvent", 20f, COL_RED,
+            failEventText = MakeTMP(rootPanel.transform, "FailEvent", 36f, COL_RED,
                 new Vector2(0.08f, 0.04f), new Vector2(0.92f, 0.13f),
                 TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
 
