@@ -230,6 +230,40 @@ public partial class PlayAnimationController : MonoBehaviour
             yield return WaitForQueuesToFinish(10f);
         }
 
+        // Outcome beat: name the fail event and WHO caused it before the recap numbers
+        if (g.last_fail_event != FailPlayEventType.None && abilitySpotlight != null)
+        {
+            Card culprit = null;
+            if (!string.IsNullOrEmpty(g.fail_event_caster_uid))
+            {
+                foreach (Player p in g.players)
+                {
+                    culprit = p.cards_board.FirstOrDefault(c => c.uid == g.fail_event_caster_uid);
+                    if (culprit != null) break;
+                }
+            }
+            bool turnover = g.turnover_pending;
+            string headline = g.last_fail_event switch
+            {
+                FailPlayEventType.TackleForLoss => "TACKLE FOR LOSS",
+                FailPlayEventType.Sack => "SACK",
+                FailPlayEventType.QBFumble => "QB FUMBLE",
+                FailPlayEventType.BattedPass => "PASS BATTED",
+                FailPlayEventType.TippedPass => "PASS TIPPED",
+                FailPlayEventType.Interception => "INTERCEPTION",
+                FailPlayEventType.IncompletePass => "INCOMPLETE",
+                FailPlayEventType.RunnerFumble => "FUMBLE",
+                _ => g.last_fail_event.ToString().ToUpper(),
+            };
+            string desc = turnover ? "Turnover" : (ctx.yardage != 0 ? $"{ctx.yardage:+#;-#;0} yds" : "No gain");
+            CardData cd = culprit != null ? culprit.CardData : null;
+            abilitySpotlight.ShowBeat(cd, culprit != null ? "CAUSED BY" : "PLAY RESULT",
+                cd != null ? cd.title : "", headline, desc, abilitySpotlight.DefenseColor);
+            yield return new WaitForSeconds(2.2f);
+            abilitySpotlight.HideBeat();
+            yield return new WaitForSeconds(0.35f);
+        }
+
         // Post-play yardage summary
         var summaryPanel = YardageSummaryPanel.Get();
         if (summaryPanel != null)
