@@ -77,6 +77,7 @@ namespace TcgEngine.Tests
             ability.stat_bonus_amount = amount;
             ability.duration = 1;
             ability.effects = new EffectData[] { ScriptableObject.CreateInstance<EffectAddStat>() };
+            ability.status = new StatusData[0]; // CreateInstance leaves arrays null; DoEffects iterates it
             ability.conditions_trigger = new ConditionData[0];
             ability.conditions_target = new ConditionData[0];
             ability.chain_abilities = new AbilityData[0];
