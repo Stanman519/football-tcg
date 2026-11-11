@@ -193,8 +193,19 @@ namespace TcgEngine.Server
                 if (!isResolving)
                 {
                     QueuedGameAction action = queued_actions.Dequeue();
-                    Debug.Log($"✓ [Update] Processing queued action type={action.type}");
-                    ExecuteAction(action.type, action.client, action.sdata);
+                    bool staleReady = action.type == GameAction.PlayerReadyPhase
+                        && (action.phase != game_data.phase || action.turn != game_data.turn_count);
+                    if (staleReady)
+                    {
+                        //Ready was meant for the phase it was sent in (e.g. sent during a reveal delay);
+                        //applying it now would insta-ready Resolution/LiveBall and skip the animation
+                        Debug.Log($"[Update] Dropped stale queued ready ({action.phase} -> {game_data.phase})");
+                    }
+                    else
+                    {
+                        Debug.Log($"✓ [Update] Processing queued action type={action.type}");
+                        ExecuteAction(action.type, action.client, action.sdata);
+                    }
                     lastHadQueuedActions = false;
                 }
             }
@@ -275,6 +286,8 @@ namespace TcgEngine.Server
                     action.type = type;
                     action.client = client;
                     action.sdata = sdata;
+                    action.phase = game_data.phase;
+                    action.turn = game_data.turn_count;
                     sdata.PreRead();
                     queued_actions.Enqueue(action);
                 }
@@ -1025,6 +1038,8 @@ namespace TcgEngine.Server
         public ushort type;
         public ClientData client;
         public SerializedData sdata;
+        public GamePhase phase;   //phase + turn when received — a queued ready must not leak into a later phase
+        public int turn;
     }
 
 }
