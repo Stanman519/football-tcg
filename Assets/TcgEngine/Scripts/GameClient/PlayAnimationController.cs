@@ -223,7 +223,7 @@ public partial class PlayAnimationController : MonoBehaviour
 
         // Big gain flash — fires here, right as the play ends (TD/INT flash inside the scripts)
         if (ctx.yardage >= 20 && !ctx.isTouchdown && g.last_fail_event == FailPlayEventType.None)
-            BigPlayOverlay.Get()?.ShowEvent($"BIG PLAY  +{ctx.yardage} YDS", new Color(0.2f, 0.9f, 0.3f));
+            BigPlayOverlay.Get()?.ShowEvent($"BIG PLAY  +{ctx.yardage} YDS", UITheme.Positive);
 
         // Fallback: no procedural route assigned (shouldn't happen for real plays)
         if (!routesAssigned && ctx.carrierSlot != null && ctx.yardage != 0)
@@ -741,7 +741,7 @@ public partial class PlayAnimationController : MonoBehaviour
             CardData defData = string.IsNullOrEmpty(beat.defCardId) ? null : CardData.Get(beat.defCardId);
             Color offCol = abilitySpotlight != null ? abilitySpotlight.OffenseColor : Color.green;
             Color defCol = abilitySpotlight != null ? abilitySpotlight.DefenseColor : Color.red;
-            Color neutral = new Color(1f, 0.85f, 0.3f);
+            Color neutral = UITheme.Gold;
             bool panel = true;
 
             switch (beat.type)
@@ -813,7 +813,7 @@ public partial class PlayAnimationController : MonoBehaviour
                         if (lbTouchdown)
                         {
                             ShowLiveBallBeat(null, "LIVE BALL", "Result", "TOUCHDOWN!",
-                                $"Was {beat.p1}, live ball {diff:+#;-#;0}", new Color(1f, 0.75f, 0f));
+                                $"Was {beat.p1}, live ball {diff:+#;-#;0}", UITheme.Score);
                             BoardSlot scorer = FindSlotForCardUid(g.current_offensive_player, g.ball_carrier_uid ?? g.target_receiver_uid);
                             if (scorer != null)
                                 scorer.transform.DOPunchScale(Vector3.one * 0.4f, 0.6f, 6, 0.5f).SetLink(scorer.gameObject);
@@ -897,8 +897,8 @@ public partial class PlayAnimationController : MonoBehaviour
         ));
 
         Color popupColor = deltaYards > 0
-            ? new Color(0.3f, 1f, 0.45f)
-            : new Color(1f, 0.45f, 0.45f);
+            ? UITheme.Positive
+            : UITheme.Negative;
         StatChangePopup.Instance?.ShowCustom(
             carrier.transform.position,
             $"{deltaYards:+#;-#;0} yd",
@@ -962,7 +962,7 @@ public partial class PlayAnimationController : MonoBehaviour
                 StatChangePopup.Instance?.ShowCustom(
                     recovererSlot.transform.position,
                     $"RETURN {returnYards} yd",
-                    new Color(1f, 0.85f, 0.3f)
+                    UITheme.Gold
                 );
             }
         }

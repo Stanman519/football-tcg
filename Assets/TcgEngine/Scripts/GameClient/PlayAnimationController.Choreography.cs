@@ -199,7 +199,7 @@ public partial class PlayAnimationController
 
         yield return WaitForQueuesToFinish(8f);
         ContactPop(sacker, ctx.qbSlot);
-        Popup(ctx.qbSlot, "SACK!", new Color(1f, 0.45f, 0.45f));
+        Popup(ctx.qbSlot, "SACK!", UITheme.Negative);
         yield return FieldWait(0.5f);
     }
 
@@ -218,7 +218,7 @@ public partial class PlayAnimationController
 
         yield return WaitForQueuesToFinish(10f);
         ContactPop(shooter, carrier);
-        Popup(carrier, "TACKLE FOR LOSS", new Color(1f, 0.45f, 0.45f));
+        Popup(carrier, "TACKLE FOR LOSS", UITheme.Negative);
         yield return FieldWait(0.5f);
     }
 
@@ -228,7 +228,7 @@ public partial class PlayAnimationController
         yield return FieldWait(0.6f); // dropback
 
         ctx.ball.FumbleLoose(ctx.ball.transform.position, 0.5f);
-        Popup(ctx.qbSlot, "FUMBLE!", new Color(1f, 0.75f, 0.3f));
+        Popup(ctx.qbSlot, "FUMBLE!", UITheme.Gold);
         FumbleContestCluster(ctx, ctx.ball.transform.position);
         yield return FieldWait(0.9f);
 
@@ -270,7 +270,7 @@ public partial class PlayAnimationController
         if (interceptor != null)
         {
             ctx.ball.AttachTo(interceptor);
-            Popup(interceptor, "INTERCEPTED!", new Color(1f, 0.45f, 0.45f));
+            Popup(interceptor, "INTERCEPTED!", UITheme.Negative);
             BigPlayOverlay.Get()?.ShowEvent("INTERCEPTION!", Color.red);
             yield return FieldWait(0.4f);
 
@@ -312,7 +312,7 @@ public partial class PlayAnimationController
 
         ContactPop(contester, target);
         ctx.ball.DropIncomplete(targetWorld, 0.6f);
-        Popup(target ?? ctx.qbSlot, "INCOMPLETE", new Color(0.8f, 0.8f, 0.8f));
+        Popup(target ?? ctx.qbSlot, "INCOMPLETE", UITheme.TextDim);
         yield return WaitForQueuesToFinish(6f);
         yield return FieldWait(0.4f);
     }
@@ -336,7 +336,7 @@ public partial class PlayAnimationController
         yield return FieldWait(0.3f);
         if (batter != null) ContactPop(batter, null);
         ctx.ball.DropIncomplete(batWorld, 0.5f);
-        Popup(batter ?? ctx.qbSlot, "BATTED DOWN", new Color(0.8f, 0.8f, 0.8f));
+        Popup(batter ?? ctx.qbSlot, "BATTED DOWN", UITheme.TextDim);
         yield return WaitForQueuesToFinish(6f);
         yield return FieldWait(0.4f);
     }
@@ -370,7 +370,7 @@ public partial class PlayAnimationController
         }
 
         ctx.ball.FumbleLoose(ctx.ball.transform.position, 0.5f);
-        Popup(carrier, "FUMBLE!", new Color(1f, 0.75f, 0.3f));
+        Popup(carrier, "FUMBLE!", UITheme.Gold);
         FumbleContestCluster(ctx, ctx.ball.transform.position);
         yield return FieldWait(0.9f);
 
@@ -450,9 +450,9 @@ public partial class PlayAnimationController
         {
             carrier.transform.DOKill(true);
             carrier.transform.DOPunchScale(Vector3.one * 0.4f, 0.6f, 6, 0.5f).SetLink(carrier.gameObject);
-            Popup(carrier, "TOUCHDOWN!", new Color(1f, 0.85f, 0.3f));
+            Popup(carrier, "TOUCHDOWN!", UITheme.Gold);
         }
-        BigPlayOverlay.Get()?.ShowEvent("TOUCHDOWN!", new Color(1f, 0.75f, 0f));
+        BigPlayOverlay.Get()?.ShowEvent("TOUCHDOWN!", UITheme.Score);
         yield return FieldWait(1.0f);
 
         // Scoring beat: who scored and how (same who / value / why panel as abilities)
@@ -467,7 +467,7 @@ public partial class PlayAnimationController
             string how = g != null && g.current_offensive_player != null
                 && g.current_offensive_player.SelectedPlay == PlayType.Run ? "run" : "pass";
             abilitySpotlight.ShowBeat(cd, "SCORE", cd != null ? cd.title : "", "TOUCHDOWN",
-                $"{ctx.yardage}-yd {how}", new Color(1f, 0.75f, 0f));
+                $"{ctx.yardage}-yd {how}", UITheme.Score);
             yield return new WaitForSeconds(1.8f);
             abilitySpotlight.HideBeat();
             yield return new WaitForSeconds(0.35f);

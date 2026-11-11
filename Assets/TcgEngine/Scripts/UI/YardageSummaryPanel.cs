@@ -5,6 +5,7 @@ using UnityEngine.UI;
 using TMPro;
 using TcgEngine.Gameplay;
 using DG.Tweening;
+using static TcgEngine.UI.UITheme;
 
 namespace TcgEngine.UI
 {
@@ -15,13 +16,13 @@ namespace TcgEngine.UI
     /// </summary>
     public class YardageSummaryPanel : MonoBehaviour
     {
-        static readonly Color COL_BG        = new Color32(14, 14, 14, 255);
-        static readonly Color COL_GREEN     = new Color32(100, 255, 160, 255);
-        static readonly Color COL_RED       = new Color32(255, 100, 100, 255);
-        static readonly Color COL_GOLD      = new Color32(255, 215, 80, 255);
-        static readonly Color COL_DIM       = new Color32(160, 160, 160, 255);
-        static readonly Color COL_WHITE     = new Color32(230, 230, 230, 255);
-        static readonly Color COL_CYAN      = new Color32(0, 227, 253, 255);
+        static readonly Color COL_BG        = UITheme.Bg;
+        static readonly Color COL_GREEN     = UITheme.Positive;
+        static readonly Color COL_RED       = UITheme.Negative;
+        static readonly Color COL_GOLD      = UITheme.Gold;
+        static readonly Color COL_DIM       = UITheme.TextDim;
+        static readonly Color COL_WHITE     = UITheme.TextMain;
+        static readonly Color COL_CYAN      = UITheme.Accent;
 
         [Header("Timing")]
         public float fadeInDur   = 0.4f;
@@ -216,7 +217,7 @@ namespace TcgEngine.UI
         private void Row(StringBuilder sb, string label, int val, bool always)
         {
             if (val == 0 && !always) return; // zero rows are noise
-            string col = val > 0 ? "#64FFA0" : (val < 0 ? "#FF6464" : "#A0A0A0");
+            string col = val > 0 ? PositiveHex : (val < 0 ? NegativeHex : DimHex);
             sb.AppendLine($"{label}<pos=78%><color={col}><b>{FormatSigned(val)}</b></color>");
             rowCount++;
         }
@@ -327,32 +328,5 @@ namespace TcgEngine.UI
             rootPanel.SetActive(false);
         }
 
-        private static void SetAnchors(GameObject go, Vector2 min, Vector2 max)
-        {
-            RectTransform rt = go.GetComponent<RectTransform>();
-            rt.anchorMin = min;
-            rt.anchorMax = max;
-            rt.offsetMin = rt.offsetMax = Vector2.zero;
-        }
-
-        private TextMeshProUGUI MakeTMP(Transform parent, string name, float size, Color color,
-            Vector2 anchorMin, Vector2 anchorMax, TextAlignmentOptions alignment,
-            FontStyles style = FontStyles.Normal)
-        {
-            GameObject go = new GameObject(name);
-            go.transform.SetParent(parent, false);
-            TextMeshProUGUI t = go.AddComponent<TextMeshProUGUI>();
-            t.fontSize = size;
-            t.color = color;
-            t.alignment = alignment;
-            t.fontStyle = style;
-            t.enableWordWrapping = true;
-            t.overflowMode = TextOverflowModes.Truncate;
-            RectTransform rt = go.GetComponent<RectTransform>();
-            rt.anchorMin = anchorMin;
-            rt.anchorMax = anchorMax;
-            rt.offsetMin = rt.offsetMax = Vector2.zero;
-            return t;
-        }
     }
 }

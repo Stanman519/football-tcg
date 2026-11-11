@@ -5,6 +5,7 @@ using TMPro;
 using TcgEngine.Client;
 using TcgEngine.Gameplay;
 using DG.Tweening;
+using static TcgEngine.UI.UITheme;
 
 namespace TcgEngine.UI
 {
@@ -17,11 +18,11 @@ namespace TcgEngine.UI
     public class LiveBallRevealPanel : MonoBehaviour
     {
         // ── Colors (match PlayCallRevealPanel) ──
-        static readonly Color COL_MINT      = new Color32(170, 255, 220, 255);
-        static readonly Color COL_CORAL     = new Color32(255, 113, 108, 255);
-        static readonly Color COL_BG        = new Color32(14, 14, 14, 255);
-        static readonly Color COL_DIM_WHITE = new Color32(173, 170, 170, 255);
-        static readonly Color COL_GOLD      = new Color32(255, 215, 80, 255);
+        static readonly Color COL_MINT      = UITheme.Offense;
+        static readonly Color COL_CORAL     = UITheme.Defense;
+        static readonly Color COL_BG        = UITheme.Bg;
+        static readonly Color COL_DIM_WHITE = UITheme.TextDim;
+        static readonly Color COL_GOLD      = UITheme.Gold;
 
         // ── Timing ──
         [Header("Timing")]
@@ -282,40 +283,5 @@ namespace TcgEngine.UI
         // =====================================================================
         // Helpers
         // =====================================================================
-        private static void StretchFill(GameObject go)
-        {
-            RectTransform rt = go.GetComponent<RectTransform>();
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = rt.offsetMax = Vector2.zero;
-        }
-
-        private static void SetAnchors(GameObject go, Vector2 min, Vector2 max)
-        {
-            RectTransform rt = go.GetComponent<RectTransform>();
-            rt.anchorMin = min;
-            rt.anchorMax = max;
-            rt.offsetMin = rt.offsetMax = Vector2.zero;
-        }
-
-        private TextMeshProUGUI MakeTMP(Transform parent, string name, float size, Color color,
-            Vector2 anchorMin, Vector2 anchorMax, TextAlignmentOptions alignment,
-            FontStyles style = FontStyles.Normal)
-        {
-            GameObject go = new GameObject(name);
-            go.transform.SetParent(parent, false);
-            TextMeshProUGUI t = go.AddComponent<TextMeshProUGUI>();
-            t.fontSize = size;
-            t.color = color;
-            t.alignment = alignment;
-            t.fontStyle = style;
-            t.enableWordWrapping = true;
-            t.overflowMode = TextOverflowModes.Truncate;
-            RectTransform rt = go.GetComponent<RectTransform>();
-            rt.anchorMin = anchorMin;
-            rt.anchorMax = anchorMax;
-            rt.offsetMin = rt.offsetMax = Vector2.zero;
-            return t;
-        }
     }
 }

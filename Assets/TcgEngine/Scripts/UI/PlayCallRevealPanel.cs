@@ -5,6 +5,7 @@ using TMPro;
 using TcgEngine.Client;
 using TcgEngine.Gameplay;
 using DG.Tweening;
+using static TcgEngine.UI.UITheme;
 
 namespace TcgEngine.UI
 {
@@ -17,12 +18,12 @@ namespace TcgEngine.UI
     public class PlayCallRevealPanel : MonoBehaviour
     {
         // ── Figma-exact colors ──
-        static readonly Color COL_MINT       = new Color32(170, 255, 220, 255);  // #AAFFDC
-        static readonly Color COL_CORAL      = new Color32(255, 113, 108, 255);  // #FF716C
-        static readonly Color COL_CYAN       = new Color32(0, 227, 253, 255);    // #00E3FD
-        static readonly Color COL_BG         = new Color32(14, 14, 14, 255);     // #0E0E0E
-        static readonly Color COL_DIM_WHITE  = new Color32(173, 170, 170, 255);  // #ADAAAA
-        static readonly Color COL_DARK_CARD  = new Color32(26, 26, 26, 255);     // #1A1A1A
+        static readonly Color COL_MINT       = UITheme.Offense;  // #AAFFDC
+        static readonly Color COL_CORAL      = UITheme.Defense;  // #FF716C
+        static readonly Color COL_CYAN       = UITheme.Accent;    // #00E3FD
+        static readonly Color COL_BG         = UITheme.Bg;     // #0E0E0E
+        static readonly Color COL_DIM_WHITE  = UITheme.TextDim;  // #ADAAAA
+        static readonly Color COL_DARK_CARD  = UITheme.Surface;     // #1A1A1A
         static readonly Color COL_BORDER_DIM = new Color32(72, 72, 71, 77);      // rgba(72,72,71,0.3)
 
         // ── Timing (suspense delays) ──
@@ -259,7 +260,7 @@ namespace TcgEngine.UI
             rootGroup.blocksRaycasts = false;
 
             Image rootBg = rootPanel.AddComponent<Image>();
-            rootBg.color = new Color(COL_BG.r, COL_BG.g, COL_BG.b, 0.75f);
+            rootBg.color = PanelBg();
             StretchFill(rootPanel);
 
             // ── 3-column container (centered, padded) ──
@@ -272,9 +273,9 @@ namespace TcgEngine.UI
                 frame1Group = BuildFrame(rootPanel.transform, "Frame1_YourPlay",
                     new Vector2(0.04f, 0.12f), new Vector2(0.34f, 0.88f),
                     COL_MINT, out frame1Border, out frame1Label, out frame1PlayName);
-                frame1CoachBonus = MakeTMP(frame1Group.transform, "CoachBonus", 14f,
+                frame1CoachBonus = MakeTMP(frame1Group.transform, "CoachBonus", 28f,
                     new Color(COL_MINT.r, COL_MINT.g, COL_MINT.b, 0.6f),
-                    new Vector2(0.08f, 0.28f), new Vector2(0.92f, 0.38f),
+                    new Vector2(0.08f, 0.31f), new Vector2(0.92f, 0.40f),
                     TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
                 frame1CoachBonus.characterSpacing = 4f;
 
@@ -282,9 +283,9 @@ namespace TcgEngine.UI
                 frame2Group = BuildFrame(rootPanel.transform, "Frame2_OpponentCall",
                     new Vector2(0.35f, 0.12f), new Vector2(0.65f, 0.88f),
                     COL_CORAL, out frame2Border, out frame2Label, out frame2PlayName);
-                frame2CoachBonus = MakeTMP(frame2Group.transform, "CoachBonus", 14f,
+                frame2CoachBonus = MakeTMP(frame2Group.transform, "CoachBonus", 28f,
                     new Color(COL_CORAL.r, COL_CORAL.g, COL_CORAL.b, 0.6f),
-                    new Vector2(0.08f, 0.28f), new Vector2(0.92f, 0.38f),
+                    new Vector2(0.08f, 0.31f), new Vector2(0.92f, 0.40f),
                     TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
                 frame2CoachBonus.characterSpacing = 4f;
 
@@ -309,7 +310,7 @@ namespace TcgEngine.UI
             GameObject frame = new GameObject(name);
             frame.transform.SetParent(parent, false);
             Image frameBg = frame.AddComponent<Image>();
-            frameBg.color = new Color(accentColor.r, accentColor.g, accentColor.b, 0.05f);
+            frameBg.color = WithAlpha(accentColor, 0.14f);
             CanvasGroup cg = frame.AddComponent<CanvasGroup>();
             cg.alpha = 0f;
             SetAnchors(frame, anchorMin, anchorMax);
@@ -321,28 +322,28 @@ namespace TcgEngine.UI
             Image bImg = border.AddComponent<Image>();
             bImg.color = accentColor;
             SetAnchors(border, new Vector2(0f, 0f), new Vector2(0f, 1f));
-            border.GetComponent<RectTransform>().sizeDelta = new Vector2(4f, 0f);
+            border.GetComponent<RectTransform>().sizeDelta = new Vector2(8f, 0f);
 
             // Label ("YOUR PLAY" / "OPPONENT CALL") — skewed tag style
             GameObject labelBg = new GameObject("LabelBg");
             labelBg.transform.SetParent(frame.transform, false);
             Image lbImg = labelBg.AddComponent<Image>();
             lbImg.color = new Color(accentColor.r, accentColor.g, accentColor.b, 0.2f);
-            SetAnchors(labelBg, new Vector2(0.15f, 0.72f), new Vector2(0.55f, 0.78f));
+            SetAnchors(labelBg, new Vector2(0.08f, 0.73f), new Vector2(0.78f, 0.80f));
 
-            labelTmp = MakeTMP(frame.transform, "Label", 12f, accentColor,
-                new Vector2(0.16f, 0.72f), new Vector2(0.54f, 0.78f),
+            labelTmp = MakeTMP(frame.transform, "Label", SizeLabel, accentColor,
+                new Vector2(0.10f, 0.73f), new Vector2(0.77f, 0.80f),
                 TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
-            labelTmp.characterSpacing = 12f;
+            labelTmp.characterSpacing = 6f;
             labelTmp.enableAutoSizing = false;
 
             // Big play name (72px equivalent → 56px at 1920 scale)
-            playNameTmp = MakeTMP(frame.transform, "PlayName", 64f, accentColor,
-                new Vector2(0.08f, 0.38f), new Vector2(0.92f, 0.72f),
+            playNameTmp = MakeTMP(frame.transform, "PlayName", 120f, accentColor,
+                new Vector2(0.08f, 0.40f), new Vector2(0.92f, 0.72f),
                 TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
             playNameTmp.enableAutoSizing = true;
-            playNameTmp.fontSizeMin = 36f;
-            playNameTmp.fontSizeMax = 64f;
+            playNameTmp.fontSizeMin = 56f;
+            playNameTmp.fontSizeMax = 120f;
 
             return cg;
         }
@@ -354,7 +355,7 @@ namespace TcgEngine.UI
             guessPanel.transform.SetParent(parent, false);
             frame2GuessBg = guessPanel.AddComponent<Image>();
             frame2GuessBg.color = new Color(0f, 0.89f, 0.99f, 0.1f);
-            SetAnchors(guessPanel, new Vector2(0.2f, 0.15f), new Vector2(0.8f, 0.32f));
+            SetAnchors(guessPanel, new Vector2(0.08f, 0.10f), new Vector2(0.92f, 0.29f));
 
             // Thin bottom border (cyan)
             GameObject guessBorder = new GameObject("GuessBorder");
@@ -364,12 +365,12 @@ namespace TcgEngine.UI
             SetAnchors(guessBorder, new Vector2(0f, 0f), new Vector2(1f, 0f));
             guessBorder.GetComponent<RectTransform>().sizeDelta = new Vector2(0f, 2f);
 
-            frame2GuessLabel = MakeTMP(guessPanel.transform, "GuessLabel", 10f, COL_DIM_WHITE,
+            frame2GuessLabel = MakeTMP(guessPanel.transform, "GuessLabel", 22f, COL_DIM_WHITE,
                 new Vector2(0.1f, 0.55f), new Vector2(0.9f, 0.9f),
                 TextAlignmentOptions.Center, FontStyles.Bold);
             frame2GuessLabel.characterSpacing = 4f;
 
-            frame2GuessValue = MakeTMP(guessPanel.transform, "GuessValue", 18f, COL_CYAN,
+            frame2GuessValue = MakeTMP(guessPanel.transform, "GuessValue", 40f, COL_CYAN,
                 new Vector2(0.1f, 0.08f), new Vector2(0.9f, 0.55f),
                 TextAlignmentOptions.Center, FontStyles.Bold);
         }
@@ -392,7 +393,7 @@ namespace TcgEngine.UI
             Image bImg = border.AddComponent<Image>();
             bImg.color = new Color(1f, 1f, 1f, 0.2f);
             SetAnchors(border, new Vector2(0f, 0f), new Vector2(0f, 1f));
-            border.GetComponent<RectTransform>().sizeDelta = new Vector2(4f, 0f);
+            border.GetComponent<RectTransform>().sizeDelta = new Vector2(8f, 0f);
 
             // Label
             GameObject labelBg = new GameObject("LabelBg");
@@ -401,10 +402,10 @@ namespace TcgEngine.UI
             lbImg.color = new Color(1f, 1f, 1f, 0.1f);
             SetAnchors(labelBg, new Vector2(0.1f, 0.72f), new Vector2(0.7f, 0.78f));
 
-            frame3Label = MakeTMP(frame.transform, "EnhLabel", 12f, Color.white,
+            frame3Label = MakeTMP(frame.transform, "EnhLabel", SizeLabel, Color.white,
                 new Vector2(0.12f, 0.72f), new Vector2(0.68f, 0.78f),
                 TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
-            frame3Label.characterSpacing = 12f;
+            frame3Label.characterSpacing = 6f;
             frame3Label.text = "PLAY ENHANCERS";
 
             // ── User enhancer card ──
@@ -439,12 +440,12 @@ namespace TcgEngine.UI
             bdr.GetComponent<RectTransform>().sizeDelta = new Vector2(3f, 0f);
 
             // Card name
-            nameTmp = MakeTMP(card.transform, "CardName", 18f, accentColor,
+            nameTmp = MakeTMP(card.transform, "CardName", 34f, accentColor,
                 new Vector2(0.12f, 0.35f), new Vector2(0.95f, 0.95f),
                 TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
 
             // Subtitle
-            subTmp = MakeTMP(card.transform, "CardSub", 10f, COL_DIM_WHITE,
+            subTmp = MakeTMP(card.transform, "CardSub", 22f, COL_DIM_WHITE,
                 new Vector2(0.12f, 0.05f), new Vector2(0.95f, 0.4f),
                 TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
             subTmp.characterSpacing = 4f;
@@ -453,40 +454,5 @@ namespace TcgEngine.UI
         // =====================================================================
         // Helpers
         // =====================================================================
-        private static void StretchFill(GameObject go)
-        {
-            RectTransform rt = go.GetComponent<RectTransform>();
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = rt.offsetMax = Vector2.zero;
-        }
-
-        private static void SetAnchors(GameObject go, Vector2 min, Vector2 max)
-        {
-            RectTransform rt = go.GetComponent<RectTransform>();
-            rt.anchorMin = min;
-            rt.anchorMax = max;
-            rt.offsetMin = rt.offsetMax = Vector2.zero;
-        }
-
-        private TextMeshProUGUI MakeTMP(Transform parent, string name, float size, Color color,
-            Vector2 anchorMin, Vector2 anchorMax, TextAlignmentOptions alignment,
-            FontStyles style = FontStyles.Normal)
-        {
-            GameObject go = new GameObject(name);
-            go.transform.SetParent(parent, false);
-            TextMeshProUGUI t = go.AddComponent<TextMeshProUGUI>();
-            t.fontSize = size;
-            t.color = color;
-            t.alignment = alignment;
-            t.fontStyle = style;
-            t.enableWordWrapping = true;
-            t.overflowMode = TextOverflowModes.Truncate;
-            RectTransform rt = go.GetComponent<RectTransform>();
-            rt.anchorMin = anchorMin;
-            rt.anchorMax = anchorMax;
-            rt.offsetMin = rt.offsetMax = Vector2.zero;
-            return t;
-        }
     }
 }

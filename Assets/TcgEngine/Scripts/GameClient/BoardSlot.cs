@@ -73,8 +73,11 @@ namespace TcgEngine.Client
             // Visual Feedback: dim when not a valid drop target
             if (spriteRenderer != null && spriteRenderer.enabled)
             {
-                Color col = valid ? Color.white : new Color(1f, 1f, 1f, 0.2f);
-                spriteRenderer.color = col;
+                // Empty-slot markers only matter while placing players; during the play they are
+                // noise competing with the (small) player tokens, so fade them almost out.
+                bool placing = gdata != null && gdata.phase == GamePhase.ChoosePlayers;
+                float a = valid ? 1f : (placing ? 0.3f : 0.06f);
+                spriteRenderer.color = new Color(1f, 1f, 1f, a);
             }
 
             target_alpha = valid ? 1f : 0f;

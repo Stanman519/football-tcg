@@ -18,8 +18,8 @@ namespace TcgEngine.UI
     public class AbilitySpotlight : MonoBehaviour
     {
         [Header("Glow")]
-        public Color offenseGlow = new Color(0.3f, 1f, 0.45f, 1f);
-        public Color defenseGlow = new Color(1f, 0.45f, 0.45f, 1f);
+        public Color offenseGlow = UITheme.Offense;
+        public Color defenseGlow = UITheme.Defense;
         public float glowFadeIn = 0.15f;
         public float glowFadeOut = 0.3f;
 
@@ -416,7 +416,7 @@ namespace TcgEngine.UI
             impactGroup.alpha = 0f;
 
             Image bg = root.AddComponent<Image>();
-            bg.color = new Color(0.05f, 0.06f, 0.1f, 0.94f);
+            bg.color = UITheme.PanelBg(0.94f);
             bg.raycastTarget = false;
 
             GameObject accentGo = new GameObject("Accent");
@@ -436,7 +436,7 @@ namespace TcgEngine.UI
             irt.anchorMin = new Vector2(0.03f, 0.06f); irt.anchorMax = new Vector2(0.31f, 0.94f);
             irt.offsetMin = irt.offsetMax = Vector2.zero;
 
-            Color grey = new Color(0.75f, 0.78f, 0.85f);
+            Color grey = UITheme.TextDim;
             impactSide  = MakeText(root.transform, "Side", 26, FontStyle.Bold, grey,
                 new Vector2(0.34f, 0.82f), new Vector2(0.80f, 0.96f), TextAnchor.MiddleLeft);
             impactCount = MakeText(root.transform, "Count", 24, FontStyle.Normal, grey,
@@ -568,7 +568,7 @@ namespace TcgEngine.UI
             cg.interactable = false;
 
             Image bg = root.AddComponent<Image>();
-            bg.color = new Color(0.08f, 0.08f, 0.12f, 0.88f);
+            bg.color = UITheme.PanelBg();
 
             RectTransform rt = root.GetComponent<RectTransform>();
             rt.sizeDelta = new Vector2(560f, 104f);

@@ -151,6 +151,7 @@
     <Compile Include="Assets\TcgEngine\Scripts\Conditions\ConditionDamaged.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\GameClient\TimeController.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\GameClient\BallManager.cs" />
+    <Compile Include="Assets\TcgEngine\Scripts\UI\UITheme.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Menu\CardZoomPanel.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\UI\IconValue.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Api\ApiMsg.cs" />
