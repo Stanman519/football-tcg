@@ -325,6 +325,10 @@ namespace TcgEngine.Gameplay
             if (game_data.state == GameState.GameEnded)
                 return;
             game_data.phase = GamePhase.LiveBall;
+            // Fresh timer: Resolution spent it on the animation (or hit 0 on timeout, which
+            // would otherwise fire NextStep next frame and skip LiveBall entirely)
+            DataLoader loader = DataLoader.Get(); // null in EditMode tests
+            game_data.turn_timer = loader != null && loader.data != null ? loader.data.turn_duration : 30f;
             RefreshData();
         }
 

@@ -81,6 +81,18 @@ namespace TcgEngine.Tests
         }
 
         [Test]
+        public void LiveBall_StartsWithFreshTimer_AfterResolutionTimeout()
+        {
+            game.ball_was_live = true;
+            game.turn_timer = 0f; // Resolution animation ran out the clock
+
+            logic.NextStep();
+
+            Assert.AreEqual(GamePhase.LiveBall, game.phase);
+            Assert.Greater(game.turn_timer, 0f); // else server timer skips LiveBall next frame
+        }
+
+        [Test]
         public void GameClone_CopiesBallWasLive()
         {
             game.ball_was_live = true;
