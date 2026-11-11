@@ -1,5 +1,21 @@
 # ROADMAP
-# ROADMAP
+
+## STATUS (2026-11-11)
+Play-animation overhaul (plan in memory `play-animation-overhaul.md`). Committed 2026-09-08, **NONE PLAYTESTED** (Unity MCP was offline):
+- [x] M1 Resolution ready-gate, self-starting move queues, defense moves (9b7a01a)
+- [x] M2 outcome facts: fail caster, tackler, CTR defender (e66be2a)
+- [x] M3 play choreographer, per-outcome scripts + defense roles (463a562)
+- [x] M4 code half: parabolic throw arc, facing, looseFrames (007af96)
+- [x] Presentation A-C: reveal/spin split, AbilitySpotlight pre-snap, single recap panel left, BigPlay at moment (a2c2ab3, b744476, 482e771)
+
+**NEXT, in order:**
+1. PLAYTEST all above in editor. Verify: defense deep-direction sign (`Mathf.Sign(slot.localPosition.y)` in AssignDefenseRoles), spotlight runtime creation, recap panel vs mini slots, ball sprite wiring.
+2. M5 post-LiveBall re-animation (see P0 below). Break into sub-tasks first.
+3. M6 timing knobs in DevTuningPanel + CTR "Coverage Shift!" banner (uses `ctr_defender_uid`). Subsumes P1.5.
+4. LiveBallCardZone rebuild (P0).
+
+---
+
 
 ## TODO — Ball Animation Setup (do these before next session)
 Code is written and compiles. These are manual Unity Editor steps:
