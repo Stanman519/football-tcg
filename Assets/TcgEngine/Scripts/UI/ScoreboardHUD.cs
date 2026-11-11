@@ -115,7 +115,7 @@ namespace TcgEngine.UI
             if (possessionArrowB != null) possessionArrowB.SetActive(offId == 1);
 
             // --- Row 2: subtotals ---
-            bool showTally = g.phase == GamePhase.Resolution || g.phase == GamePhase.LiveBall
+            bool showTally = g.phase == GamePhase.Resolution || g.phase == GamePhase.LiveBall || g.phase == GamePhase.LiveBallResolve
                           || g.phase == GamePhase.SlotSpin;
 
             if (row2 != null) row2.SetActive(showTally);

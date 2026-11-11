@@ -97,11 +97,17 @@ public partial class PlayAnimationController : MonoBehaviour
                 OnResolutionStart(g);
             else if (phase == GamePhase.LiveBall)
                 OnLiveBallStart(g);
+            else if (phase == GamePhase.LiveBallResolve)
+            {
+                // Normally the beat queue sends ready when it drains; this covers "no events arrived"
+                if (liveBallReadyRoutine == null)
+                    liveBallReadyRoutine = StartCoroutine(LiveBallResolveReady(0.75f));
+            }
             else if (phase == GamePhase.EndTurn)
                 OnEndTurn(g);
             else if (phase == GamePhase.StartTurn)
                 OnStartTurn(g);
-            else if (lastPhase == GamePhase.Resolution || lastPhase == GamePhase.LiveBall || lastPhase == GamePhase.EndTurn)
+            else if (lastPhase == GamePhase.Resolution || lastPhase == GamePhase.LiveBall || lastPhase == GamePhase.LiveBallResolve || lastPhase == GamePhase.EndTurn)
                 // Dead-ball plays (TD, incomplete...) go Resolution -> ChoosePlayers with no EndTurn/StartTurn
                 // refresh in between; without this the field stays animationLocked and the next play
                 // animates from stale positions (benched slots, old ball spot)
@@ -708,7 +714,7 @@ public partial class PlayAnimationController : MonoBehaviour
 
     // Server fires every LiveBall event in one frame. Queue them and play ONE beat at a time
     // (panel + field move + hold) so the player can follow what each card did.
-    // Durations come from LiveBallBeats; the server holds EndTurn for the same total.
+    // Server waits in LiveBallResolve until we send ready after the last beat.
     private void OnLiveBallEventReceived(LiveBallEventType type, string offCardId, string defCardId, int p1, int p2)
     {
         if (type == LiveBallEventType.Reveal)
@@ -831,6 +837,37 @@ public partial class PlayAnimationController : MonoBehaviour
             }
         }
         liveBallBeatRoutine = null;
+
+        if (liveBallReadyRoutine != null) StopCoroutine(liveBallReadyRoutine);
+        liveBallReadyRoutine = StartCoroutine(LiveBallResolveReady(LiveBallBeats.EndPad));
+    }
+
+    private Coroutine liveBallReadyRoutine;
+
+    // Tell the server our LiveBall beats are done (LiveBallResolve is ready-gated). Retries: the
+    // server queues/drops actions while resolving, and the phase refresh can trail the events.
+    private IEnumerator LiveBallResolveReady(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        float waited = 0f;
+        while (waited < 40f)
+        {
+            if (liveBallBeatRoutine != null) { liveBallReadyRoutine = null; yield break; } // beats running: they re-arm us
+            GamePhase ph = GameClient.Get()?.GetGameData()?.phase ?? GamePhase.None;
+            if (ph == GamePhase.LiveBallResolve)
+            {
+                GameClient.Get()?.SendAction(GameAction.PlayerReadyPhase);
+                yield return new WaitForSeconds(2f);
+                waited += 2f;
+            }
+            else if (ph == GamePhase.LiveBall)
+            {
+                yield return new WaitForSeconds(0.1f);
+                waited += 0.1f;
+            }
+            else break;
+        }
+        liveBallReadyRoutine = null;
     }
 
     private void ShowLiveBallBeat(CardData card, string label, string title, string headline, string desc, Color color)

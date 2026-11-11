@@ -431,7 +431,8 @@ namespace TcgEngine.Gameplay
 
             GamePhase phase = game_data.phase;
             if (phase != GamePhase.ChoosePlayers && phase != GamePhase.ChoosePlay
-                && phase != GamePhase.LiveBall && phase != GamePhase.Resolution)
+                && phase != GamePhase.LiveBall && phase != GamePhase.Resolution
+                && phase != GamePhase.LiveBallResolve)
                 return; //only these phases wait on ready
 
             if (player.IsReadyForPhase(phase))
@@ -449,7 +450,8 @@ namespace TcgEngine.Gameplay
         {
             if (game_data.state == GameState.GameEnded)
                 return;
-            if (game_data.phase != GamePhase.LiveBall && game_data.phase != GamePhase.Resolution)
+            if (game_data.phase != GamePhase.LiveBall && game_data.phase != GamePhase.Resolution
+                && game_data.phase != GamePhase.LiveBallResolve)
                 return;
 
             game_data.selector = SelectorType.None;
@@ -813,8 +815,6 @@ namespace TcgEngine.Gameplay
             Debug.Log($"[LiveBall] Resolving — OFF: {offCard?.card_id ?? "pass"} | DEF: {defCard?.card_id ?? "pass"}");
 
             int preLBYardage = game_data.yardage_this_play;
-            live_ball_beat_time = 0f;
-            live_ball_any_card = offCard != null || defCard != null;
 
             // Fire reveal event (shows both cards or "PASS" placeholders)
             FireLiveBallEvent(LiveBallEventType.Reveal, offCard, defCard, 0, 0);
@@ -826,7 +826,7 @@ namespace TcgEngine.Gameplay
                 FireLiveBallEvent(LiveBallEventType.BothPass, null, null, 0, 0);
                 FireLiveBallEvent(LiveBallEventType.PostLBResolved, null, null, preLBYardage, game_data.yardage_this_play);
                 ClearLiveBallCards();
-                resolve_queue.AddCallback(EndTurn);
+                resolve_queue.AddCallback(StartLiveBallResolvePhase);
                 return;
             }
 
@@ -872,7 +872,7 @@ namespace TcgEngine.Gameplay
                         FireLiveBallEvent(LiveBallEventType.BallSecurity, offCard, defCard, 0, 0);
                         FireLiveBallEvent(LiveBallEventType.PostLBResolved, offCard, defCard, preLBYardage, game_data.yardage_this_play);
                         ClearLiveBallCards();
-                        resolve_queue.AddCallback(EndTurn);
+                        resolve_queue.AddCallback(StartLiveBallResolvePhase);
                         return;
                     }
 
@@ -889,7 +889,7 @@ namespace TcgEngine.Gameplay
                         ResolveCardAbility(fumbleAbility, defCard, defCard);
                         FireLiveBallEvent(LiveBallEventType.PostLBResolved, offCard, defCard, preLBYardage, game_data.yardage_this_play);
                         ClearLiveBallCards();
-                        resolve_queue.AddCallback(EndTurn);
+                        resolve_queue.AddCallback(StartLiveBallResolvePhase);
                         return;
                     }
                     else
@@ -898,7 +898,7 @@ namespace TcgEngine.Gameplay
                         FireLiveBallEvent(LiveBallEventType.FumbleRecovery, offCard, defCard, offGrit, defGrit);
                         FireLiveBallEvent(LiveBallEventType.PostLBResolved, offCard, defCard, preLBYardage, game_data.yardage_this_play);
                         ClearLiveBallCards();
-                        resolve_queue.AddCallback(EndTurn);
+                        resolve_queue.AddCallback(StartLiveBallResolvePhase);
                         return;
                     }
                 }
@@ -941,21 +941,44 @@ namespace TcgEngine.Gameplay
             // --- STEP 6: Cleanup ---
             FireLiveBallEvent(LiveBallEventType.PostLBResolved, offCard, defCard, preLBYardage, game_data.yardage_this_play);
             ClearLiveBallCards();
-            resolve_queue.AddCallback(EndTurn);
+            resolve_queue.AddCallback(StartLiveBallResolvePhase);
         }
 
         private void FireLiveBallEvent(LiveBallEventType eventType, Card offCard, Card defCard, int offGrit, int defGrit)
         {
             if (is_ai_predict) return;
+            // Events all fire this frame; clients replay them as sequential beats and send ready
+            // when done (GamePhase.LiveBallResolve). Server knows nothing about animation lengths.
             onLiveBallEvent?.Invoke(eventType, offCard, defCard, offGrit, defGrit);
-            // Events all fire this frame; client replays them as sequential beats.
-            // Hold EndTurn for the summed beat time (SetDelay keeps the max).
-            live_ball_beat_time += LiveBallBeats.Duration(eventType, live_ball_any_card);
-            resolve_queue.SetDelay(live_ball_beat_time + LiveBallBeats.EndPad);
         }
 
-        private float live_ball_beat_time;
-        private bool live_ball_any_card;
+        private const float LiveBallResolveTimeout = 30f;
+
+        /// <summary>
+        /// LiveBall effects are applied; hold here until every client has played its beats.
+        /// Ready-gated like Resolution (AI instantly ready, turn timer = timeout fallback).
+        /// </summary>
+        private void StartLiveBallResolvePhase()
+        {
+            if (game_data.state == GameState.GameEnded)
+                return;
+            if (is_ai_predict)
+            {
+                EndTurn(); // simulations have no client to wait on
+                return;
+            }
+
+            game_data.phase = GamePhase.LiveBallResolve;
+            game_data.ResetPhaseReady();
+            game_data.turn_timer = LiveBallResolveTimeout;
+            RefreshData();
+
+            foreach (Player p in game_data.players)
+            {
+                if (p.is_ai)
+                    SetPlayerReadyPhase(p);
+            }
+        }
 
         /// <summary>
         /// Checks if any ability on a live ball card has the given effect type.

@@ -290,6 +290,7 @@ public class FieldSlotManager : MonoBehaviour
         switch (g.phase)
         {
             case GamePhase.LiveBall:
+            case GamePhase.LiveBallResolve:
                 return FieldFormation.LiveBall;
 
             case GamePhase.RevealPlayCalls:

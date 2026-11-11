@@ -69,6 +69,7 @@
     <Compile Include="Assets\TcgEngine\Editor\BallSpriteSheetSetup.cs" />
     <Compile Include="Assets\TcgEngine\Editor\CardImporter.cs" />
     <Compile Include="Assets\TcgEngine\Editor\RouteDesignerWindow.cs" />
+    <Compile Include="Assets\TcgEngine\Tests\Editor\LiveBallResolveGateTests.cs" />
     <Compile Include="Assets\TcgEngine\Editor\CardPreviewRebuilder.cs" />
     <Compile Include="Assets\TcgEngine\Tests\Editor\PhaseReadyTests.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Editor\ImportPackage.cs" />

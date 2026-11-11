@@ -68,11 +68,11 @@ namespace TcgEngine.Gameplay
 
     /// <summary>
     /// LiveBall resolves in one server frame; the client replays its events one beat at a time.
-    /// Server holds EndTurn for the summed beat time so nothing is cut off. Single source of truth for both.
+    /// CLIENT-ONLY pacing: the server waits in GamePhase.LiveBallResolve until clients send ready.
     /// </summary>
     public static class LiveBallBeats
     {
-        public const float EndPad = 0.6f;
+        public const float EndPad = 0.4f;
 
         public static float Duration(LiveBallEventType type, bool anyCard)
         {
@@ -1341,6 +1341,7 @@ namespace TcgEngine.Gameplay
         SlotSpin = 15, // slot machine spins
         Resolution = 20,
         LiveBall = 30,      //Main play phase - ball is live!
+        LiveBallResolve = 31, //LiveBall cards resolved; ready-gated while clients play the beats
         EndTurn = 40,   //End of turn resolutions
     }
 
