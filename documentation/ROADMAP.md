@@ -70,7 +70,7 @@ Session 4 (2026-11-11):
 - `UITheme` (b2e0d83): one palette + type scale + MakeTMP/SetAnchors/BuildOverlayCanvas. Reveal panels, recap, spotlight, PAC popups use it. Verified in play (pre label fix).
 - UNVERIFIED (MCP dropped): play-call reveal label width/overlap fix; empty-slot markers fading to 6% outside ChoosePlayers.
 - Tried `FieldSlotManager.slotScale` 0.5 -> 0.75 for bigger tokens; reverted unseen. Needs a look in editor (overlap risk).
-- WARNING: `.gitignore` has `*.unity` -> `GameClCo.unity` (the game scene) is NOT in git. Scene-serialized values (recap hold 2.2, slotScale) are unversioned.
+- FIXED 4166bfb: `.gitignore` was excluding `*.meta/*.unity/*.asset/*.mat/*.prefab` -> game scene, cards, abilities, routes, all metas were unversioned. Now tracked. Not pushed yet.
 
 **NEXT, in order:**
 1. User feel pass with the DevTuningPanel sliders (target ~20s/play); then bake values. Server-side reveal 3.9s / spin 5.0s are the next cut if still long.
