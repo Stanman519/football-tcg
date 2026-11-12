@@ -494,8 +494,12 @@ public partial class PlayAnimationController : MonoBehaviour
                 int lateralDir = RouteLibrary.LateralFromSlot(slot, fw);
                 int olSlot = (grp == PlayerPositionGrp.OL) ? si : -1;
 
-                // Try library first
-                RouteData libraryRoute = RouteLibrary.Pick(grp, olSlot, ctx, lateralDir);
+                // Library first. Skill players get the SAME route the play-picker diagram showed
+                // (PickStable); linemen/QB keep their per-position buckets.
+                bool skill = grp == PlayerPositionGrp.WR || grp == PlayerPositionGrp.RB_TE;
+                RouteData libraryRoute = skill
+                    ? RouteLibrary.PickStable(grp, isTE, playType, lateralDir, si)
+                    : RouteLibrary.Pick(grp, olSlot, ctx, lateralDir);
 
                 slot.MoveQueue.Enqueue(SlotMovementSegment.WaitForSignal("snap"));
 

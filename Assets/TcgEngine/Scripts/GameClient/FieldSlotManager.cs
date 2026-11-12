@@ -215,7 +215,10 @@ public class FieldSlotManager : MonoBehaviour
             }
 
             List<BoardSlot> slots = posEntry.Value;
-            int[] spot = FormationSpots(posGroup, slots, g);
+            float[] depth = new float[slots.Count];
+            for (int d = 0; d < depth.Length; d++)
+                depth[d] = GetFormationLocalPos(formForGroup, posGroup, d).y;
+            int[] spot = FormationSpots(posGroup, slots, g, depth);
             for (int si = 0; si < slots.Count; si++)
             {
                 int i = spot[si];
@@ -285,7 +288,11 @@ public class FieldSlotManager : MonoBehaviour
         {
             var slots = GetSlotsForPosition(entry.posGroup, playerId);
             if (entry.slotIndex >= slots.Count) continue;
-            int[] spot = FormationSpots(entry.posGroup, slots, g);
+            float[] depth = new float[slots.Count];
+            foreach (var other in data.slots)
+                if (other.posGroup == entry.posGroup && other.slotIndex < depth.Length)
+                    depth[other.slotIndex] = other.yardsFromLOS;
+            int[] spot = FormationSpots(entry.posGroup, slots, g, depth);
             int si = System.Array.IndexOf(spot, entry.slotIndex); // which slot stands on this formation spot
             if (si < 0) si = entry.slotIndex;
             slots[si].SetTargetPosition(ToLocalPos(new Vector2(entry.xFraction, entry.yardsFromLOS)));
@@ -293,38 +300,40 @@ public class FieldSlotManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Which formation spot each slot of a group stands on. Identity for every group except RB_TE,
-    /// where spot 0 is the backfield and the last spot is on the line: running backs fill from the
-    /// front, tight ends from the back, so a TE dropped in the first slot still lines up as a TE.
+    /// Which formation spot each slot of a group stands on. Identity for every group except RB_TE.
+    /// There, the deepest spot of the formation (most yards behind the LOS) is the running back's
+    /// and the shallowest is the tight end's: RB cards take the deep spots, TE cards the shallow
+    /// ones, whichever slot the card was dropped in. depth[i] = yardsFromLOS of formation spot i.
     /// </summary>
-    private static int[] FormationSpots(PlayerPositionGrp posGroup, List<BoardSlot> slots, Game g)
+    private static int[] FormationSpots(PlayerPositionGrp posGroup, List<BoardSlot> slots, Game g, float[] depth)
     {
         int n = slots.Count;
         int[] spot = new int[n];
         for (int i = 0; i < n; i++) spot[i] = i;
         if (posGroup != PlayerPositionGrp.RB_TE || g == null || n < 2) return spot;
 
-        bool[] taken = new bool[n];
+        // Formation spots, deepest first (stable for ties)
+        var byDepth = new List<int>();
+        for (int i = 0; i < n; i++) byDepth.Add(i);
+        byDepth.Sort((x, y) => depth[x] != depth[y] ? depth[x].CompareTo(depth[y]) : x.CompareTo(y));
+
         for (int i = 0; i < n; i++) spot[i] = -1;
         int front = 0, back = n - 1;
 
-        for (int i = 0; i < n; i++) // running backs: backfield spots first
+        for (int i = 0; i < n; i++) // running backs: deepest spots first
         {
             CardData cd = SlotCardData(slots[i], g);
-            if (cd != null && !cd.isTightEnd) { spot[i] = front; taken[front++] = true; }
+            if (cd != null && !cd.isTightEnd && front <= back) spot[i] = byDepth[front++];
         }
-        for (int i = n - 1; i >= 0; i--) // tight ends: on-the-line spots first
+        for (int i = n - 1; i >= 0; i--) // tight ends: shallowest spots first
         {
             CardData cd = SlotCardData(slots[i], g);
-            if (cd != null && cd.isTightEnd && back >= front) { spot[i] = back; taken[back--] = true; }
+            if (cd != null && cd.isTightEnd && back >= front) spot[i] = byDepth[back--];
         }
-        for (int i = 0; i < n; i++) // empty slots take what's left
+        for (int i = 0; i < n; i++) // empty slots (and overflow) take what's left
         {
             if (spot[i] >= 0) continue;
-            int free = System.Array.IndexOf(taken, false);
-            if (free < 0) free = i;
-            spot[i] = free;
-            taken[free] = true;
+            spot[i] = front <= back ? byDepth[front++] : i;
         }
         return spot;
     }

@@ -85,6 +85,52 @@ namespace TcgEngine.Client
             return null;
         }
 
+        /// <summary>
+        /// Same route every time for the same slot: what the play-picker diagram draws is what the
+        /// player then runs. RB and TE share a position group, so they are split by route name
+        /// (RB_* vs TE_*). Receiving routes: short pass uses the shallower half of the bucket,
+        /// long pass the deeper half; slotIndex spreads players across different routes.
+        /// Returns null when the library has nothing for that role (e.g. an RB receiving route).
+        /// </summary>
+        public static RouteData PickStable(PlayerPositionGrp pos, bool isTE, PlayType playType, int lateralDir, int slotIndex)
+        {
+            if (!initialized) Initialize();
+            if (pos == PlayerPositionGrp.OL) return null; // OL is keyed by sub-position; use Pick()
+
+            RouteContext ctx = GetContext(pos, playType, isTE);
+            var list = new List<RouteData>();
+            void AddAll(List<RouteData> src) { if (src != null) foreach (var r in src) if (r != null && !list.Contains(r)) list.Add(r); }
+            void Collect(RouteContext c)
+            {
+                if (lateralDir != 0) AddAll(Lookup(pos, -1, c, lateralDir));
+                AddAll(Lookup(pos, -1, c, 0));
+                if (pos == PlayerPositionGrp.RB_TE)
+                {
+                    string prefix = isTE ? "te_" : "rb_";
+                    list.RemoveAll(r => !r.name.ToLowerInvariant().StartsWith(prefix));
+                }
+            }
+
+            Collect(ctx);
+            // A running back has no receiving routes in the library: he stays in to block
+            if (list.Count == 0 && pos == PlayerPositionGrp.RB_TE && !isTE && ctx == RouteContext.Receiving)
+                Collect(RouteContext.PassBlockShort);
+            if (list.Count == 0) return null;
+
+            list.Sort((a, b) =>
+            {
+                int c = a.GetTotalDepth().CompareTo(b.GetTotalDepth());
+                return c != 0 ? c : string.CompareOrdinal(a.name, b.name);
+            });
+
+            int idx = Mathf.Max(0, slotIndex);
+            if (ctx != RouteContext.Receiving) return list[idx % list.Count];
+            int half = (list.Count + 1) / 2;
+            return playType == PlayType.LongPass
+                ? list[list.Count - 1 - (idx % half)]
+                : list[idx % half];
+        }
+
         /// <summary>Pick a random route from list, optionally filtering by vertex depth vs net yardage.</summary>
         private static RouteData PickFromList(List<RouteData> candidates, float? netYardage)
         {

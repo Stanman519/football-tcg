@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TcgEngine;
+using TcgEngine.Client;
 using TcgEngine.Gameplay;
 
 /// <summary>
@@ -70,18 +71,50 @@ public class FormationPreviewUI : MonoBehaviour
         foreach (var slot in formation.slots)
         {
             Vector2 pos = SlotToLocal(slot, w, h, isDefense);
-            bool showRoute = ShouldShowRoute(slot.posGroup, playType, isDefense);
             CreateMarker(pos, isDefense, slot.posGroup);
 
-            if (showRoute && coach != null)
+            if (isDefense)
             {
-                RouteData route = isDefense
-                    ? coach.GetDefenseRoute(playType, slot.posGroup, slot.slotIndex)
-                    : coach.GetOffenseRoute(playType, slot.posGroup, slot.slotIndex);
-                if (route != null)
-                    DrawRoute(pos, route, slot, w, h, isDefense);
+                // Defense: coach-authored assignments (DB/LB), matched to the exact slot
+                if (coach != null && ShouldShowRoute(slot.posGroup, playType, true))
+                {
+                    RouteData route = coach.GetDefenseRoute(playType, slot.posGroup, slot.slotIndex);
+                    if (route != null)
+                        DrawRoute(pos, route, slot, w, h, true, matchSlotIndex: true);
+                }
+                continue;
             }
+
+            // Offense: the same route source the field animation uses (RouteLibrary.PickStable),
+            // so the diagram matches what the players then run.
+            bool skill = slot.posGroup == PlayerPositionGrp.WR || slot.posGroup == PlayerPositionGrp.RB_TE;
+            if (!skill) continue;
+            bool isTE = slot.posGroup == PlayerPositionGrp.RB_TE && !IsRunningBackSpot(formation, slot);
+            bool isRun = playType == PlayType.Run;
+            if (isRun && (slot.posGroup == PlayerPositionGrp.WR || isTE)) continue; // blockers: no route line
+
+            int lateral = slot.xFraction < 0f ? -1 : 1;
+            RouteData lib = RouteLibrary.PickStable(slot.posGroup, isTE, playType, lateral, slot.slotIndex);
+            if (lib != null)
+                DrawRoute(pos, lib, slot, w, h, false, matchSlotIndex: false);
         }
+    }
+
+    /// <summary>
+    /// RB and TE share the RB_TE group. In a formation the deepest RB_TE spot (furthest behind the
+    /// LOS) is the running back; the rest are tight ends. Same rule FieldSlotManager uses.
+    /// </summary>
+    private static bool IsRunningBackSpot(FormationData formation, FormationSlotEntry slot)
+    {
+        FormationSlotEntry deepest = null;
+        foreach (var e in formation.slots)
+        {
+            if (e.posGroup != PlayerPositionGrp.RB_TE) continue;
+            if (deepest == null || e.yardsFromLOS < deepest.yardsFromLOS
+                || (e.yardsFromLOS == deepest.yardsFromLOS && e.slotIndex < deepest.slotIndex))
+                deepest = e;
+        }
+        return deepest == null || deepest.slotIndex == slot.slotIndex;
     }
 
     private Vector2 SlotToLocal(FormationSlotEntry slot, float w, float h, bool isDefense)
@@ -132,7 +165,7 @@ public class FormationPreviewUI : MonoBehaviour
         markers.Add(go);
     }
 
-    private void DrawRoute(Vector2 startPos, RouteData route, FormationSlotEntry slot, float w, float h, bool isDefense)
+    private void DrawRoute(Vector2 startPos, RouteData route, FormationSlotEntry slot, float w, float h, bool isDefense, bool matchSlotIndex)
     {
         if (route.keyframes == null || route.keyframes.Count == 0) return;
 
@@ -141,7 +174,10 @@ public class FormationPreviewUI : MonoBehaviour
         {
             foreach (var wp in kf.waypoints)
             {
-                if (wp.posGroup != slot.posGroup || wp.slotIndex != slot.slotIndex) continue;
+                // Library routes are authored once per position (slotIndex 0) and reused for every
+                // slot of that group -- same as RouteConverter. Coach routes are per exact slot.
+                if (wp.posGroup != slot.posGroup) continue;
+                if (matchSlotIndex && wp.slotIndex != slot.slotIndex) continue;
 
                 // deltaX/deltaYards are relative offsets in yards
                 float dx = (wp.deltaX / 53.3f) * w;  // 53.3 yard field width
@@ -149,8 +185,10 @@ public class FormationPreviewUI : MonoBehaviour
                 if (isDefense) dy = -dy;
 
                 Vector2 next = startPos + new Vector2(dx, dy);
-                CreateLine(prev, next);
+                if ((next - prev).sqrMagnitude > 0.01f)
+                    CreateLine(prev, next);
                 prev = next;
+                if (!matchSlotIndex) break; // one waypoint per keyframe for this group
             }
         }
     }
