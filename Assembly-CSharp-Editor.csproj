@@ -76,6 +76,7 @@
     <Compile Include="Assets\TcgEngine\Editor\Dev\DevMenuItems.cs" />
     <Compile Include="Assets\TcgEngine\Editor\HandCardPrefabBuilder.cs" />
     <Compile Include="Assets\TcgEngine\Tests\Editor\FootballMathTests.cs" />
+    <Compile Include="Assets\TcgEngine\Tests\Editor\TokenMotionTests.cs" />
     <Compile Include="Assets\TcgEngine\Editor\TestDeckBuilder.cs" />
     <Compile Include="Assets\TcgEngine\Editor\LiveBallCardBuilder.cs" />
     <Compile Include="Assets\TcgEngine\Editor\FormationDesignerWindowV2.cs" />

@@ -79,7 +79,25 @@ Session 4 (2026-11-11):
 4. Card data: more fail-event abilities.
 5. Ball sheet frames. 6. M6 timing knobs + CTR banner. 7. LiveBallCardZone rebuild (P0).
 
-### Presentation debt (flagged 2026-11-11)
+### Field movement rework (2026-11-12)
+User spec (asked, not inferred): TV-broadcast pace (run ~3-4s snap-to-tackle, deep pass ~5-6s); between plays jog to huddle then break; LiveBall = play still going (tackle AFTER LiveBall); long plays = camera zooms out to fit.
+Done:
+- `FieldMotionProfile` (speeds/accel/min move time; defaults walk 1.5 / jog 3 / sprint 5.5 yd/s, was 9). F2 sliders: Field Speed, Sprint/Jog/Walk, Acceleration, Min Move Time, LiveBall Min Move Time, Huddle Max Time.
+- `TokenMotion` kinematic mover replaces tween-per-segment in `SlotMovementQueue` (speed carries through waypoints, brakes for cuts). New `Follow` segment (chase a moving slot), `Hold`, `startDelay`, `speedScale`. Queue API unchanged.
+- Between plays: `BoardSlot.MeanderTo` gone; formation jog on same mover, arc path, staggered, only replans when target changes. `LOSMarker` compensates children so tokens jog to the new LOS instead of sliding with the field.
+- Pursuit runs WHILE carrier runs: tackler timed to carrier's end spot, others `Follow` and fan out. Play waits on carrier+tackler only; `WhistleStop` halts the rest.
+- LiveBall: no tackle in Resolution when `ball_was_live`; LiveBall delta = carrier resumes run (>= 0.9s); tackle once in `TackleAfterLiveBall` (also when both pass).
+- `GameCamera.FitPlay` zoom-out for long plays/returns.
+- Playtest 11v11 (injected lineups): peak token speed 6.7 yd/s, no errors/stalls. LiveBall +3 now 1.2-1.8s (was 0.67s).
+Open:
+- Pass plays still ~8s of movement (target 5-6s) -> tune sprint/route timing with sliders; measure snap-to-catch.
+- Pursuit fan-out + whistle stop compiled/tested, NOT yet seen in play.
+- FitPlay shifts LOS cluster under the hand cards on long passes; needs bottom margin.
+- Recap panel shows final yards + tackler BEFORE LiveBall (contradicts "play still going") - needs decision.
+- No `FieldMotionProfile.asset` yet (code defaults); create once values are tuned.
+- Test driver note: need full lineups; hand-only placement leaves no RB -> no carrier -> nothing to animate.
+
+## Presentation debt (flagged 2026-11-11)
 Architecture:
 - [x] Ready-gate LiveBall like Resolution.
 - One ordered `Game.play_log` of typed events (ability proc, fail event, LB event, score) instead of 3 channels (phase diffs, messages, derived fields). Client = one beat queue over it. Reconnect/replay-safe.

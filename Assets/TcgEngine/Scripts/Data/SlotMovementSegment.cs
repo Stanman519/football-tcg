@@ -13,6 +13,7 @@ namespace TcgEngine
         WaitForPhase,   // pause until game reaches target phase
         WaitForSignal,  // pause until named signal fires
         Callback,       // fire an Action when reached
+        Follow,         // chase another slot (moving target) until within stopRadius and it has stopped
     }
 
     [Serializable]
@@ -41,6 +42,18 @@ namespace TcgEngine
 
         // Speed-based duration (overrides duration field when set)
         public SpeedTier? speedTier = null;
+
+        // Follow -- chase this slot; done when within stopRadius and the target has no more moves
+        [NonSerialized] public BoardSlot followTarget;
+        public float stopRadius = 1.2f;
+        // Follow -- angle (degrees) off the straight chase line, so pursuers fan out instead of stacking
+        public float followLateral = 0f;
+
+        // Seconds to stand still before this segment starts (reaction time, stagger)
+        public float startDelay = 0f;
+
+        // Multiplier on the segment's cruise speed (e.g. 0.9 = trailing pursuer)
+        public float speedScale = 1f;
 
         // Who enqueued this (for debugging / selective removal)
         public string sourceTag;
@@ -91,6 +104,31 @@ namespace TcgEngine
                 deltaFootballCoord = delta,
                 speedTier = speed,
                 ease = PlayerSpeed.DefaultEase(speed),
+                sourceTag = tag
+            };
+        }
+
+        /// <summary>Chase a moving slot at the given tier. Ends once close AND the target has stopped.</summary>
+        public static SlotMovementSegment Follow(BoardSlot target, SpeedTier speed, float stopRadius, string tag = null)
+        {
+            return new SlotMovementSegment
+            {
+                type = SegmentType.Follow,
+                followTarget = target,
+                speedTier = speed,
+                stopRadius = stopRadius,
+                sourceTag = tag
+            };
+        }
+
+        /// <summary>Stand still for a fixed time.</summary>
+        public static SlotMovementSegment Hold(float seconds, string tag = null)
+        {
+            return new SlotMovementSegment
+            {
+                type = SegmentType.MoveBy,
+                deltaFootballCoord = Vector2.zero,
+                duration = seconds,
                 sourceTag = tag
             };
         }

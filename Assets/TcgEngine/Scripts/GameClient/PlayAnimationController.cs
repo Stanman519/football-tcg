@@ -183,7 +183,7 @@ public partial class PlayAnimationController : MonoBehaviour
 
         // Let stragglers finish lining up (after a possession change slots are still jogging in from the bench)
         float lineupWait = 0f;
-        while (lineupWait < 3f && AnySlotStillMoving())
+        while (lineupWait < 4f && AnySlotStillMoving())
         {
             lineupWait += Time.deltaTime;
             yield return null;
@@ -215,11 +215,18 @@ public partial class PlayAnimationController : MonoBehaviour
             yield return FieldWait(audibleDuration);
         }
 
+        // Long play: pull the camera back so the whole thing stays on screen
+        FitCameraToYards(-6f, ctx.yardage);
+
         // 6. Snap the ball — routes + defense roles begin
         BroadcastSignal("snap");
 
         // 7. Outcome choreography: ball event + outcome + pursuit + tackle + aftermath
         yield return StartCoroutine(RunOutcomeChoreography(ctx));
+
+        // Play is over (unless LiveBall keeps it going): bring the camera back
+        if (!g.ball_was_live)
+            GameCamera.Get()?.ReleaseFocus(0.6f);
 
         // Big gain flash — fires here, right as the play ends (TD/INT flash inside the scripts)
         if (ctx.yardage >= 20 && !ctx.isTouchdown && g.last_fail_event == FailPlayEventType.None)
@@ -369,6 +376,7 @@ public partial class PlayAnimationController : MonoBehaviour
     private void OnEndTurn(Game g)
     {
         StopResolutionCoroutines();
+        GameCamera.Get()?.ReleaseFocus(0.6f);
         ClearAllQueues();
         BallManager.Instance?.ResetToLOS();
         if (fieldSlotMgr != null)
@@ -381,6 +389,7 @@ public partial class PlayAnimationController : MonoBehaviour
     private void OnStartTurn(Game g)
     {
         StopResolutionCoroutines();
+        GameCamera.Get()?.ReleaseFocus(0.6f);
         ClearAllQueues();
         BallManager.Instance?.ResetToLOS();
         if (fieldSlotMgr != null)
@@ -544,41 +553,74 @@ public partial class PlayAnimationController : MonoBehaviour
 
     // ── Defense Tracking ────────────────────────────────────
 
-    private float EnqueueDefenseTracking(Player defPlayer, BoardSlot targetSlot)
+    private const float TackleGap = 1.2f;    // yards between tackler and carrier at contact
+    private const float HeldShortGap = 3.0f; // tackler closing but not there yet (play still going)
+
+    /// <summary>
+    /// Send the defense after the ball carrier. Call it WHILE he runs, not after:
+    /// - credited tackler heads for where the carrier will end up, timed to arrive as he does;
+    /// - everyone else chases the moving carrier and pulls up at varied distances.
+    /// closeToContact=false leaves the tackler a few yards short (LiveBall / touchdown: no tackle yet).
+    /// Re-issuing replaces any earlier pursuit.
+    /// </summary>
+    private float EnqueueDefenseTracking(Player defPlayer, BoardSlot targetSlot, bool closeToContact = true)
     {
-        if (fieldSlotMgr == null || targetSlot == null) return 0f;
+        if (fieldSlotMgr == null || targetSlot == null || defPlayer == null) return 0f;
 
         var defGroups = new[] { PlayerPositionGrp.DL, PlayerPositionGrp.LB, PlayerPositionGrp.DB };
-        Vector3 carrierLocal = targetSlot.transform.localPosition;
-        float maxDur = 0f;
-
-        // Credited tackler goes all the way to the carrier; the rest close 60%
+        float fw = fieldSlotMgr.fieldWidth;
         Game g = GameClient.Get()?.GetGameData();
         BoardSlot tacklerSlot = FindSlotForCardUid(defPlayer, g?.tackler_uid);
+
+        float carrierTime = targetSlot.MoveQueue.EstimateRemainingTime(out Vector2 carrierEnd);
+        float gap = closeToContact ? TackleGap : HeldShortGap;
+        int n = 0;
 
         foreach (var grp in defGroups)
         {
             var slots = fieldSlotMgr.GetSlotsForPosition(grp, defPlayer.player_id);
             foreach (BoardSlot slot in slots)
             {
-                Vector3 current = slot.transform.localPosition;
-                float closeFraction = slot == tacklerSlot ? 1f : 0.6f;
-                Vector3 trackPos = Vector3.Lerp(current, carrierLocal, closeFraction);
-                float dist = Vector3.Distance(current, trackPos);
-                float dur = PlayerSpeed.Duration(dist, SpeedTier.Sprint);
-                if (dur > maxDur) maxDur = dur;
+                var q = slot.MoveQueue;
+                q.Clear("pursuit");
 
-                float fieldWidth = fieldSlotMgr.fieldWidth;
-                Vector2 footballTarget = new Vector2(trackPos.x / fieldWidth, trackPos.y);
-
-                slot.MoveQueue.Enqueue(SlotMovementSegment.MoveTo(
-                    footballTarget,
-                    SpeedTier.Sprint,
-                    "pursuit"
-                ));
+                if (slot == tacklerSlot)
+                {
+                    float ownTime = q.EstimateRemainingTime(out Vector2 from);
+                    Vector2 to = carrierEnd - from;
+                    float d = to.magnitude;
+                    if (d > gap + 0.05f)
+                    {
+                        Vector2 spot = carrierEnd - to / d * gap;
+                        float sprintTime = (d - gap) / PlayerSpeed.SprintYps;
+                        float travel = Mathf.Max(sprintTime, carrierTime - ownTime + 0.1f);
+                        q.Enqueue(SlotMovementSegment.MoveTo(
+                            new Vector2(spot.x / fw, spot.y), travel, Ease.Linear, "pursuit"));
+                    }
+                }
+                else
+                {
+                    var seg = SlotMovementSegment.Follow(targetSlot, SpeedTier.Sprint, 2.5f + (n % 4) * 1.1f, "pursuit");
+                    seg.speedScale = 0.92f;
+                    seg.followLateral = ((n % 5) - 2) * 22f;
+                    seg.startDelay = q.ReactionDelay;
+                    q.Enqueue(seg);
+                }
+                n++;
             }
         }
-        return maxDur;
+        return carrierTime;
+    }
+
+    /// <summary>Zoom the camera out if the play travels past the visible field (yards from LOS).</summary>
+    private void FitCameraToYards(float fromYards, float toYards)
+    {
+        GameCamera cam = GameCamera.Get();
+        LOSMarker los = LOSMarker.Instance;
+        if (cam == null || los == null) return;
+        cam.FitPlay(
+            los.transform.TransformPoint(new Vector3(0f, fromYards, 0f)),
+            los.transform.TransformPoint(new Vector3(0f, toYards, 0f)));
     }
 
     // ── Public API for Abilities/Effects ─────────────────────
@@ -652,6 +694,30 @@ public partial class PlayAnimationController : MonoBehaviour
         }
     }
 
+    /// <summary>Wait only for the given slots (the ones the play's outcome depends on).</summary>
+    private IEnumerator WaitForSlots(float maxSeconds, params BoardSlot[] slots)
+    {
+        float t = 0f;
+        while (t < maxSeconds)
+        {
+            bool anyRunning = false;
+            foreach (BoardSlot s in slots)
+            {
+                if (s != null && s.MoveQueue.IsActive) { anyRunning = true; break; }
+            }
+            if (!anyRunning) yield break;
+            t += Time.deltaTime;
+            yield return null;
+        }
+    }
+
+    /// <summary>Play is dead: everyone pulls up where they are instead of finishing routes nobody is watching.</summary>
+    private void WhistleStop()
+    {
+        foreach (BoardSlot slot in BoardSlot.GetAll())
+            slot.MoveQueue.Halt();
+    }
+
     private void ClearAllQueues()
     {
         foreach (BoardSlot slot in BoardSlot.GetAll())
@@ -695,7 +761,7 @@ public partial class PlayAnimationController : MonoBehaviour
     {
         foreach (BoardSlot bs in FindObjectsByType<BoardSlot>(FindObjectsSortMode.None))
         {
-            if (bs.MoveQueue != null && bs.MoveQueue.HasWork)
+            if (bs.IsFormationMoving || (bs.MoveQueue != null && bs.MoveQueue.HasWork))
                 return true;
         }
         return false;
@@ -735,7 +801,15 @@ public partial class PlayAnimationController : MonoBehaviour
             LiveBallBeat beat = liveBallBeats.Dequeue();
             float dur = LiveBallBeats.Duration(beat.type, liveBallAnyCard);
             Game g = GameClient.Get()?.GetGameData();
-            if (g == null || dur <= 0f) continue;
+            if (g == null) continue;
+            if (dur <= 0f)
+            {
+                // No panel for this beat (nobody played a card) -- but the play still has to end
+                if (beat.type == LiveBallEventType.PostLBResolved && !g.turnover_pending
+                    && g.raw_ball_on + beat.p2 < 100)
+                    yield return TackleAfterLiveBall(g);
+                continue;
+            }
 
             CardData offData = string.IsNullOrEmpty(beat.offCardId) ? null : CardData.Get(beat.offCardId);
             CardData defData = string.IsNullOrEmpty(beat.defCardId) ? null : CardData.Get(beat.defCardId);
@@ -820,6 +894,7 @@ public partial class PlayAnimationController : MonoBehaviour
                         }
                         else
                         {
+                            yield return TackleAfterLiveBall(g); // play was still going; it ends here
                             ShowLiveBallBeat(null, "LIVE BALL", "Result", $"{beat.p2:+#;-#;0} YDS",
                                 diff != 0 ? $"Was {beat.p1}, live ball {diff:+#;-#;0}" : "No change", neutral);
                         }
@@ -890,11 +965,16 @@ public partial class PlayAnimationController : MonoBehaviour
         BoardSlot carrier = FindSlotForCardUid(offPlayer, g.ball_carrier_uid ?? g.target_receiver_uid);
         if (carrier == null) return;
 
+        // Carrier is still on his feet: he keeps running (or gets driven back). Never a blink.
+        float moveTime = Mathf.Max(FieldMotionProfile.Current.minLiveBallMoveDuration,
+            Mathf.Abs(deltaYards) / PlayerSpeed.SprintYps);
         carrier.MoveQueue.Enqueue(SlotMovementSegment.MoveBy(
             new Vector2(0, deltaYards),
-            SpeedTier.Jog,
+            moveTime,
+            Ease.Linear,
             $"lb_delta_{deltaYards}"
         ));
+        FitCameraToYards(-6f, g.yardage_this_play);
 
         Color popupColor = deltaYards > 0
             ? UITheme.Positive
@@ -905,35 +985,34 @@ public partial class PlayAnimationController : MonoBehaviour
             popupColor
         );
 
+        // Defense stays in pursuit of the new spot but doesn't get there yet -- the tackle is the
+        // last thing that happens (TackleAfterLiveBall), once every card has resolved.
         if (defPlayer != null)
-            StartCoroutine(RePursueAfterDelta(defPlayer, carrier));
+            EnqueueDefenseTracking(defPlayer, carrier, closeToContact: false);
     }
 
-    // Defense re-closes on where the carrier ENDS UP (not where the delta started), then the tackler pops.
-    private IEnumerator RePursueAfterDelta(Player defPlayer, BoardSlot carrier)
+    /// <summary>LiveBall is over and the offense still has the ball short of the goal line: now he goes down.</summary>
+    private IEnumerator TackleAfterLiveBall(Game g)
     {
-        yield return null;
-        float t = 0f;
-        while (t < 1.2f && carrier != null && carrier.MoveQueue.HasWork)
-        {
-            t += Time.deltaTime;
-            yield return null;
-        }
-        if (carrier == null) yield break;
+        if (g == null || fieldSlotMgr == null) yield break;
+        Player offPlayer = g.current_offensive_player;
+        Player defPlayer = g.GetCurrentDefensivePlayer();
+        BoardSlot carrier = FindSlotForCardUid(offPlayer, g.ball_carrier_uid ?? g.target_receiver_uid);
+        if (carrier == null || defPlayer == null) yield break;
 
-        EnqueueDefenseTracking(defPlayer, carrier);
-        Game g = GameClient.Get()?.GetGameData();
-        BoardSlot tackler = FindSlotForCardUid(defPlayer, g?.tackler_uid);
-        if (tackler == null) yield break;
-
-        t = 0f;
+        BoardSlot tackler = FindSlotForCardUid(defPlayer, g.tackler_uid);
+        yield return WaitForSlots(6f, carrier); // let the last yardage move play out
+        EnqueueDefenseTracking(defPlayer, carrier, closeToContact: true);
         yield return null;
-        while (t < 0.9f && tackler.MoveQueue.HasWork)
+        yield return WaitForSlots(4f, carrier, tackler);
+
+        if (tackler != null)
         {
-            t += Time.deltaTime;
-            yield return null;
+            ContactPop(tackler, carrier);
+            yield return new WaitForSeconds(0.35f);
         }
-        ContactPop(tackler, carrier);
+        WhistleStop();
+        GameCamera.Get()?.ReleaseFocus(0.6f);
     }
 
     private void AnimateLiveBallTurnover(Game g)
@@ -954,6 +1033,8 @@ public partial class PlayAnimationController : MonoBehaviour
             int returnYards = g.live_ball_return_yards;
             if (returnYards > 0)
             {
+                float recY = recovererSlot.transform.localPosition.y;
+                FitCameraToYards(recY, recY - returnYards);
                 recovererSlot.MoveQueue.Enqueue(SlotMovementSegment.MoveBy(
                     new Vector2(0, -returnYards),
                     SpeedTier.Sprint,

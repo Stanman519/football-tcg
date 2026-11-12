@@ -216,7 +216,12 @@ public class FieldSlotManager : MonoBehaviour
 
             List<BoardSlot> slots = posEntry.Value;
             for (int i = 0; i < slots.Count; i++)
-                slots[i].SetTargetPosition(GetFormationLocalPos(formForGroup, posGroup, i));
+            {
+                // Drift back to the huddle/bench loosely; break to a formation together
+                bool loose = formForGroup == FieldFormation.Huddle || formForGroup == FieldFormation.Sidelines;
+                float stagger = loose ? FieldMotionProfile.Current.huddleStagger : 0.15f;
+                slots[i].SetTargetPosition(GetFormationLocalPos(formForGroup, posGroup, i), stagger);
+            }
         }
 
         if (g == null) return;

@@ -193,10 +193,38 @@ namespace TcgEngine.UI
                 v => { var o = YardageSummaryPanel.Get(); if (o) o.holdDur = v; },
                 () => { var o = YardageSummaryPanel.Get(); return o ? o.holdDur : 2.2f; });
 
-            // SlotMovementQueue — global speed multiplier
-            AddSlider(parent, "Movement Speed Mult", 0.25f, 4f, 1f,
-                v => SlotMovementQueue.SetAllSpeed(v),
-                () => 1f); // no global getter, shows default
+            // Field movement (FieldMotionProfile) -- how fast player tokens move
+            AddSlider(parent, "Field Speed (master)", 0.25f, 3f, 1f,
+                v => { if (TimeController.Instance != null) TimeController.Instance.SetBulletTime(v, 0f); },
+                () => TimeController.Instance != null ? TimeController.Instance.FieldTimeScale : 1f);
+
+            AddSlider(parent, "Sprint yd/s", 2f, 12f, 5.5f,
+                v => FieldMotionProfile.Current.sprintYps = v,
+                () => FieldMotionProfile.Current.sprintYps);
+
+            AddSlider(parent, "Jog yd/s", 1f, 8f, 3f,
+                v => FieldMotionProfile.Current.jogYps = v,
+                () => FieldMotionProfile.Current.jogYps);
+
+            AddSlider(parent, "Walk yd/s", 0.5f, 4f, 1.5f,
+                v => FieldMotionProfile.Current.walkYps = v,
+                () => FieldMotionProfile.Current.walkYps);
+
+            AddSlider(parent, "Acceleration", 2f, 30f, 9f,
+                v => FieldMotionProfile.Current.accel = v,
+                () => FieldMotionProfile.Current.accel);
+
+            AddSlider(parent, "Min Move Time", 0.1f, 2f, 0.45f,
+                v => FieldMotionProfile.Current.minMoveDuration = v,
+                () => FieldMotionProfile.Current.minMoveDuration);
+
+            AddSlider(parent, "LiveBall Min Move Time", 0.2f, 3f, 0.9f,
+                v => FieldMotionProfile.Current.minLiveBallMoveDuration = v,
+                () => FieldMotionProfile.Current.minLiveBallMoveDuration);
+
+            AddSlider(parent, "Huddle Max Time", 1f, 8f, 3.5f,
+                v => FieldMotionProfile.Current.maxFormationTime = v,
+                () => FieldMotionProfile.Current.maxFormationTime);
 
         }
 

@@ -163,8 +163,7 @@ public partial class PlayAnimationController
     private IEnumerator ScriptRun(PlayCtx ctx)
     {
         yield return HandoffBeat(ctx);
-        yield return WaitForQueuesToFinish(12f); // carrier route encodes net yardage
-        yield return PursuitAndTackle(ctx, ctx.carrierSlot ?? ctx.qbSlot);
+        yield return PursuitAndTackle(ctx, ctx.carrierSlot ?? ctx.qbSlot); // carrier route encodes net yardage
         yield return CelebrateIfTouchdown(ctx);
     }
 
@@ -179,8 +178,7 @@ public partial class PlayAnimationController
 
         yield return ThrowAndCatch(ctx, target);
 
-        yield return WaitForQueuesToFinish(10f); // YAC + everyone else
-        yield return PursuitAndTackle(ctx, target);
+        yield return PursuitAndTackle(ctx, target); // YAC + everyone else
         yield return CelebrateIfTouchdown(ctx);
     }
 
@@ -428,17 +426,30 @@ public partial class PlayAnimationController
         }
     }
 
+    /// <summary>
+    /// Defense pursues WHILE the carrier runs; waits for everyone to finish; then the hit.
+    /// If the ball is live (LiveBall phase follows) or it's a touchdown, nobody tackles here:
+    /// the play is still going and LiveBall decides how it ends.
+    /// </summary>
     private IEnumerator PursuitAndTackle(PlayCtx ctx, BoardSlot carrier)
     {
         if (carrier == null) yield break;
-        yield return FieldWait(0.25f);
-        EnqueueDefenseTracking(ctx.defPlayer, carrier);
-        yield return WaitForQueuesToFinish(10f);
+        bool playStillGoing = ctx.g != null && ctx.g.ball_was_live;
+        bool tackle = !ctx.isTouchdown && !playStillGoing;
 
-        if (!ctx.isTouchdown && ctx.tacklerSlot != null)
+        EnqueueDefenseTracking(ctx.defPlayer, carrier, closeToContact: tackle);
+        yield return null;
+        // The play ends when the carrier is down, not when the last decoy finishes his route
+        yield return WaitForSlots(14f, carrier, ctx.tacklerSlot);
+
+        if (tackle)
         {
-            ContactPop(ctx.tacklerSlot, carrier);
-            yield return FieldWait(0.35f);
+            if (ctx.tacklerSlot != null)
+            {
+                ContactPop(ctx.tacklerSlot, carrier);
+                yield return FieldWait(0.35f);
+            }
+            WhistleStop();
         }
     }
 

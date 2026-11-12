@@ -7,9 +7,10 @@ namespace TcgEngine.Client
 
     public static class PlayerSpeed
     {
-        public const float WalkYps = 1.5f;   // yards per second
-        public const float JogYps = 4.5f;
-        public const float SprintYps = 9.0f;
+        // Presentation speeds (yd/s) from FieldMotionProfile -- tune there / DevTuningPanel, not here.
+        public static float WalkYps => FieldMotionProfile.Current.walkYps;
+        public static float JogYps => FieldMotionProfile.Current.jogYps;
+        public static float SprintYps => FieldMotionProfile.Current.sprintYps;
 
         public static float YardsPerSecond(SpeedTier tier) => tier switch
         {

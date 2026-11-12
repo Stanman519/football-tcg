@@ -140,6 +140,7 @@
     <Compile Include="Assets\TcgEngine\Scripts\UI\PlayerUI.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Tools\CameraResize.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Data\FormationData.cs" />
+    <Compile Include="Assets\TcgEngine\Scripts\GameClient\FieldMotionProfile.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Data\RouteShape.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\UI\ProgressBar.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Data\CardbackData.cs" />
@@ -400,6 +401,7 @@
     <Compile Include="Assets\TcgEngine\Scripts\Effects\Template\EffectRepeat.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Effects\Template\EffectDamage.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Data\AssetData.cs" />
+    <Compile Include="Assets\TcgEngine\Scripts\GameClient\TokenMotion.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\UI\HoverTextBox.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Effects\Template\EffectAttackRedirect.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\GameClient\HandCardArea.cs" />

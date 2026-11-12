@@ -119,6 +119,37 @@ namespace TcgEngine.Client
             focusTween = seq;
         }
 
+        /// <summary>
+        /// Zoom OUT (never in) so both world points are on screen. No-op when they already are.
+        /// Used for long gains/returns; ReleaseFocus() brings the camera back.
+        /// </summary>
+        public bool FitPlay(Vector3 worldA, Vector3 worldB, float marginYards = 6f, float dur = 0.7f, float maxZoomOut = 2.4f)
+        {
+            if (cam == null || !cam.orthographic || baseOrthoSize <= 0f) return false;
+
+            float lo = Mathf.Min(worldA.y, worldB.y) - marginYards;
+            float hi = Mathf.Max(worldA.y, worldB.y) + marginYards;
+            float viewLo = start_pos.y - baseOrthoSize;
+            float viewHi = start_pos.y + baseOrthoSize;
+            if (!isFocused && lo >= viewLo && hi <= viewHi) return false; // already visible
+
+            // Keep the normal view in frame too, so the zoom reads as "pull back", not a jump cut
+            lo = Mathf.Min(lo, viewLo + baseOrthoSize * 0.5f);
+            hi = Mathf.Max(hi, viewHi - baseOrthoSize * 0.5f);
+            float size = Mathf.Clamp((hi - lo) * 0.5f, baseOrthoSize, baseOrthoSize * maxZoomOut);
+            Vector3 pos = start_pos;
+            pos.y = (hi + lo) * 0.5f;
+
+            focusTween?.Kill();
+            isFocused = true;
+            Sequence seq = DOTween.Sequence();
+            seq.Join(cam.DOOrthoSize(size, dur).SetEase(Ease.InOutSine));
+            seq.Join(transform.DOMove(pos, dur).SetEase(Ease.InOutSine));
+            seq.SetLink(gameObject);
+            focusTween = seq;
+            return true;
+        }
+
         /// <summary>Return camera to base position and ortho size.</summary>
         public void ReleaseFocus(float dur = 0.3f)
         {

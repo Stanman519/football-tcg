@@ -39,7 +39,22 @@ public class LOSMarker : MonoBehaviour
         if (g == null) return;
 
         targetY = g.raw_ball_on * unitsPerYard;
-        float y = Mathf.Lerp(transform.position.y, targetY, moveSpeed * Time.deltaTime);
+        float oldY = transform.position.y;
+        float y = Mathf.Lerp(oldY, targetY, moveSpeed * Time.deltaTime);
+        if (Mathf.Abs(targetY - y) < 0.01f) y = targetY;
         transform.position = new Vector3(0f, y, 0f);
+
+        // Between plays the LOS jumps to the new spot. Player tokens are our children: without this
+        // they slide with the field; with it they hold their ground and jog to the new huddle.
+        float dy = y - oldY;
+        bool midPlay = FieldSlotManager.Instance != null && FieldSlotManager.Instance.animationLocked;
+        if (!midPlay && Mathf.Abs(dy) > 0.0001f)
+        {
+            foreach (BoardSlot slot in BoardSlot.GetAll())
+            {
+                if (slot != null && slot.transform.parent == transform)
+                    slot.CompensateParentShift(dy);
+            }
+        }
     }
 }

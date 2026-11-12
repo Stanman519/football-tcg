@@ -21,7 +21,21 @@ namespace TcgEngine.Client
         public bool isStarSlot = false; // Determines if a Star/Superstar can go here
 
         private Vector3 targetLocalPos;
-        private Tween formationTween;
+
+        // Between-play movement (huddle / formation). Same kinematics as the play queue (TokenMotion);
+        // only runs while the queue is NOT driving this token, so the two never fight.
+        private readonly TokenMotion formationMotion = new TokenMotion();
+        private readonly List<Vector2> formationPath = new List<Vector2>();
+        private Vector2 formationPlanned;
+        private int formationIdx;
+        private float formationCruise;
+        private float formationDelay;
+        private float pendingStagger;
+        private bool formationActive;
+        private bool formationReplan;
+
+        /// <summary>True while jogging to a huddle/formation spot.</summary>
+        public bool IsFormationMoving => formationActive;
         private bool wasQueueActive;
 
         private SlotMovementQueue moveQueue;
@@ -92,6 +106,94 @@ namespace TcgEngine.Client
                 targetLocalPos = transform.localPosition;
             }
             wasQueueActive = queueActive;
+
+            if (moveQueue != null && moveQueue.IsDriving)
+                formationActive = false; // play choreography owns the token; replan from wherever it ends
+            else
+                StepFormation(Time.deltaTime);
+        }
+
+        private void StepFormation(float dt)
+        {
+            Vector2 pos = transform.localPosition;
+            Vector2 tgt = targetLocalPos;
+            bool retarget = formationActive && (tgt - formationPlanned).sqrMagnitude > 0.0025f;
+
+            if (!formationActive || retarget || formationReplan)
+            {
+                float dist = Vector2.Distance(pos, tgt);
+                if (dist < 0.05f)
+                {
+                    formationActive = false;
+                    formationReplan = false;
+                    return;
+                }
+
+                bool fresh = !formationActive;
+                FieldMotionProfile p = FieldMotionProfile.Current;
+                formationPath.Clear();
+                float len = dist;
+                if (dist > 4f)
+                {
+                    // Gentle arc instead of a ruler-straight line; side is fixed per slot (no re-rolls)
+                    Vector2 dir = (tgt - pos) / dist;
+                    Vector2 perp = new Vector2(-dir.y, dir.x);
+                    float side = ((slotIndex + (int)player_position_type) & 1) == 0 ? 1f : -1f;
+                    Vector2 mid = (pos + tgt) * 0.5f + perp * side * Mathf.Min(dist * 0.1f, 2f);
+                    formationPath.Add(mid);
+                    len = Vector2.Distance(pos, mid) + Vector2.Distance(mid, tgt);
+                }
+                formationPath.Add(tgt);
+
+                // Jog; only hurry if a jog would take longer than the allowed formation time
+                // ...and never faster than a hard run, however far (possession change, long gain)
+                formationCruise = Mathf.Max(PlayerSpeed.JogYps, len / Mathf.Max(0.5f, p.maxFormationTime));
+                formationCruise = Mathf.Min(formationCruise, PlayerSpeed.SprintYps * 1.2f) * moveQueue.SpeedVariance;
+                formationMotion.Accel = p.accel;
+                formationMotion.Decel = p.decel;
+                formationIdx = 0;
+                formationPlanned = tgt;
+                formationReplan = false;
+                if (fresh)
+                {
+                    formationMotion.Speed = 0f;
+                    float span = Mathf.Max(0.0001f, p.reactionMax - p.reactionMin);
+                    float frac = Mathf.Clamp01((moveQueue.ReactionDelay - p.reactionMin) / span);
+                    formationDelay = pendingStagger * frac;
+                }
+                formationActive = true;
+            }
+
+            if (formationDelay > 0f)
+            {
+                formationDelay -= dt;
+                return;
+            }
+
+            formationMotion.Pos = pos;
+            int guard = 0;
+            while (dt > 0f && formationIdx < formationPath.Count && guard++ < 4)
+            {
+                bool last = formationIdx == formationPath.Count - 1;
+                formationMotion.SetLeg(formationPath[formationIdx], formationCruise, last ? 0f : formationCruise * 0.9f);
+                dt = formationMotion.Step(dt, out bool arrived);
+                if (arrived) formationIdx++;
+            }
+            transform.localPosition = new Vector3(formationMotion.Pos.x, formationMotion.Pos.y, -1f);
+            if (formationIdx >= formationPath.Count)
+                formationActive = false;
+        }
+
+        /// <summary>
+        /// The LOS marker (our parent) moved by dy; shift the opposite way so this token stays put in
+        /// the world and JOGS to its new spot instead of sliding along with the field.
+        /// </summary>
+        public void CompensateParentShift(float dy)
+        {
+            Vector3 lp = transform.localPosition;
+            lp.y -= dy;
+            transform.localPosition = lp;
+            if (formationActive) formationReplan = true;
         }
         public bool IsValidDragTarget()
         {
@@ -185,62 +287,18 @@ namespace TcgEngine.Client
             UpdateSlotVisual();
         }
 
+        /// <summary>Set where this slot should stand. It jogs there whenever play choreography isn't driving it.</summary>
         public void SetTargetPosition(Vector3 localPos)
         {
             localPos.z = -1f;
             targetLocalPos = localPos;
-            MeanderTo(localPos);
         }
 
-        /// <summary>
-        /// DOTween-driven move. Pass duration > 0 for choreographed animation.
-        /// </summary>
-        public void SetTargetPosition(Vector3 localPos, float duration, Ease ease = Ease.OutQuad)
+        /// <summary>Same, with a start-delay spread (seconds) so a group doesn't leave in the same frame.</summary>
+        public void SetTargetPosition(Vector3 localPos, float staggerSeconds)
         {
-            localPos.z = -1f;
-            targetLocalPos = localPos;
-            formationTween?.Kill();
-            if (duration > 0f)
-                formationTween = transform.DOLocalMove(targetLocalPos, duration).SetEase(ease).SetLink(gameObject);
-        }
-
-        /// <summary>
-        /// Organic formation transition — players meander to target with slight lateral wobble.
-        /// </summary>
-        private void MeanderTo(Vector3 target)
-        {
-            formationTween?.Kill();
-            target.z = -1f;
-
-            Vector3 start = transform.localPosition;
-            float dist = Vector3.Distance(start, target);
-            if (dist < 0.1f) return; // already there
-
-            float duration = PlayerSpeed.Duration(dist, SpeedTier.Jog);
-
-            // Build 2-3 intermediate waypoints with random lateral offset for organic feel
-            var seq = DOTween.Sequence();
-            int legs = dist > 5f ? 3 : 2;
-
-            for (int i = 1; i <= legs; i++)
-            {
-                float t = (float)i / (legs + 1);
-                if (i == legs) t = 1f; // final leg goes to exact target
-
-                Vector3 wp = Vector3.Lerp(start, target, t);
-                if (i < legs) // intermediate waypoints get lateral wobble
-                {
-                    Vector3 lateral = Vector3.Cross((target - start).normalized, Vector3.forward);
-                    wp += lateral * Random.Range(-1.2f, 1.2f);
-                }
-                wp.z = -1f;
-
-                float legDuration = duration / legs;
-                seq.Append(transform.DOLocalMove(wp, legDuration).SetEase(Ease.InOutSine));
-            }
-
-            seq.SetLink(gameObject);
-            formationTween = seq;
+            pendingStagger = Mathf.Max(0f, staggerSeconds);
+            SetTargetPosition(localPos);
         }
 
         public virtual Vector3 GetPosition(CardPositionSlot slot)
