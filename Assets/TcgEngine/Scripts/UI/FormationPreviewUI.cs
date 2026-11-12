@@ -25,11 +25,45 @@ public class FormationPreviewUI : MonoBehaviour
         rect = GetComponent<RectTransform>();
     }
 
+    private Coroutine deferred;
+
     public void SetFormation(FormationData formation, PlayType playType, bool isDefense, CoachCardData coach)
     {
+        if (deferred != null) { StopCoroutine(deferred); deferred = null; }
         ClearMarkers();
+        if (rect == null) rect = GetComponent<RectTransform>(); // SetFormation can beat Awake on first show
         if (formation == null || rect == null) return;
 
+        // First time the panel opens the layout hasn't run: the rect is 0x0 and every marker
+        // lands in one corner. Force a layout pass; if it still has no size, draw next frame.
+        if (rect.rect.width < 1f || rect.rect.height < 1f)
+        {
+            Canvas.ForceUpdateCanvases();
+            if (rect.parent is RectTransform parentRect)
+                LayoutRebuilder.ForceRebuildLayoutImmediate(parentRect);
+        }
+        if (rect.rect.width < 1f || rect.rect.height < 1f)
+        {
+            if (isActiveAndEnabled)
+                deferred = StartCoroutine(DrawWhenSized(formation, playType, isDefense, coach));
+            return;
+        }
+
+        Draw(formation, playType, isDefense, coach);
+    }
+
+    private System.Collections.IEnumerator DrawWhenSized(FormationData formation, PlayType playType, bool isDefense, CoachCardData coach)
+    {
+        for (int i = 0; i < 10 && (rect.rect.width < 1f || rect.rect.height < 1f); i++)
+            yield return null;
+        deferred = null;
+        ClearMarkers();
+        if (rect.rect.width >= 1f && rect.rect.height >= 1f)
+            Draw(formation, playType, isDefense, coach);
+    }
+
+    private void Draw(FormationData formation, PlayType playType, bool isDefense, CoachCardData coach)
+    {
         float w = rect.rect.width;
         float h = rect.rect.height;
 

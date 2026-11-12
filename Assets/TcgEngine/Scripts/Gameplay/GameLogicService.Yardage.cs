@@ -655,11 +655,8 @@ namespace TcgEngine.Gameplay
                 Debug.Log($"[PreventLoss] Run yardage clamped to {totalYardage}");
             }
 
-            // Set ball carrier for client animation (highest run_bonus RB_TE)
-            var ballCarrier = game_data.current_offensive_player.cards_board
-                .Where(c => c.Data.playerPosition == PlayerPositionGrp.RB_TE)
-                .OrderByDescending(c => c.Data.run_bonus)
-                .FirstOrDefault();
+            // Set ball carrier for client animation (best RB; a TE only if no RB is on the field)
+            var ballCarrier = BallCarrierSelector.Pick(game_data.current_offensive_player);
             game_data.ball_carrier_uid = ballCarrier?.uid;
 
             // Stash breakdown for UI

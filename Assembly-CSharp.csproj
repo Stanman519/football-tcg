@@ -129,6 +129,7 @@
     <Compile Include="Assets\TcgEngine\Scripts\Menu\LeaderboardPanel.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\SlotMachine\SlotReel.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\GameClient\GameManager.cs" />
+    <Compile Include="Assets\TcgEngine\Scripts\Gameplay\BallCarrierSelector.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\FX\HoverFX.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\GameClient\FieldManager.cs" />
     <Compile Include="Assets\TcgEngine\Scripts\Data\FilterData.cs" />

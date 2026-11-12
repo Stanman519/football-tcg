@@ -34,6 +34,7 @@ MonoBehaviour:
   isSuperstar: 0
   required_plays: 
   playerPosition: 2
+  isTightEnd: 1
   suit: 1
   traits: []
   stats: []
@@ -52,6 +53,8 @@ MonoBehaviour:
   attack_audio: {fileID: 0}
   damage_audio: {fileID: 0}
   formationOverride: {fileID: 0}
+  receiverRoute: {fileID: 0}
+  routeOverride: {fileID: 0}
   deckbuilding: 1
   cost: 100
   packs: []

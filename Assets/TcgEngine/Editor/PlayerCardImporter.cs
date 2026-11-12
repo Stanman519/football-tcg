@@ -234,6 +234,7 @@ public static class PlayerCardImporter
         card.title                        = name;
         card.type                         = PosToCardType(pos);
         card.playerPosition               = PosToPositionGrp(pos);
+        card.isTightEnd                   = pos == "TE";
         card.isSuperstar                  = superstar;
         card.suit                         = suit;
         card.text                         = text;

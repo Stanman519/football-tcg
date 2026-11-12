@@ -89,6 +89,9 @@ Done:
 - LiveBall: no tackle in Resolution when `ball_was_live`; LiveBall delta = carrier resumes run (>= 0.9s); tackle once in `TackleAfterLiveBall` (also when both pass).
 - `GameCamera.FitPlay` zoom-out for long plays/returns.
 - Playtest 11v11 (injected lineups): peak token speed 6.7 yd/s, no errors/stalls. LiveBall +3 now 1.2-1.8s (was 0.67s).
+- RB vs TE (2026-11-12): `CardData.isTightEnd` added (importer sets it from CSV pos; 00067 + 00069 flagged from TE art folder - CSV not on disk, so other TEs may be unflagged). `BallCarrierSelector`: RB carries, TE only if no RB. Client route context uses the flag (old heuristic treated EVERY RB_TE card as a TE). `FieldSlotManager.FormationSpots`: RBs take backfield spots, TEs the line spots regardless of slot dropped in.
+- Play picker formation diagrams blank/stacked on first open: rect was 0x0 before first layout pass -> `FormationPreviewUI` forces layout / defers a frame.
+- OPEN: user says "routes look wrong" - not yet pinned down (picker diagram draws coach-authored routes; field uses RouteLibrary/procedural - they can disagree).
 Open:
 - Pass plays still ~8s of movement (target 5-6s) -> tune sprint/route timing with sliders; measure snap-to-catch.
 - Pursuit fan-out + whistle stop compiled/tested, NOT yet seen in play.

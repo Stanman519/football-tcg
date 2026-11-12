@@ -61,6 +61,7 @@
     <Compile Include="Assets\TcgEngine\Editor\Dev\DevPlayModeHandler.cs" />
     <Compile Include="Assets\TcgEngine\Editor\ApplyTestCardArt.cs" />
     <Compile Include="Assets\TcgEngine\Editor\FormationDesignerWindow.cs" />
+    <Compile Include="Assets\TcgEngine\Tests\Editor\BallCarrierSelectorTests.cs" />
     <Compile Include="Assets\TcgEngine\Editor\IronWillCardBuilder.cs" />
     <Compile Include="Assets\TcgEngine\Tests\Editor\CoachCardTests.cs" />
     <Compile Include="Assets\TcgEngine\Editor\PlayerCardImporter.cs" />

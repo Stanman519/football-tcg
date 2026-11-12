@@ -68,6 +68,8 @@ namespace TcgEngine
         public bool isSuperstar;
         public PlayType[] required_plays;
         public PlayerPositionGrp playerPosition;
+        [Tooltip("RB and TE share the RB_TE group. Tick for tight ends: they line up on the line, run TE routes, and don't take handoffs unless no RB is on the field.")]
+        public bool isTightEnd;
         public CardSuit suit;
 
         [Header("Traits")]

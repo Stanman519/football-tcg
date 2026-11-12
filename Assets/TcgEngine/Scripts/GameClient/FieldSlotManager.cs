@@ -215,12 +215,14 @@ public class FieldSlotManager : MonoBehaviour
             }
 
             List<BoardSlot> slots = posEntry.Value;
-            for (int i = 0; i < slots.Count; i++)
+            int[] spot = FormationSpots(posGroup, slots, g);
+            for (int si = 0; si < slots.Count; si++)
             {
+                int i = spot[si];
                 // Drift back to the huddle/bench loosely; break to a formation together
                 bool loose = formForGroup == FieldFormation.Huddle || formForGroup == FieldFormation.Sidelines;
                 float stagger = loose ? FieldMotionProfile.Current.huddleStagger : 0.15f;
-                slots[i].SetTargetPosition(GetFormationLocalPos(formForGroup, posGroup, i), stagger);
+                slots[si].SetTargetPosition(GetFormationLocalPos(formForGroup, posGroup, i), stagger);
             }
         }
 
@@ -229,7 +231,7 @@ public class FieldSlotManager : MonoBehaviour
         // Step 2: Inspector formation asset — overrides specific slots.
         FormationData inspectorData = GetInspectorFormation(form, isOffense);
         if (inspectorData != null)
-            MoveSlotsByFormationData(playerId, inspectorData);
+            MoveSlotsByFormationData(playerId, inspectorData, g);
 
         // Step 3: Coach base formation — overrides inspector for play-specific looks.
         Player player = g.players?.FirstOrDefault(p => p.player_id == playerId);
@@ -243,13 +245,13 @@ public class FieldSlotManager : MonoBehaviour
             if (coachFormations != null
                 && coachFormations.TryGetValue(offPlay, out FormationData coachData)
                 && coachData != null)
-                MoveSlotsByFormationData(playerId, coachData);
+                MoveSlotsByFormationData(playerId, coachData, g);
         }
 
         // Step 4: Play enhancer override — highest priority.
         FormationData overrideData = GetOverrideFormation(g, isOffense);
         if (overrideData != null)
-            MoveSlotsByFormationData(playerId, overrideData);
+            MoveSlotsByFormationData(playerId, overrideData, g);
     }
 
     private FormationData GetInspectorFormation(FieldFormation form, bool isOffense = true)
@@ -276,16 +278,61 @@ public class FieldSlotManager : MonoBehaviour
         return player?.PlayEnhancer?.CardData?.formationOverride;
     }
 
-    private void MoveSlotsByFormationData(int playerId, FormationData data)
+    private void MoveSlotsByFormationData(int playerId, FormationData data, Game g = null)
     {
         if (data == null) return;
         foreach (var entry in data.slots)
         {
             var slots = GetSlotsForPosition(entry.posGroup, playerId);
-            if (entry.slotIndex < slots.Count)
-                slots[entry.slotIndex].SetTargetPosition(
-                    ToLocalPos(new Vector2(entry.xFraction, entry.yardsFromLOS)));
+            if (entry.slotIndex >= slots.Count) continue;
+            int[] spot = FormationSpots(entry.posGroup, slots, g);
+            int si = System.Array.IndexOf(spot, entry.slotIndex); // which slot stands on this formation spot
+            if (si < 0) si = entry.slotIndex;
+            slots[si].SetTargetPosition(ToLocalPos(new Vector2(entry.xFraction, entry.yardsFromLOS)));
         }
+    }
+
+    /// <summary>
+    /// Which formation spot each slot of a group stands on. Identity for every group except RB_TE,
+    /// where spot 0 is the backfield and the last spot is on the line: running backs fill from the
+    /// front, tight ends from the back, so a TE dropped in the first slot still lines up as a TE.
+    /// </summary>
+    private static int[] FormationSpots(PlayerPositionGrp posGroup, List<BoardSlot> slots, Game g)
+    {
+        int n = slots.Count;
+        int[] spot = new int[n];
+        for (int i = 0; i < n; i++) spot[i] = i;
+        if (posGroup != PlayerPositionGrp.RB_TE || g == null || n < 2) return spot;
+
+        bool[] taken = new bool[n];
+        for (int i = 0; i < n; i++) spot[i] = -1;
+        int front = 0, back = n - 1;
+
+        for (int i = 0; i < n; i++) // running backs: backfield spots first
+        {
+            CardData cd = SlotCardData(slots[i], g);
+            if (cd != null && !cd.isTightEnd) { spot[i] = front; taken[front++] = true; }
+        }
+        for (int i = n - 1; i >= 0; i--) // tight ends: on-the-line spots first
+        {
+            CardData cd = SlotCardData(slots[i], g);
+            if (cd != null && cd.isTightEnd && back >= front) { spot[i] = back; taken[back--] = true; }
+        }
+        for (int i = 0; i < n; i++) // empty slots take what's left
+        {
+            if (spot[i] >= 0) continue;
+            int free = System.Array.IndexOf(taken, false);
+            if (free < 0) free = i;
+            spot[i] = free;
+            taken[free] = true;
+        }
+        return spot;
+    }
+
+    private static CardData SlotCardData(BoardSlot slot, Game g)
+    {
+        var cards = g.GetSlotCards(slot.assignedSlot);
+        return cards != null && cards.Count > 0 ? cards[0].CardData : null;
     }
 
     private FieldFormation GetFormationForPhase(Game g, bool isOffense)

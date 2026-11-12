@@ -441,7 +441,7 @@ public partial class PlayAnimationController : MonoBehaviour
                 if (isTarget && !isRun)
                 {
                     Card slotCard = FindCardInSlot(g, offPlayer, slot);
-                    bool isTE = slotCard?.CardData?.playerPosition == PlayerPositionGrp.RB_TE;
+                    bool isTE = slotCard?.CardData != null && slotCard.CardData.isTightEnd;
                     PlayerPositionGrp grp = slotCard?.CardData?.playerPosition ?? PlayerPositionGrp.WR;
                     RouteContext ctx = RouteLibrary.GetContext(grp, playType, isTE);
                     int lateralDir = RouteLibrary.LateralFromSlot(slot, fw);
@@ -487,8 +487,7 @@ public partial class PlayAnimationController : MonoBehaviour
                 bool isTE = false;
                 Card slotCard = FindCardInSlot(g, offPlayer, slot);
                 if (slotCard != null && slotCard.CardData != null)
-                    isTE = (slotCard.CardData.playerPosition == PlayerPositionGrp.RB_TE &&
-                            slotCard.CardData.type == CardType.OffensivePlayer); // TE heuristic: later slots in RB_TE
+                    isTE = slotCard.CardData.isTightEnd;
 
                 // Determine context and lateral direction
                 RouteContext ctx = RouteLibrary.GetContext(grp, playType, isTE);
