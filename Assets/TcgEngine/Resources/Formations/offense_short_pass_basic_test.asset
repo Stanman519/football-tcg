@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3f3d68c58a0e2b64dace608220c221e0, type: 3}
+  m_Name: offense_short_pass_basic_test
+  m_EditorClassIdentifier: Assembly-CSharp::TcgEngine.FormationData
+  isDefense: 0
+  slots:
+  - posGroup: 3
+    slotIndex: 0
+    xFraction: -0.4
+    yardsFromLOS: -1
+  - posGroup: 5
+    slotIndex: 0
+    xFraction: -0.06666667
+    yardsFromLOS: -1
+  - posGroup: 5
+    slotIndex: 1
+    xFraction: -0.033333335
+    yardsFromLOS: -1
+  - posGroup: 5
+    slotIndex: 2
+    xFraction: 0
+    yardsFromLOS: -1
+  - posGroup: 5
+    slotIndex: 3
+    xFraction: 0.033333335
+    yardsFromLOS: -1
+  - posGroup: 5
+    slotIndex: 4
+    xFraction: 0.06666667
+    yardsFromLOS: -1
+  - posGroup: 3
+    slotIndex: 1
+    xFraction: 0.3
+    yardsFromLOS: -1
+  - posGroup: 3
+    slotIndex: 2
+    xFraction: -0.2
+    yardsFromLOS: -2
+  - posGroup: 2
+    slotIndex: 0
+    xFraction: 0.1
+    yardsFromLOS: -2
+  - posGroup: 1
+    slotIndex: 0
+    xFraction: 0
+    yardsFromLOS: -4
+  - posGroup: 2
+    slotIndex: 1
+    xFraction: 0.033333335
+    yardsFromLOS: -4

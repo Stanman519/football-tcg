@@ -1,0 +1,57 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 843a21f7f6f205741a0a7341aec8e84d, type: 3}
+  m_Name: 00038
+  m_EditorClassIdentifier: Assembly-CSharp::TcgEngine.CardData
+  id: 00038
+  title: DeAndre Torrence
+  art_full: {fileID: -3629614054659352374, guid: cd34a7b233d633a49b008d820c621327,
+    type: 3}
+  art_board: {fileID: -3629614054659352374, guid: cd34a7b233d633a49b008d820c621327,
+    type: 3}
+  type: 10
+  team: {fileID: 0}
+  rarity: {fileID: 0}
+  mana: 0
+  attack: 0
+  stamina: 10
+  grit: 0
+  run_bonus: 2
+  short_pass_bonus: 2
+  deep_pass_bonus: 0
+  run_coverage_bonus: 0
+  short_pass_coverage_bonus: 0
+  deep_pass_coverage_bonus: 0
+  isSuperstar: 0
+  required_plays: 
+  playerPosition: 5
+  suit: 2
+  traits: []
+  stats: []
+  slotRequirements: []
+  abilities:
+  - {fileID: 11400000, guid: 388b4bc1281ef5c4f954856a4b4aabf2, type: 2}
+  text: On 4th down add +2 to run or short pass if you have 2 or more OL in play
+  desc: 
+  spawn_fx: {fileID: 0}
+  death_fx: {fileID: 0}
+  attack_fx: {fileID: 0}
+  damage_fx: {fileID: 0}
+  idle_fx: {fileID: 0}
+  spawn_audio: {fileID: 0}
+  death_audio: {fileID: 0}
+  attack_audio: {fileID: 0}
+  damage_audio: {fileID: 0}
+  formationOverride: {fileID: 0}
+  deckbuilding: 1
+  cost: 100
+  packs: []

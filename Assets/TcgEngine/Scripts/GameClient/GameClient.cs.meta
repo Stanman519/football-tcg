@@ -1,0 +1,20 @@
+fileFormatVersion: 2
+guid: 0ad56e078bd4f1041bf0e76b3aa1b462
+AssetOrigin:
+  serializedVersion: 1
+  productId: 253269
+  packageName: TCG Engine - Online Card Game
+  packageVersion: 1.14
+  assetPath: Assets/TcgEngine/Scripts/GameClient/GameClient.cs
+  uploadId: 729051
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - boardCardPrefab: {fileID: 105093220294494356, guid: 8f53edad154c4b4438bb6bb17f0ab033,
+      type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

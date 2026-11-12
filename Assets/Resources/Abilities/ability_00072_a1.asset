@@ -1,0 +1,74 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-8062685870766993128
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2fb473ce9b532c04faf8cb5d7fe6fb1d, type: 3}
+  m_Name: Eff_AddStatPerIcon
+  m_EditorClassIdentifier: Assembly-CSharp::Assets.TcgEngine.Scripts.Effects.EffectAddStatPerSlotIcon
+  iconToCount: 3
+  countWilds: 0
+--- !u!114 &-5817936769852924196
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9515e89fd5ad123499db6a32c29d29a3, type: 3}
+  m_Name: Cond_SlotIcon
+  m_EditorClassIdentifier: Assembly-CSharp::Assets.TcgEngine.Scripts.Conditions.ConditionSlotIconCountTrigger
+  required_icon_count: 1
+  icon_type: 3
+  oper: 2
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8ce5f81e5cc37f547af6923758602c8c, type: 3}
+  m_Name: ability_00072_a1
+  m_EditorClassIdentifier: Assembly-CSharp::TcgEngine.AbilityData
+  id: ability_00072_a1
+  trigger: 10
+  conditions_trigger:
+  - {fileID: -5817936769852924196}
+  target: 1
+  conditions_target: []
+  filters_target: []
+  effects:
+  - {fileID: -8062685870766993128}
+  status: []
+  value: 0
+  duration: 1
+  slotRequirements: []
+  failEventType: 0
+  affected_stat: 41
+  stat_bonus_amount: -1
+  chain_abilities: []
+  mana_cost: 0
+  exhaust: 0
+  board_fx: {fileID: 0}
+  caster_fx: {fileID: 0}
+  target_fx: {fileID: 0}
+  projectile_fx: {fileID: 0}
+  cast_audio: {fileID: 0}
+  target_audio: {fileID: 0}
+  charge_target: 0
+  animationData: {fileID: 0}
+  animTarget: 0
+  animTargetSlotIndex: 0
+  title: ability_00072_a1
+  desc: 

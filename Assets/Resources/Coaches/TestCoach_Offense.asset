@@ -1,0 +1,162 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6557eaece09851348b809351e02c5cf7, type: 3}
+  m_Name: TestCoach_Offense
+  m_EditorClassIdentifier: Assembly-CSharp::CoachCardData
+  title: Coach Foster
+  card_image: {fileID: 0}
+  ability_text: Balanced offense. Strong short passing game.
+  offenseYardage:
+  - playType: 1
+    yards: 3
+  - playType: 2
+    yards: 5
+  - playType: 3
+    yards: 10
+  defenseYardage:
+  - playType: 1
+    yards: 3
+  - playType: 2
+    yards: 3
+  - playType: 3
+    yards: 7
+  positionalScheme:
+  - position: 1
+    maxCards: 1
+    fieldSlots: 1
+  - position: 3
+    maxCards: 2
+    fieldSlots: 3
+  - position: 2
+    maxCards: 2
+    fieldSlots: 2
+  - position: 5
+    maxCards: 2
+    fieldSlots: 5
+  - position: 10
+    maxCards: 2
+    fieldSlots: 4
+  - position: 11
+    maxCards: 2
+    fieldSlots: 3
+  - position: 12
+    maxCards: 2
+    fieldSlots: 4
+  offenseFormations:
+  - playType: 0
+    formation: {fileID: 11400000, guid: 9c4e6a23680bb174f8a2b5505960a798, type: 2}
+  - playType: 1
+    formation: {fileID: 11400000, guid: f5ee93e1b61c86d408d79537a11ab2d6, type: 2}
+  - playType: 2
+    formation: {fileID: 11400000, guid: ed06b77cb51b7734f8d09f30d48510f4, type: 2}
+  - playType: 3
+    formation: {fileID: 11400000, guid: 072fe4f871c485748a8fcf4511aef059, type: 2}
+  defenseFormations:
+  - playType: 0
+    formation: {fileID: 11400000, guid: bee8436f0b365a1418c58fdba9b6c111, type: 2}
+  - playType: 1
+    formation: {fileID: 11400000, guid: bee8436f0b365a1418c58fdba9b6c111, type: 2}
+  - playType: 2
+    formation: {fileID: 11400000, guid: bee8436f0b365a1418c58fdba9b6c111, type: 2}
+  - playType: 3
+    formation: {fileID: 11400000, guid: bee8436f0b365a1418c58fdba9b6c111, type: 2}
+  offenseRoutes:
+  - playType: 1
+    posGroup: 1
+    slotIndex: 0
+    route: {fileID: 11400000, guid: c1ee5838370eea549bac63a082c7da1f, type: 2}
+  - playType: 1
+    posGroup: 3
+    slotIndex: 0
+    route: {fileID: 11400000, guid: 389f7346a2cc62d43b5dc6151b150577, type: 2}
+  - playType: 1
+    posGroup: 3
+    slotIndex: 1
+    route: {fileID: 11400000, guid: fc0ac49542fe771489507b5a0b39d6ad, type: 2}
+  - playType: 1
+    posGroup: 3
+    slotIndex: 2
+    route: {fileID: 11400000, guid: 960593bd60328e44baeffc2d7ced94f7, type: 2}
+  - playType: 1
+    posGroup: 2
+    slotIndex: 0
+    route: {fileID: 11400000, guid: e928b51562080fc4eb273812039de049, type: 2}
+  - playType: 1
+    posGroup: 2
+    slotIndex: 1
+    route: {fileID: 11400000, guid: dbd535aef8e7d214ab0c61c9e16afbf6, type: 2}
+  - playType: 1
+    posGroup: 5
+    slotIndex: 0
+    route: {fileID: 11400000, guid: 4d4cd50718d026e41972b1388d313ed4, type: 2}
+  - playType: 1
+    posGroup: 5
+    slotIndex: 1
+    route: {fileID: 11400000, guid: e8e99db2c795e3c49b5136a22796ca43, type: 2}
+  - playType: 1
+    posGroup: 5
+    slotIndex: 2
+    route: {fileID: 11400000, guid: 54086b624fa783e4e941c600b6a9008a, type: 2}
+  - playType: 1
+    posGroup: 5
+    slotIndex: 3
+    route: {fileID: 11400000, guid: 86b5e70e518bfee44a3f39ce14c40e2a, type: 2}
+  - playType: 1
+    posGroup: 5
+    slotIndex: 4
+    route: {fileID: 11400000, guid: de8e7787e51aff146bf80ae57a7cdffa, type: 2}
+  - playType: 2
+    posGroup: 1
+    slotIndex: 0
+    route: {fileID: 11400000, guid: 402a43bdaf7fe06488bd4b61705dcefb, type: 2}
+  - playType: 2
+    posGroup: 3
+    slotIndex: 2
+    route: {fileID: 11400000, guid: 69c763220f7a9cb48973b5fa6ce672d7, type: 2}
+  - playType: 2
+    posGroup: 3
+    slotIndex: 0
+    route: {fileID: 11400000, guid: 99c0fd3cfa5135043b404168ced5b6c7, type: 2}
+  - playType: 2
+    posGroup: 2
+    slotIndex: 1
+    route: {fileID: 11400000, guid: b3f76de702d19254bbe4d3f7aaca8de7, type: 2}
+  - playType: 2
+    posGroup: 3
+    slotIndex: 1
+    route: {fileID: 11400000, guid: 29bf20d18bd84f84990b5828d3581baa, type: 2}
+  - playType: 2
+    posGroup: 2
+    slotIndex: 0
+    route: {fileID: 11400000, guid: f705affe5ba155840a69380076f119a5, type: 2}
+  - playType: 2
+    posGroup: 5
+    slotIndex: 2
+    route: {fileID: 11400000, guid: f31a85399c4edcd408eda0551026e57c, type: 2}
+  - playType: 2
+    posGroup: 5
+    slotIndex: 0
+    route: {fileID: 11400000, guid: 3964d77ff9812e74cab9c53dba15167b, type: 2}
+  - playType: 2
+    posGroup: 5
+    slotIndex: 3
+    route: {fileID: 11400000, guid: cdcd3552cde4f6c47a46abe3032052a7, type: 2}
+  - playType: 2
+    posGroup: 5
+    slotIndex: 4
+    route: {fileID: 11400000, guid: 1860ece112db3644bbcf23fa8af04cad, type: 2}
+  - playType: 2
+    posGroup: 5
+    slotIndex: 1
+    route: {fileID: 11400000, guid: 4cfc8310b5a989844b9b987b619fb1cc, type: 2}
+  defenseRoutes: []
+  coachProfile: {fileID: 11400000, guid: a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6, type: 2}

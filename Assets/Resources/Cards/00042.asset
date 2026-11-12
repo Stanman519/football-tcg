@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 843a21f7f6f205741a0a7341aec8e84d, type: 3}
+  m_Name: 00042
+  m_EditorClassIdentifier: Assembly-CSharp::TcgEngine.CardData
+  id: 00042
+  title: Jalen White
+  art_full: {fileID: -764376727034236013, guid: e558bae48d48d164f823adcc2877068f,
+    type: 3}
+  art_board: {fileID: -764376727034236013, guid: e558bae48d48d164f823adcc2877068f,
+    type: 3}
+  type: 10
+  team: {fileID: 0}
+  rarity: {fileID: 0}
+  mana: 0
+  attack: 0
+  stamina: 10
+  grit: 0
+  run_bonus: 2
+  short_pass_bonus: 0
+  deep_pass_bonus: 0
+  run_coverage_bonus: 0
+  short_pass_coverage_bonus: 0
+  deep_pass_coverage_bonus: 0
+  isSuperstar: 0
+  required_plays: 
+  playerPosition: 5
+  suit: 4
+  traits: []
+  stats: []
+  slotRequirements: []
+  abilities:
+  - {fileID: 11400000, guid: d67e459d991cfd540aeda69d4dbe25a4, type: 2}
+  text: If you control more OL than your opponent has total defensive players add
+    +2 run
+  desc: 
+  spawn_fx: {fileID: 0}
+  death_fx: {fileID: 0}
+  attack_fx: {fileID: 0}
+  damage_fx: {fileID: 0}
+  idle_fx: {fileID: 0}
+  spawn_audio: {fileID: 0}
+  death_audio: {fileID: 0}
+  attack_audio: {fileID: 0}
+  damage_audio: {fileID: 0}
+  formationOverride: {fileID: 0}
+  deckbuilding: 1
+  cost: 100
+  packs: []

@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 767ee285fdff4de4bb744c3ce6a49673
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - slotPrefab: {instanceID: 0}
+  - boardCardPrefab: {fileID: 105093220294494356, guid: 8f53edad154c4b4438bb6bb17f0ab033,
+      type: 3}
+  - fieldPanel: {instanceID: 0}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

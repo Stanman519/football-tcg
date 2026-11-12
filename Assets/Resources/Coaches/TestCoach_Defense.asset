@@ -1,0 +1,64 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6557eaece09851348b809351e02c5cf7, type: 3}
+  m_Name: TestCoach_Defense
+  m_EditorClassIdentifier: Assembly-CSharp::CoachCardData
+  title: Coach Mercer
+  card_image: {fileID: 0}
+  ability_text: Zone defense specialist. Stifling deep coverage.
+  offenseYardage:
+  - playType: 1
+    yards: 3
+  - playType: 2
+    yards: 5
+  - playType: 3
+    yards: 10
+  defenseYardage:
+  - playType: 1
+    yards: 3
+  - playType: 2
+    yards: 3
+  - playType: 3
+    yards: 7
+  positionalScheme:
+  - position: 1
+    maxCards: 1
+    fieldSlots: 1
+  - position: 3
+    maxCards: 2
+    fieldSlots: 3
+  - position: 2
+    maxCards: 2
+    fieldSlots: 2
+  - position: 5
+    maxCards: 2
+    fieldSlots: 5
+  - position: 10
+    maxCards: 2
+    fieldSlots: 4
+  - position: 11
+    maxCards: 2
+    fieldSlots: 3
+  - position: 12
+    maxCards: 2
+    fieldSlots: 4
+  offenseFormations: []
+  defenseFormations:
+  - playType: 0
+    formation: {fileID: 11400000, guid: bee8436f0b365a1418c58fdba9b6c111, type: 2}
+  - playType: 1
+    formation: {fileID: 11400000, guid: bee8436f0b365a1418c58fdba9b6c111, type: 2}
+  - playType: 2
+    formation: {fileID: 11400000, guid: bee8436f0b365a1418c58fdba9b6c111, type: 2}
+  - playType: 3
+    formation: {fileID: 11400000, guid: bee8436f0b365a1418c58fdba9b6c111, type: 2}
+  coachProfile: {fileID: 11400000, guid: b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7, type: 2}

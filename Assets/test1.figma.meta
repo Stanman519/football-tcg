@@ -1,0 +1,43 @@
+fileFormatVersion: 2
+guid: b1d269b8edbfb0f41a75ff1fd72a1ee0
+ScriptedImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 2
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+  script: {fileID: 11500000, guid: ac69724a0d29c2b43917235d0115eedc, type: 3}
+  _pages:
+  - enabled: 1
+    id: 0:1
+    name: Page 1
+  _fonts:
+  - fontName: Space Grotesk-Black
+    font: {instanceID: 0}
+  - fontName: Space Grotesk-Bold
+    font: {instanceID: 0}
+  - fontName: Inter-Medium
+    font: {instanceID: 0}
+  - fontName: Inter-Bold
+    font: {instanceID: 0}
+  - fontName: Noto Sans-Regular
+    font: {instanceID: 0}
+  _fallbackFont: {instanceID: 0}
+  _pageReferences: []
+  _layer: 0
+  _pixelsPerUnit: 100
+  _scaleFactor: 1
+  _gradientResolution: 128
+  _minTextureSize: 64
+  _maxTextureSize: 1024
+  _rectTextureSize: 32
+  _wrapMode: 1
+  _filterMode: 1
+  _sampleCount: 4
+  _expandEdges: 0
+  _markExternalAssetAsDependency: 1
+  _generateUniqueNodeName: 0
+  _localizationConverter: 
+  _effectConverters: []
+  _assetBindings: []

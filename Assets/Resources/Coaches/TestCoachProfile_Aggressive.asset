@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fda2dc7a270d3e44a9af49ad56dad69a, type: 3}
+  m_Name: TestCoachProfile_Aggressive
+  m_EditorClassIdentifier: Assembly-CSharp::TcgEngine.CoachData
+  id: aggressive_test
+  displayName: Aggressive Coach Profile
+  description: High coverage bonus when correct. Steep penalty when wrong. Boom-bust.
+  coachType: 1
+  baseRunBonus: 0
+  baseShortPassBonus: 0
+  baseLongPassBonus: 0
+  coverageRun: 0
+  coverageShortPass: 0
+  coverageLongPass: 0
+  coverageBonusCorrect: 5
+  coveragePenaltyWrong: 4
+  abilities:
+  - id: mercer_on_3rddown_draw
+    trigger: 5
+    phase: 0
+    conditions: []
+    effects:
+    - {fileID: 11400000, guid: c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8, type: 2}
